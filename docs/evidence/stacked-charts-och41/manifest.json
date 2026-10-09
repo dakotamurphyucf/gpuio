@@ -1,0 +1,322 @@
+{
+  "base_commit": "28aaee40f206e2bcb80ededd00ed1eaf9cb30b05",
+  "scope": "Local stacked bar/area integration qualification",
+  "archive_sha256": "d5f2d3b2aad41ac8ab9cfd1c344093fbbb07fce413a74ebe57faa081ef649750",
+  "files": [
+    {
+      "path": "binary.json",
+      "bytes": 122,
+      "sha256": "cd86a01519129f5af7e208be53a08070459a75fc7ecf4df43dae8d664606bb65"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 927,
+      "sha256": "150c69c3db0f4a30162dc8308a769cf8610c9b8392221ee693491dce55aafd3f"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 82,
+      "sha256": "6e1453ea9c1ef0c20b76675b08f9e8c930bf10a19af1097d06b47b389abcaa58"
+    },
+    {
+      "path": "final-results.json",
+      "bytes": 531,
+      "sha256": "fd3c4d4d836b3c205373d6985c134b768d0c6a21bc6657ab54510547111c9d6a"
+    },
+    {
+      "path": "images/gallery-chart-auto-categories.png",
+      "bytes": 388700,
+      "sha256": "d03eb54c449b9e5413f8dfde6b3fdea0a2bb2fc3d6125d4e8136e59718a68270"
+    },
+    {
+      "path": "images/gallery-chart-band-categories.png",
+      "bytes": 391062,
+      "sha256": "8803dba6bd8cbe5af7fc56b43834e249d5810bebec1025cf5b4a3431e7451e68"
+    },
+    {
+      "path": "images/gallery-chart-horizontal-reversed.png",
+      "bytes": 402993,
+      "sha256": "3cc9b470dcb38cfbcb21e16dcc71d5af3012313a82ae0c873398965fc0786b3c"
+    },
+    {
+      "path": "images/gallery-chart-horizontal.png",
+      "bytes": 403202,
+      "sha256": "7cb1fcb457c625a58c8d270dc055c94f5b2993c5b8ad21f3decf625887618868"
+    },
+    {
+      "path": "images/gallery-chart-point-categories.png",
+      "bytes": 385334,
+      "sha256": "7bb4afb0e5ec540397a881cf530fed26bdc800a987dd2fe3447a8d399a025312"
+    },
+    {
+      "path": "images/gallery-chart-stacked-areas.png",
+      "bytes": 400240,
+      "sha256": "218663cccd6847ae1b0d2b941ad12544b34bf69d0947b58a45b33df580f9e9b1"
+    },
+    {
+      "path": "images/gallery-chart-stacked-bars.png",
+      "bytes": 388576,
+      "sha256": "0418e96bbb15c1d0a9d4d695739b0d4a03060ea8edcfbdc13a8709b369169318"
+    },
+    {
+      "path": "images/gallery-chart-vertical-reversed.png",
+      "bytes": 399613,
+      "sha256": "106dd28a84126a37e885b27f021742c23fcab32b9e6eddfd9d1f4c108e643feb"
+    },
+    {
+      "path": "images/gallery-chart-vertical.png",
+      "bytes": 396711,
+      "sha256": "2ceee89ae96c1439ae632dc36c8bc0122e3213dc71f58346fe63da847281b53d"
+    },
+    {
+      "path": "images/gallery-charts.png",
+      "bytes": 398754,
+      "sha256": "36c42c274e487356db807ef5da92455fda4eddc64e6d41bcfb635603bfa4794b"
+    },
+    {
+      "path": "logs/chart-stacking-catalog.log",
+      "bytes": 640,
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75"
+    },
+    {
+      "path": "logs/chart-stacking-clippy.log",
+      "bytes": 588425,
+      "sha256": "862f525951f73782dc1c4762890ece1138d68c65b8701f50cc0dc6bdbca8c1ff"
+    },
+    {
+      "path": "logs/chart-stacking-consumer.log",
+      "bytes": 207191,
+      "sha256": "87f77cc64abaa902224bd9007e9e7ba442b4269b441fce59fffd1e6319dda482"
+    },
+    {
+      "path": "logs/chart-stacking-focused.log",
+      "bytes": 589238,
+      "sha256": "7393a50b9438d3a587b1a26eabccc09b80239b6fd085a7a60837e57dc2777897"
+    },
+    {
+      "path": "logs/chart-stacking-gallery.log",
+      "bytes": 6207,
+      "sha256": "d3fafe8282ccca4d9ad4edf4911176ec59650697992d42a3e4018cf04febd7ed"
+    },
+    {
+      "path": "logs/chart-stacking-gpu.log",
+      "bytes": 597357,
+      "sha256": "a4fc91a4824c6393b5755238ea633deea7d330273f923149a93e85078fb7e3ce"
+    },
+    {
+      "path": "logs/chart-stacking-native-final.log",
+      "bytes": 694728,
+      "sha256": "bb610a24fc08f11aaa8d86df72de59b373d0fdaf60a67e1dfdc1d095d7e3ec8d"
+    },
+    {
+      "path": "logs/chart-stacking-native.log",
+      "bytes": 694060,
+      "sha256": "2ab0df41415a525989be57ec9e850b1a3f565ed89d58ef8ab989126e0560eb06"
+    },
+    {
+      "path": "logs/chart-stacking-ocaml-final.log",
+      "bytes": 605457,
+      "sha256": "f93dcd9771f4d1a63a3d5f82d93d75d50749a5822fbce82cadc77969f99f7454"
+    },
+    {
+      "path": "logs/chart-stacking-ocaml.log",
+      "bytes": 705763,
+      "sha256": "69dcff9f9a4f98b1f979a4455f181d1b0aee1f7075272f81bc07587ee36b0618"
+    },
+    {
+      "path": "logs/chart-stacking-protocol.log",
+      "bytes": 55110,
+      "sha256": "6edc365b7f1299b00270a64c5abbada4837a2dd6e941f392f921e23b91373af0"
+    },
+    {
+      "path": "logs/chart-stacking-rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source/docs/catalog/charts-review.md",
+      "bytes": 10309,
+      "sha256": "3ba41250fc996c178c1fea5241315aebe29dfad2e01e30381426fac2370c08dc"
+    },
+    {
+      "path": "source/docs/catalog/families.json",
+      "bytes": 71714,
+      "sha256": "cd8fa958cb23e4f27007558c18deda24662d0fa55b298d4117b97bcc9a3e069f"
+    },
+    {
+      "path": "source/docs/design/categorical-charts.md",
+      "bytes": 10029,
+      "sha256": "f40e08895f49a058a8cff22e202f24d63249997bac090753fe2dda729645a8c3"
+    },
+    {
+      "path": "source/docs/design/charts.md",
+      "bytes": 46382,
+      "sha256": "5406849dd0f0c19d6c81c491c56403f95b1deca14218f358926cb2d7b6a6f0de"
+    },
+    {
+      "path": "source/docs/design/stacked-charts.md",
+      "bytes": 5721,
+      "sha256": "6395ad6d3ab1d3e61d20e54ae5faf643ad0c652ab39ae3cd879f0f1e6044e27d"
+    },
+    {
+      "path": "source/docs/evidence/stacked-charts-och41.md",
+      "bytes": 5063,
+      "sha256": "a37bf7969e20de49ce532d327a5ec09ccea89b96df9a6e41b543d6ebc29257f0"
+    },
+    {
+      "path": "source/docs/status.md",
+      "bytes": 49246,
+      "sha256": "2ca52c6baa2798bd84116abb7aa8817bc76379927b305b46eda6944396350820"
+    },
+    {
+      "path": "source/examples/charts/README.md",
+      "bytes": 4165,
+      "sha256": "214b2e55a7d730e4a951d7e72cdd32005e807bd72d447ed907481b77449efac9"
+    },
+    {
+      "path": "source/examples/charts/samples/gpuio_chart_samples.ml",
+      "bytes": 10170,
+      "sha256": "dc55ff9844b11604ee3788daf18b8296f937873ebb33affcd5096d1ff8fd94ca"
+    },
+    {
+      "path": "source/examples/charts/samples/gpuio_chart_samples.mli",
+      "bytes": 1492,
+      "sha256": "7c13fb3d3fc6ce255b11f75eb3ea3c88c1f848d9d3518417736d2278e27f854e"
+    },
+    {
+      "path": "source/examples/charts/samples/stacked.md",
+      "bytes": 4054,
+      "sha256": "62877f6f62def9943fb47e91e1d1093132c1af083a7a1e5884bfc3cb6a14108b"
+    },
+    {
+      "path": "source/examples/charts/samples/stacked.ml",
+      "bytes": 1327,
+      "sha256": "b55b0aff9b73b9c93137b40760e51788f1b3b5441324550878670c91a71a5684"
+    },
+    {
+      "path": "source/examples/charts/samples/stacked.mli",
+      "bytes": 297,
+      "sha256": "2de924ba45286417f644b3af6b3bed508b594f185b75336dabeea60d3184d9ac"
+    },
+    {
+      "path": "source/examples/gallery/README.md",
+      "bytes": 70241,
+      "sha256": "ec3aa5952f5e8cc7bf7f285bfbed441fdd384bcfd1a9d17a31e9c906d9358f90"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.md",
+      "bytes": 8029,
+      "sha256": "0ffb4dd376212e8ae02bc27965ff95ba0d986476b63eab45825af6a4c318bb95"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.ml",
+      "bytes": 9663,
+      "sha256": "7d24939a8bf116d9d2b3939417ed7ba7861e3da1673cc293ef266fa50713e44a"
+    },
+    {
+      "path": "source/lib/core/chart_options.ml",
+      "bytes": 5076,
+      "sha256": "47a92f1b60ea634bfa93b8af61eaaad64abc7fcd3f80320732247126327ff071"
+    },
+    {
+      "path": "source/lib/core/chart_options.mli",
+      "bytes": 6532,
+      "sha256": "8f34c7595eb77d0be1d3801061151c760c8aeaa2477ee7944bf738be4a581c44"
+    },
+    {
+      "path": "source/lib/core/chart_sampling.mli",
+      "bytes": 2737,
+      "sha256": "534e7d34be219734f1a37f2c18b8bfcd3e528b947ae82c750c52fc8cab1f496b"
+    },
+    {
+      "path": "source/lib/protocol/chart_options_wire.ml",
+      "bytes": 3504,
+      "sha256": "13c8d91ddaa573025380c85848f68f4108a644b1daf93d296f987d78a2eee550"
+    },
+    {
+      "path": "source/rust/native/src/chart_details.rs",
+      "bytes": 12609,
+      "sha256": "0f5f918e962eff03ad2297b611f0fa1b7eda7db471e8281ac70cf6c022c05565"
+    },
+    {
+      "path": "source/rust/native/src/chart_geometry.rs",
+      "bytes": 34503,
+      "sha256": "084a6e42078d4e414d9078e0b8787aa9ee7457bbf01fb1bc0bc7e729b70b89a4"
+    },
+    {
+      "path": "source/rust/native/src/chart_geometry/stacking.rs",
+      "bytes": 4402,
+      "sha256": "4d17a2bafd760701a4c5a6dc7493b6a8207478de95bded54d8d2e2b1a53f7a3e"
+    },
+    {
+      "path": "source/rust/native/src/chart_geometry/stacking/tests.rs",
+      "bytes": 13672,
+      "sha256": "2bde8b9828dcc3795415b76d909d6bb2a4ec3e61f7d1172afec23a1ff0d133dc"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint/native_test.rs",
+      "bytes": 18142,
+      "sha256": "d15d29680e95fc57da21c3701f36743c370c9900766386d65b52dd31dd9a56dc"
+    },
+    {
+      "path": "source/rust/native/src/chart_reduce.rs",
+      "bytes": 16083,
+      "sha256": "0b13d3d8f294f64846d48f6b287159e8337304dda4e25ad2bd65595ae9322b6e"
+    },
+    {
+      "path": "source/rust/native/src/chart_reduce/stacking.rs",
+      "bytes": 5735,
+      "sha256": "8dc9e267e7f7459dc8b5085b2b685da8d4bf08699fd6321345c750ef6ce56ae0"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_options.rs",
+      "bytes": 5284,
+      "sha256": "cc01cda0e0fcfa267ef862aa947fdf55f17aa046023359acedeb8d79afb13795"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_options.rs",
+      "bytes": 3992,
+      "sha256": "3a4dc0827a5a03383135429bcd0fd1fc48487664afaffcb2139ed99af580823f"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_options.rs",
+      "bytes": 7321,
+      "sha256": "f62f11d36f7d9a1db4d8d57e5843ab41540c4c27fb2a29ba299897e9d0ad132f"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_view.rs",
+      "bytes": 4387,
+      "sha256": "449eda0bdc30792b9fbb5135a8779e97f463316d06c5e93987102e3f62632734"
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "bytes": 345429,
+      "sha256": "b0fdbabe4d79f181e4604d434d9384d968689e98543d034bb025242f73dbd91f"
+    },
+    {
+      "path": "source/test/chart/chart_options_test.ml",
+      "bytes": 6042,
+      "sha256": "3ae08161dac68d325308aec0eb705b882b9d252e1932e532677455193bef6d39"
+    },
+    {
+      "path": "source/test/chart/chart_view_test.ml",
+      "bytes": 5082,
+      "sha256": "1b058e8f7aebca472f121e0b63134ef78cccdc2b8f5077ee1f88035d55255f23"
+    },
+    {
+      "path": "source/test/chart/dune",
+      "bytes": 377,
+      "sha256": "3a9dc446492cb7058be0357a9702729b0a79ca0c0c0a975b4a7f713bfbc3a1e3"
+    },
+    {
+      "path": "source/test/fixtures/chart-v3-view.hex",
+      "bytes": 265,
+      "sha256": "e381df9e93d3c5c681194b55d158dd678e232d6aa9ddacac5ac7a9bf4b25742e"
+    },
+    {
+      "path": "tracked.patch",
+      "bytes": 53820,
+      "sha256": "a0c74fab41a2f2263debda9ae539582ab3380c004b9bc58c2091e4414a6e1b9d"
+    }
+  ]
+}

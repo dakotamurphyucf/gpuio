@@ -25,4 +25,10 @@ component_0 = { package = "gpuio-example-counter", path = "../../extension_packa
 [patch.crates-io]
 gpuio-extension-sdk = { path = "../../../rust/extension-sdk" }
 accesskit_macos = { path = "../../../vendor/accesskit-macos" }
+accesskit_consumer = { path = "../../../vendor/accesskit-consumer" }
 taffy = { path = "../../../vendor/taffy" }
+
+[patch."https://github.com/zed-industries/zed.git"]
+gpui = { path = "../../../vendor/gpui" }
+gpui_macos = { path = "../../../vendor/gpui-macos" }
+gpui_apple = { path = "../../../vendor/gpui-apple" }

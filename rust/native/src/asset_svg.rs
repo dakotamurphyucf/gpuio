@@ -73,6 +73,8 @@ pub struct Request {
     /// RRGGBBAA for a monochrome icon; None preserves all SVG colors. The SVG's
     /// resulting alpha mask is multiplied by the supplied color's alpha.
     pub tint: Option<u32>,
+    /// Physical-pixel viewport corners, applied before any GPU transform.
+    pub corners: ClipRadii,
 }
 impl Default for Request {
     fn default() -> Self {
@@ -81,8 +83,52 @@ impl Default for Request {
             density: Density::default(),
             fit: Fit::Contain,
             tint: None,
+            corners: ClipRadii::default(),
         }
     }
+}
+/// Finite nonnegative radii in TL, TR, BR, BL order. Float bits are stable cache
+/// keys; signed zero is canonicalized. The worker clamps to half the viewport's
+/// smaller dimension, matching GPUI image corner clamping.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ClipRadii([u32; 4]);
+impl ClipRadii {
+    pub fn new(values: [f32; 4]) -> Result<Self, Error> {
+        if values
+            .iter()
+            .any(|v| !v.is_finite() || *v < 0. || *v > asset_decode::MAX_DIMENSION as f32)
+        {
+            return Err(Error::InvalidData);
+        }
+        Ok(Self(values.map(|v| if v == 0. { 0 } else { v.to_bits() })))
+    }
+    fn clamped(self, size: RasterSize) -> Option<[f32; 4]> {
+        (self != Self::default()).then(|| {
+            let max = size.width.min(size.height) as f32 / 2.;
+            self.0.map(|bits| f32::from_bits(bits).min(max))
+        })
+    }
+}
+
+fn corner_coverage(radii: [f32; 4], size: RasterSize, index: usize) -> f32 {
+    let x = (index % size.width as usize) as f32 + 0.5;
+    let y = (index / size.width as usize) as f32 + 0.5;
+    let right = x >= size.width as f32 / 2.;
+    let bottom = y >= size.height as f32 / 2.;
+    let radius = radii[match (right, bottom) {
+        (false, false) => 0,
+        (true, false) => 1,
+        (true, true) => 2,
+        (false, true) => 3,
+    }];
+    let x = if right { size.width as f32 - x } else { x };
+    let y = if bottom { size.height as f32 - y } else { y };
+    if x >= radius || y >= radius {
+        return 1.;
+    }
+    // One physical pixel of coverage at the circular edge. No auxiliary bitmap
+    // or retained allocation; the final image keeps its existing pixel charge.
+    (radius + 0.5 - (radius - x).hypot(radius - y)).clamp(0., 1.)
 }
 #[derive(Default)]
 struct Budget {
@@ -381,7 +427,8 @@ fn render_with_fonts(
     let transform = tiny_skia::Transform::from_row(scale_x, 0., 0., scale_y, x, y);
     resvg::render(&tree, transform, &mut pixmap.as_mut());
     let mut bytes = pixmap.take();
-    for pixel in bytes.chunks_exact_mut(4) {
+    let corners = request.corners.clamped(size);
+    for (index, pixel) in bytes.chunks_exact_mut(4).enumerate() {
         let alpha = pixel[3] as u32;
         if let Some(tint) = request.tint {
             pixel.copy_from_slice(&[
@@ -395,6 +442,11 @@ fn render_with_fonts(
                 |value: u8| ((u32::from(value) * 255 + alpha / 2) / alpha).min(255) as u8;
             let (red, green, blue) = (straight(pixel[0]), straight(pixel[1]), straight(pixel[2]));
             pixel.copy_from_slice(&[blue, green, red, alpha as u8]);
+        }
+        // Unpremultiply with the original alpha above; clipping must not inflate
+        // RGB channels in antialiased pixels or change the supplied tint alpha.
+        if let Some(corners) = corners {
+            pixel[3] = (f32::from(pixel[3]) * corner_coverage(corners, size, index)).round() as u8;
         }
     }
     let buffer =

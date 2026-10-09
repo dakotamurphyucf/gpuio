@@ -1,0 +1,26 @@
+{
+  "archive": "chart-catalog-current-och41-logs.tar.gz",
+  "sha256": "655dcc21d4aa66fd3c17e85d7a3d81f06b6541d9d9f2411cd09dade5b308b608",
+  "members": [
+    {
+      "path": "chart-catalog-current.log",
+      "bytes": 72555,
+      "sha256": "619cc15697d35308e48ff40dadeae1d9ea0c7712942798a5cb400ed36181786a"
+    },
+    {
+      "path": "chart-catalog-audit.log",
+      "bytes": 640,
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75"
+    },
+    {
+      "path": "chart-catalog-metadata.json",
+      "bytes": 1163,
+      "sha256": "83f3b5c19a9aa379295a7e4e862586374df881e14499bb744eed54ca730c21ba"
+    },
+    {
+      "path": "chart-catalog-current-images/gallery-backgrounds-intervals-reordered.png",
+      "bytes": 416116,
+      "sha256": "7f7bd0c1c72ecd33ec38d300d731b926a242d874f13b3702f636bd59e1d95bf2"
+    }
+  ]
+}

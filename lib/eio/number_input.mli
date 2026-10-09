@@ -13,7 +13,23 @@ val create
   -> Bonsai.Cont.graph
   -> t Bonsai.Cont.t
 
-val view : ?style:Gpuio.Style.t -> t -> Gpuio_bonsai.View.t
+(** Mount-only seeds: [initial] overrides the committed value; [initial_draft]
+    supplies independent text, including an unfinished/invalid expression.
+    Omitting the draft formats the normalized committed value. Neither seed
+    replaces a live draft. Selection, IME and undo history start fresh.
+
+    [on_event] observes native events for this placement, alongside the
+    controller's normal observation and [create] event handlers. It does not run for
+    command replies: handle those results explicitly. Use the row lifetime to
+    guard this callback when mirroring application drafts from transient rows;
+    a retained controller's last snapshot can outlive its native placement. *)
+val view
+  :  ?style:Gpuio.Style.t
+  -> ?initial:Gpuio.Number_input.Value.t
+  -> ?initial_draft:Gpuio.Number_input.Draft.t
+  -> ?on_event:(Gpuio.Number_input.Event.t -> unit Bonsai.Effect.t)
+  -> t
+  -> Gpuio_bonsai.View.t
 
 (** Last native observation; absent before mounting. A retained controller can
     outlive its placement, in which case commands fail with [Stale_input]. *)
@@ -109,3 +125,53 @@ val redo
   :  t
   -> (Gpuio.Number_input.Snapshot.t, Gpuio.Number_input.Command_error.t) Result.t
        Bonsai.Effect.t
+
+(** Resolve a native application-step intent once. Its original editor lifetime
+    and revision are checked even after this controller has remounted. A delayed
+    value never overwrites intervening native editing or policy changes. *)
+val resolve_step
+  :  t
+  -> Gpuio.Number_input.Step_request.t
+  -> Gpuio.Number_input.Step_resolution.t
+  -> (Gpuio.Number_input.Snapshot.t, Gpuio.Number_input.Command_error.t) Result.t
+       Bonsai.Effect.t
+
+module Step_task : sig
+  module Error : sig
+    type t =
+      | Work_failed of Error.t
+      | Resolution_failed of Gpuio.Number_input.Command_error.t
+    [@@deriving sexp_of]
+  end
+
+  type t
+
+  (** Cancel computation and queued completion; decline the original native
+      request once. Cancellation after a proposal was dispatched cannot undo
+      a native edit. No completion callback is delivered after cancellation. *)
+  val cancel : t -> unit
+
+  val is_finished : t -> bool
+end
+
+(** Run application-step work in an Eio child scope. Pass I/O capabilities in
+    [f]'s closure; it must not access Bonsai from another domain. Work exceptions
+    become [Work_failed] after queueing a guarded decline. Resolution failures
+    also decline and report [Resolution_failed]. Scope/limit failures decline
+    and return [Error] without starting work. A scope from another application
+    is rejected. Ordinary numeric-command saturation cannot block cleanup.
+
+    Cancellation of [scope] or the returned task suppresses late completion.
+    Cleanup never invokes [on_result]. Normal completion retires the child scope
+    before invoking [on_result], whose exceptions follow the application's usual
+    callback-failure policy. The caller must bind [scope] to its desired lifetime;
+    merely hiding a view does not cancel unrelated application scopes. *)
+val run_step
+  :  t
+  -> scope:Scope.t
+  -> Gpuio.Number_input.Step_request.t
+  -> f:(unit -> Gpuio.Number_input.Step_resolution.t)
+  -> on_result:
+       ((Gpuio.Number_input.Snapshot.t, Step_task.Error.t) Result.t
+        -> unit Bonsai.Effect.t)
+  -> Step_task.t Or_error.t Bonsai.Effect.t

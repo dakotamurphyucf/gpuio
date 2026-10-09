@@ -1,0 +1,47 @@
+--- a/src/node.rs
++++ b/src/node.rs
+@@ -1082,10 +1082,12 @@
+         #[method(setAccessibilitySelected:)]
+         fn set_selected(&self, selected: bool) {
+             self.resolve_with_context(|node, tree, context| {
+-                if supports_tree_selection(node) || supports_table_selection(node) {
++                if supports_tree_selection(node) || supports_table_selection(node) || supports_list_selection(node) {
+                     let (select, deselect) = if supports_tree_selection(node) {
+                         (TREE_SELECT, TREE_DESELECT)
+-                    } else { (TABLE_SELECT, TABLE_DESELECT) };
++                    } else if supports_table_selection(node) {
++                        (TABLE_SELECT, TABLE_DESELECT)
++                    } else { (LIST_SELECT, LIST_DESELECT) };
+                     if let Some((target_node, target_tree)) = tree.state().locate_node(node.id()) {
+                         // Always queue desired state, including equal snapshots: a
+                         // preceding opposite setter may still await application reduction.
+@@ -1464,7 +1466,7 @@
+                     let wrapper = NodeWrapper(node);
+                     return wrapper.is_container_with_selectable_children() || table_container(node)
+                 }
+-                if selector == sel!(setAccessibilitySelected:) && (supports_tree_selection(node) || supports_table_selection(node)) {
++                if selector == sel!(setAccessibilitySelected:) && (supports_tree_selection(node) || supports_table_selection(node) || supports_list_selection(node)) {
+                     return true;
+                 }
+                 if selector == sel!(setAccessibilitySelected:) || selector == sel!(accessibilityPerformPick)
+@@ -1564,6 +1566,20 @@
+         })
+ }
+ 
++// Desired-state setters are opt-in; ordinary options retain upstream Click behavior.
++const LIST_SELECT: i32 = 0x4753_0001;
++const LIST_DESELECT: i32 = 0x4753_0002;
++
++fn supports_list_selection(node: &Node) -> bool {
++    node.role() == Role::ListBoxOption
++        && !node.is_disabled()
++        && node.is_selectable()
++        && node.supports_action(Action::CustomAction, &filter)
++        && [LIST_SELECT, LIST_DESELECT].iter().all(|id| {
++            node.data().custom_actions().iter().any(|action| action.id == *id)
++        })
++}
++
+ fn supports_tree_expansion(node: &Node) -> bool {
+     node.role() == Role::TreeItem
+         && !node.is_disabled()

@@ -1,5 +1,8 @@
 # Canvas resource transport and scoped API checks
 
+Read the [source walkthrough](main.md) for the exact transport stages, effect
+scheduling, ownership, commands, and diagnostic limits.
+
 Run `./scripts/gpuio exec dune exec examples/canvas_upload/main.exe` from the
 repository root. The app starts GPUI's native runtime without opening a window.
 

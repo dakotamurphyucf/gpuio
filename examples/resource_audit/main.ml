@@ -1,0 +1,11 @@
+open Core
+
+let () =
+  let flag name = Array.exists (Sys.get_argv ()) ~f:(String.equal name) in
+  Gpuio_lifecycle_workload.run
+    ~smoke:(flag "--smoke")
+    ~background:(flag "--background")
+    ~native_entities:true
+    ~metal_memory:(flag "--metal-memory")
+    ~presentation:(flag "--presentation")
+;;

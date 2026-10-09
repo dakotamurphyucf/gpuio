@@ -1,0 +1,1429 @@
+{
+  "complete": true,
+  "smoke": false,
+  "build_profile": "release",
+  "evidence": {
+    "editor_focused_then_blurred": true,
+    "focused": [
+      {
+        "elapsed_seconds": 1.959502696990967e-06,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 1.0693834591656923,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 2.041964292526245,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 3.001923999749124,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 4.080126250162721,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 5.05099733453244,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 6.012086042203009,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 7.076460459269583,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 8.034086625091732,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 9.089677667245269,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 10.052234292030334,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 11.014522166922688,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 12.06318583432585,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 13.027424291707575,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 14.087392625398934,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 15.059195999987423,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 16.0032906671986,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 17.07062350027263,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 18.026853499934077,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 19.09365462511778,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 20.073544833809137,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 21.044661916792393,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 22.109245374798775,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 23.079509667120874,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 24.043572874739766,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 25.00961829163134,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 26.0822242917493,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 27.04369120951742,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 28.016171334311366,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 29.075800041668117,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 30.035405041649938,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 31.00300145894289,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 32.06230670865625,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 33.02140187472105,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 34.09636333398521,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 35.073416833765805,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 36.03627354186028,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 37.10139379184693,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 38.062333959154785,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 39.02659537550062,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 40.08205541688949,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 41.04976004175842,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 42.009992624633014,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 43.08176516741514,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 44.031534417532384,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 45.09788312483579,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 46.060103417374194,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 47.03121408447623,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 48.00391387473792,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 49.094081667251885,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 50.054992333985865,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 51.009126249700785,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 52.07764695864171,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 53.03492808435112,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 54.08910591714084,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 55.04066116735339,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 56.100108958780766,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 57.068962500430644,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 58.04817808419466,
+        "frontmost": true
+      },
+      {
+        "elapsed_seconds": 59.01871650014073,
+        "frontmost": true
+      }
+    ],
+    "unfocused": [
+      {
+        "elapsed_seconds": 2.7791596949100494e-05,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 1.079337458126247,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 2.0524480417370796,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 3.0297100422903895,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 4.001293707638979,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 5.072417125105858,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 6.05552658252418,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 7.024109249934554,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 8.09138370770961,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 9.061940042302012,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 10.029694042168558,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 11.002391416579485,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 12.081931999884546,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 13.053127124905586,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 14.025742041878402,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 15.002274957485497,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 16.08074037451297,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 17.049355291761458,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 18.016410833224654,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 19.10637000016868,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 20.080652167089283,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 21.055444166995585,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 22.032479249872267,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 23.011717417277396,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 24.075846707448363,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 25.06044691707939,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 26.038714041933417,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 27.018581457436085,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 28.105880416929722,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 29.07848025020212,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 30.040561333298683,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 31.021228041499853,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 32.092221667058766,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 33.071644333191216,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 34.04611395765096,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 35.026917832903564,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 36.10043820831925,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 37.080498250201344,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 38.057404042221606,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 39.01751162484288,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 40.10650354158133,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 41.08483254164457,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 42.05402829218656,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 43.022272041998804,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 44.005348457954824,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 45.076283416710794,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 46.058436333201826,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 47.03968899976462,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 48.00121104158461,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 49.07778404187411,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 50.05530908331275,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 51.02647474966943,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 52.006285707466304,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 53.07902991678566,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 54.05517916660756,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 55.022565292194486,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 56.10648720804602,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 57.072518499568105,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 58.04954999964684,
+        "frontmost": false
+      },
+      {
+        "elapsed_seconds": 59.00970700010657,
+        "frontmost": false
+      }
+    ]
+  },
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "measurement": "Native idle counters, activation transitions and sampled AppKit occlusion; not physical FPS",
+  "revision": "1180cbb6e834882f138c91c1ed83667d187d1748",
+  "dirty": false,
+  "executable_sha256": "a12d50677ae58d618419e86e7ec8682f172e0056b3a835828e9c27a58982f1e2",
+  "hardware": "Apple M1 Max",
+  "display": "{\n  \"SPDisplaysDataType\" : [\n    {\n      \"_name\" : \"Apple M1 Max\",\n      \"spdisplays_mtlgpufamilysupport\" : \"spdisplays_metal3\",\n      \"spdisplays_ndrvs\" : [\n        {\n          \"_name\" : \"Color LCD\",\n          \"_spdisplays_display-product-id\" : \"a051\",\n          \"_spdisplays_display-serial-number\" : \"fd626d62\",\n          \"_spdisplays_display-vendor-id\" : \"610\",\n          \"_spdisplays_display-week\" : \"0\",\n          \"_spdisplays_display-year\" : \"0\",\n          \"_spdisplays_displayID\" : \"1\",\n          \"_spdisplays_pixels\" : \"3456 x 2234\",\n          \"_spdisplays_resolution\" : \"1728 x 1117 @ 120.00Hz\",\n          \"spdisplays_ambient_brightness\" : \"spdisplays_yes\",\n          \"spdisplays_connection_type\" : \"spdisplays_internal\",\n          \"spdisplays_display_type\" : \"spdisplays_built-in-liquid-retina-xdr\",\n          \"spdisplays_main\" : \"spdisplays_yes\",\n          \"spdisplays_mirror\" : \"spdisplays_off\",\n          \"spdisplays_online\" : \"spdisplays_yes\",\n          \"spdisplays_pixelresolution\" : \"spdisplays_3456x2234Retina\"\n        }\n      ],\n      \"spdisplays_vendor\" : \"sppci_vendor_Apple\",\n      \"sppci_bus\" : \"spdisplays_builtin\",\n      \"sppci_cores\" : \"32\",\n      \"sppci_device_type\" : \"spdisplays_gpu\",\n      \"sppci_model\" : \"Apple M1 Max\"\n    }\n  ]\n}",
+  "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=19529827)\t57%; charging; 1:03 remaining present: true",
+  "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+  "child_pid": 8708,
+  "returncode": 0,
+  "wall_seconds": 125.76851554214954,
+  "cpu_user_seconds": 1.100902,
+  "cpu_system_seconds": 0.676713,
+  "peak_rss_bytes": 98779136,
+  "workload": {
+    "focused": {
+      "elapsed_ns": 60008387458,
+      "capture_ns": 877541,
+      "dropped_inputs": 0,
+      "begin_capture_ns": 123542,
+      "histograms": {
+        "draw": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        },
+        "dirty_to_submission": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        },
+        "animation_submission_interval": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        },
+        "input_to_frame": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        },
+        "inputs_per_frame": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        }
+      },
+      "native_observations": [
+        [
+          "124958",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "1045701125",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "2037390750",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "3045277541",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "4036812375",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "5044911250",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "6044827666",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "7044904208",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "8043756875",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "9035996625",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "10036681916",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "11036592041",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "12045953750",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "13046591000",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "14037720375",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "15037872625",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "16045066166",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "17035997875",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "18044872583",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "19043682833",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "20045183333",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "21045572000",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "22038168000",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "23036740416",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "24036448583",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "25036815541",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "26036239958",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "27036357916",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "28044862833",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "29037398333",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "30045795375",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "31036982625",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "32045144041",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "33046321208",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "34045434791",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "35036393208",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "36046362416",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "37036818333",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "38046137083",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "39036802750",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "40045528708",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "41045970916",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "42046772375",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "43045118250",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "44045163375",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "45044745125",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "46037562000",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "47046090666",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "48045049416",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "49038649625",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "50046556541",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "51045403333",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "52028013750",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "53036808583",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "54027929791",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "55044233625",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "56036060583",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "57037025916",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "58036073375",
+          "true",
+          [
+            "true"
+          ]
+        ],
+        [
+          "59047206958",
+          "true",
+          [
+            "true"
+          ]
+        ]
+      ]
+    },
+    "unfocused": {
+      "elapsed_ns": 60014398125,
+      "capture_ns": 319250,
+      "dropped_inputs": 0,
+      "begin_capture_ns": 337417,
+      "histograms": {
+        "draw": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        },
+        "dirty_to_submission": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        },
+        "animation_submission_interval": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        },
+        "input_to_frame": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        },
+        "inputs_per_frame": {
+          "count": 0,
+          "buckets": [],
+          "p95": null,
+          "p99": null
+        }
+      },
+      "native_observations": [
+        [
+          "344250",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "1041085292",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "2001583792",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "3030882875",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "4040222209",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "5041866792",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "6031455167",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "7001391542",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "8031498709",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "9031153709",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "10031811417",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "11039655459",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "12038481250",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "13042321542",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "14039113709",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "15031751250",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "16032390250",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "17042171500",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "18042383125",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "19031528792",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "20047174125",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "21040073542",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "22042237167",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "23040737750",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "24039272542",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "25046327834",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "26040235375",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "27043187084",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "28039855334",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "29046853750",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "30039483584",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "31009018500",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "32042755917",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "33007515917",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "34049177042",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "35008486917",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "36047698875",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "37041176584",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "38032160334",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "39039749584",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "40001139334",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "41006875042",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "42039990625",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "43045367834",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "44008575917",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "45001358500",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "46031507084",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "47041834167",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "48044136917",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "49041418459",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "50008781084",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "51031911625",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "52040499459",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "53040490125",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "54039891500",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "55031623792",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "56030729584",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "57033003709",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "58040490084",
+          "false",
+          [
+            "true"
+          ]
+        ],
+        [
+          "59038698709",
+          "false",
+          [
+            "true"
+          ]
+        ]
+      ]
+    }
+  }
+}

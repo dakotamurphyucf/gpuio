@@ -154,3 +154,24 @@ let%expect_test "100k fragmented identities fit the bounded order transport" =
   print_endline "100k arbitrary-order rows fit below 1 MiB";
   [%expect {| 100k arbitrary-order rows fit below 1 MiB |}]
 ;;
+
+let%expect_test "list axis appends a strict tag without modifying legacy records" =
+  let open Gpuio_protocol in
+  let node = Node_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn in
+  let window = Window_id.create ~slot:0L ~generation:1L |> Or_error.ok_exn in
+  let message : Wire.Message.t =
+    Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations = [ Set_list_axis (node, Horizontal); Set_list_axis (node, Vertical) ]
+      }
+  in
+  Wire.Message.encode message
+  |> Or_error.ok_exn
+  |> String.to_list
+  |> List.map ~f:(fun ch -> sprintf "%02x" (Char.to_int ch))
+  |> String.concat
+  |> print_endline;
+  [%expect {| 0300010001026d0001016d000100 |}]
+;;

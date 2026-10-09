@@ -151,6 +151,10 @@ def exercise(mac, images):
         time.sleep(0.35)  # Capture the settled default 200ms transition.
         screenshot(mac, images / 'carousel-draft.png')
     mac.press(TITLE, 'Direction: horizontal')
+    # AXPress returns before the asynchronous Bonsai direction update reaches
+    # the native region. Observe that update before sending its new-axis key.
+    node = mac.wait_find(TITLE, 'Direction: vertical', 'AXButton')
+    mac.release(node)
     focus(mac, 'Project gallery', 'AXGroup')
     mac.key(125)  # Down: vertical carousel.
     selected(mac, 'Review')

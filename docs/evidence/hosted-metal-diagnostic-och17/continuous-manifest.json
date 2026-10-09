@@ -1,0 +1,96 @@
+{
+  "revision": "ad7587d2acf684b070c3241f1d25c87e83f23f5b",
+  "run": "https://github.com/dakotamurphyucf/gpuio/actions/runs/37745626692",
+  "accepted_predicate_unchanged": true,
+  "archive_sha256": "dbd458b790a7973f5a17da80d704f8828ef4b3d758c7059bac95675083b96a35",
+  "files": {
+    "bootstrap.log": {
+      "bytes": 402,
+      "sha256": "8126e21686177079d508fe003cd119c639bbaafcae36eb7649e524fa9b1c9ef4"
+    },
+    "display-check.log": {
+      "bytes": 228,
+      "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+    },
+    "display-setup.log": {
+      "bytes": 228,
+      "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+    },
+    "displays.json": {
+      "bytes": 2424,
+      "sha256": "91fb41a539f4a837bfd2eb8628c42988f88061a18fd4fdbf75e5e31c3ce831a1"
+    },
+    "native-hook-001/build.jsonl": {
+      "bytes": 3425937,
+      "sha256": "fea90e9b9414bb9a5b8781e60fe5102e2965ef0cde290c34a5d6e3da8b984786"
+    },
+    "native-hook-001/build.log": {
+      "bytes": 33288,
+      "sha256": "86f3630acb12dddddd7ef69a7ac2797cf4c04e0345ba3f1dc7e70bcc93bbae5a"
+    },
+    "native-hook-001/native.log": {
+      "bytes": 127,
+      "sha256": "340daf5a811ad27266a53794d513ac497c5a1db06af408be70e9d18ae01a7878"
+    },
+    "native-hook-001/report.json": {
+      "bytes": 182350,
+      "sha256": "353ebc7e894714ff85980a6b1636f7de5e82cc3648320381e83bf1d73c2f9bb3"
+    },
+    "native-hook-002/build.jsonl": {
+      "bytes": 3425407,
+      "sha256": "f0bf07a32f33fc74d01c502f648eeab046c23f2b0976423390ff7630474173c5"
+    },
+    "native-hook-002/build.log": {
+      "bytes": 303,
+      "sha256": "4491f2041bc409606a3abb996514247163d2c28261decc1287bcd22e968e64d1"
+    },
+    "native-hook-002/native.log": {
+      "bytes": 127,
+      "sha256": "aa74b9a665eecfc98b4309134200ca128573f8a8797fa489763d9565f66cfb37"
+    },
+    "native-hook-002/report.json": {
+      "bytes": 181319,
+      "sha256": "b56478fef80763bb42bb9da2d3cc010506c3a1c2a4440823201aee8eb4fd024f"
+    },
+    "native-hook-003/build.jsonl": {
+      "bytes": 3425407,
+      "sha256": "ba1a3f5fa10f306cb639bd4a4494b4a360b41a8b2d61e5baf522c3eef464905a"
+    },
+    "native-hook-003/build.log": {
+      "bytes": 303,
+      "sha256": "470f48e03a4b20fbb5d480510c411cc9d813816bdce69d5ab6a8d7c348242a8b"
+    },
+    "native-hook-003/native.log": {
+      "bytes": 127,
+      "sha256": "e06e6cd30e5baf83c5fec332dae62796db86d1485e227ab823b72214863a7538"
+    },
+    "native-hook-003/report.json": {
+      "bytes": 184471,
+      "sha256": "6fa391d4b858205f18e0243b230f35c22af38c2492dcbde99455bab4a18ae78c"
+    },
+    "run.json": {
+      "bytes": 2574,
+      "sha256": "219c0e0f85d08dc6ff0aba9e3dacc3d8a360c6e6cf60b5ec0b89242dc2c69abc"
+    },
+    "source/.github/workflows/metal-presentation-diagnostic.yml": {
+      "bytes": 2769,
+      "sha256": "dfa769c3d0a94bef6e9a3e04fabe4f7b691bc92425afe516114e11022b98bb52"
+    },
+    "source/rust/native/tests/native_metal_presentation.rs": {
+      "bytes": 14544,
+      "sha256": "a8dd596c2ce72c745b2af14c7b32d23ffd7174dc8b032f1ae9523870c40cd1c4"
+    },
+    "source/scripts/test_metal_presentation.py": {
+      "bytes": 4990,
+      "sha256": "fb05d4af68d543acb9a8d154ccfa2c712e68e1e473be1a408598bf6ff7435998"
+    },
+    "summary.json": {
+      "bytes": 2438,
+      "sha256": "2e7614e1b7c22e4b1bca18d1a55d9b93f695eff230c22dad6323353ed9758a95"
+    },
+    "toolchain.log": {
+      "bytes": 92,
+      "sha256": "0a1551c79aa14473f0bf2dde82f74052eee994b6fe01ca17794f51fc7bc3f14f"
+    }
+  }
+}

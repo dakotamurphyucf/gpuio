@@ -18,6 +18,135 @@ fn menu(disabled: bool) -> MenuConfig {
     }
 }
 #[test]
+fn menu_observers_and_placement_require_supported_presentation_and_current_binding() {
+    for version in [0, 1, 2, VERSION + 1] {
+        assert!(Session::default().hello(version, CAPABILITIES).is_err());
+    }
+    let window = WindowId::from_parts(0, 1).unwrap();
+    let handler = HandlerId::from_parts(0, 1).unwrap();
+    let mut session = Session::default();
+    session.hello(VERSION, CAPABILITIES).unwrap();
+    session.open(1, window, "observers", 400., 300.).unwrap();
+    let config = MenuConfig {
+        presentation: MenuPresentation::Button,
+        menus: vec![MenuDefinition {
+            label: "Observe".into(),
+            disabled: false,
+            items: vec![],
+        }],
+    };
+    let tx = |base, operations| Transaction {
+        window,
+        base,
+        revision: base + 1,
+        operations,
+    };
+    session
+        .apply(&tx(
+            0,
+            vec![
+                Op::Create(node(0), Kind::Menu, "".into(), Some(handler)),
+                Op::SetMenu(node(0), config.clone()),
+                Op::SetRoot(Some(node(0))),
+            ],
+        ))
+        .unwrap();
+    assert!(
+        session
+            .menu_open_changed(window, node(0), handler, 1, true)
+            .is_some()
+    );
+    assert!(
+        session
+            .menu_open_changed(window, node(0), handler, -1, true)
+            .is_none()
+    );
+    assert!(
+        session
+            .menu_open_changed(window, node(0), handler, 2, true)
+            .is_none()
+    );
+    assert!(
+        session
+            .menu_open_changed(
+                window,
+                node(0),
+                HandlerId::from_parts(0, 2).unwrap(),
+                1,
+                true
+            )
+            .is_none()
+    );
+    let placement = Placement {
+        side: Side::Top,
+        align: Align::End,
+        offset: 8.,
+    };
+    for presentation in [MenuPresentation::Bar, MenuPresentation::PlatformBar] {
+        let mut unsupported = config.clone();
+        unsupported.presentation = presentation;
+        // Handler support and placement support are independently restricted.
+        assert!(
+            session
+                .apply(&tx(1, vec![Op::SetMenu(node(0), unsupported.clone())]))
+                .is_err()
+        );
+        assert!(
+            session
+                .apply(&tx(
+                    1,
+                    vec![
+                        Op::Bind(node(0), None),
+                        Op::SetMenu(node(0), unsupported),
+                        Op::SetPlacement(node(0), Some(placement))
+                    ]
+                ))
+                .is_err()
+        );
+        assert_eq!(session.tree(window).unwrap().revision(), 1);
+        assert!(
+            session
+                .menu_open_changed(window, node(0), handler, 1, false)
+                .is_some()
+        );
+    }
+    session
+        .apply(&tx(1, vec![Op::SetPlacement(node(0), Some(placement))]))
+        .unwrap();
+    let mut disabled = config;
+    disabled.menus[0].disabled = true;
+    session
+        .apply(&tx(2, vec![Op::SetMenu(node(0), disabled)]))
+        .unwrap();
+    assert!(
+        session
+            .menu_open_changed(window, node(0), handler, 3, true)
+            .is_none()
+    );
+    assert!(
+        session
+            .menu_open_changed(window, node(0), handler, 3, false)
+            .is_some()
+    );
+    session
+        .apply(&tx(
+            3,
+            vec![Op::Bind(node(0), None), Op::SetPlacement(node(0), None)],
+        ))
+        .unwrap();
+    assert!(
+        session
+            .menu_open_changed(window, node(0), handler, 3, false)
+            .is_none()
+    );
+    session.close(window).unwrap();
+    assert!(
+        session
+            .menu_open_changed(window, node(0), handler, 3, false)
+            .is_none()
+    );
+}
+#[test]
 fn menu_sources_validate_enabled_paths_and_survive_atomic_graph_changes() {
     let window = WindowId::from_parts(0, 1).unwrap();
     let handler = HandlerId::from_parts(0, 1).unwrap();

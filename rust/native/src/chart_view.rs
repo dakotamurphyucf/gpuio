@@ -12,11 +12,20 @@ use gpuio_protocol::{
 #[path = "chart_input.rs"]
 mod input;
 
+#[path = "chart_inspection_content.rs"]
+mod inspection_content;
+#[path = "chart_label_content.rs"]
+mod label_content;
+
 pub(super) struct State {
     input: input::Input,
+    content: inspection_content::Content,
     node: NodeId,
     window: WindowId,
     config: Arc<Config>,
+    // Combined retained wrappers: radar first, then inspection content. Each
+    // adapter contributes its eligible slots to the chart's shared hidden set.
+    label_slots: Arc<[NodeId]>,
     handler: Option<HandlerId>,
     revision: i64,
     lease: Option<Lease>,
@@ -71,6 +80,11 @@ impl State {
         }
     }
     fn suspend(&mut self, window: &mut Window) {
+        self.content.clear();
+        self.input
+            .gate
+            .borrow_mut()
+            .replace_chart_hidden(&self.label_slots, &self.label_slots);
         self.cancel_input(window);
         self.input.clear_selection();
         self.input.data_cursor = None;
@@ -89,16 +103,36 @@ impl State {
     pub(super) fn close(&mut self, window: &mut Window) {
         self.closed = true;
         self.suspend(window);
+        self.input
+            .gate
+            .borrow_mut()
+            .replace_chart_hidden(&self.label_slots, &[]);
     }
     fn configure(&mut self, node: &crate::tree::Node, revision: i64, window: &mut Window) {
         let config = node.chart.as_ref().expect("validated chart");
         if self.handler != node.handler || self.config != *config {
-            self.cancel_input(window);
+            if self.config.source != config.source
+                || self.config.options != config.options
+                || self.config.sampling != config.sampling
+                || self.config.style != config.style
+                || self.config.legend != config.legend
+                || self.config.disabled != config.disabled
+            {
+                self.cancel_input(window);
+            } else {
+                self.cancel_capture(window);
+            }
             self.input.token = Rc::new(());
             self.reported_ready = None;
             self.reported_failure = None;
         }
         self.config = config.clone();
+        let previous = std::mem::replace(&mut self.label_slots, node.children.clone());
+        let hidden = self.hidden_labels();
+        self.input
+            .gate
+            .borrow_mut()
+            .replace_chart_hidden(&previous, &hidden);
         self.handler = node.handler;
         self.revision = revision;
     }
@@ -156,6 +190,7 @@ impl State {
         if snapshot.is_none() {
             self.lease = None;
         }
+        self.sync_label_visibility();
         snapshot
     }
     fn prepare(&mut self, total: paint::Layout, window: &mut Window, cx: &mut App) {
@@ -181,9 +216,37 @@ impl State {
             snapshot: snapshot.clone(),
             config: self.config.clone(),
             layout,
+            text: (match &snapshot.data().contents {
+                gpuio_protocol::chart_data::Contents::Sankey(..) => {
+                    self.config.options.sankey.labels
+                        && self.config.options.sankey.label_placement
+                            == gpuio_protocol::chart_options::LabelPlacement::Outside
+                }
+                gpuio_protocol::chart_data::Contents::Pie(_) => {
+                    self.config.options.pie.labels
+                        && self.config.options.pie.label_placement
+                            == gpuio_protocol::chart_options::LabelPlacement::Outside
+                }
+                _ => false,
+            })
+            .then(|| crate::chart_label_metrics::Context {
+                system: cx.text_system().clone(),
+                style: crate::chart_label_metrics::LabelStyle::new(
+                    window.text_style().font(),
+                    if matches!(
+                        snapshot.data().contents,
+                        gpuio_protocol::chart_data::Contents::Pie(_)
+                    ) {
+                        0.
+                    } else {
+                        f32::from(window.rem_size()) * 0.25
+                    },
+                ),
+            }),
         };
         let changed = self.requested.as_ref().is_none_or(|old| {
-            !Arc::ptr_eq(&old.snapshot, &snapshot)
+            old.text != request.text
+                || !Arc::ptr_eq(&old.snapshot, &snapshot)
                 || old.layout != layout
                 || old.config.options != self.config.options
                 || old.config.sampling != self.config.sampling
@@ -244,6 +307,7 @@ impl State {
                     self.ready = Some(ready);
                     self.ready_frame = self.requested_frame;
                     self.reported_ready = None;
+                    self.sync_label_visibility();
                 }
                 Err(error) => self.failure = Some(job_error(error)),
             }
@@ -265,38 +329,79 @@ impl State {
             .text_size(px(11.))
             .line_height(px(presentation::TEXT_HEIGHT as f32))
             .text_color(gpui::rgba(style.label_color as u32));
+        if let Some(label_style) = &ready.label_style {
+            text = text.font(label_style.font.clone());
+        }
         let series_names = presentation::legend(ready.snapshot.data());
+        let custom_axes: std::collections::BTreeSet<_> =
+            self.label_positions().iter().map(|p| p.axis).collect();
         for (index, label) in ready.plan.geometry().labels.iter().enumerate() {
+            if let crate::chart_geometry::LabelKind::RadarAxis(axis) = label.kind
+                && custom_axes.contains(&axis)
+            {
+                continue;
+            }
             let placement = frame.label(label);
             let r = placement.rect;
+            if r.height <= 0. || r.width <= 0. {
+                continue;
+            }
+            let (font_size, foreground) = match label.kind {
+                crate::chart_geometry::LabelKind::Axis(axis) => (
+                    axis.font_size,
+                    axis.color.unwrap_or(style.label_color as u32),
+                ),
+                crate::chart_geometry::LabelKind::FlowLine {
+                    font_size, color, ..
+                } => (font_size, color.unwrap_or(style.label_color as u32)),
+                _ => (11., style.label_color as u32),
+            };
             let backed = matches!(
                 label.kind,
-                crate::chart_geometry::LabelKind::Flow
+                crate::chart_geometry::LabelKind::Flow { .. }
+                    | crate::chart_geometry::LabelKind::FlowLine { .. }
                     | crate::chart_geometry::LabelKind::Series(_)
-            ) || (matches!(label.kind, crate::chart_geometry::LabelKind::Radial)
-                && matches!(
-                    ready.snapshot.data().contents,
-                    gpuio_protocol::chart_data::Contents::Pie(_)
-                ));
-            let mut content = div().min_w_0().text_ellipsis().child(label.text.clone());
+            ) || (matches!(
+                label.kind,
+                crate::chart_geometry::LabelKind::Pie {
+                    placement: None,
+                    ..
+                }
+            ) && matches!(
+                ready.snapshot.data().contents,
+                gpuio_protocol::chart_data::Contents::Pie(_)
+            ));
+            // Each prepared caption owns one line; wrapping would hide later
+            // words behind its fixed-height clipping rectangle.
+            let mut content = div().min_w_0().truncate().child(label.text.clone());
             if backed {
+                content = if let Some(label_style) = &ready.label_style {
+                    content.px(px(label_style.padding))
+                } else {
+                    content.px_1()
+                };
                 content = content
-                    .px_1()
                     .rounded_sm()
-                    .bg(gpui::rgba(presentation::label_backing(
-                        style.label_color as u32,
-                    )));
+                    .bg(gpui::rgba(presentation::label_backing(foreground)));
             }
+            let label_identity = match label.kind {
+                crate::chart_geometry::LabelKind::RadarAxis(axis) => {
+                    ("gpuio-chart-radar-label", axis as u64)
+                }
+                _ => ("gpuio-chart-label", index as u64),
+            };
             let element = div()
-                .id(("gpuio-chart-label", index as u64))
+                .id(label_identity)
                 .role(gpui::Role::Label)
                 .absolute()
                 .left(px(r.x as f32))
                 .top(px(r.y as f32))
                 .w(px(r.width as f32))
                 .h(px(r.height as f32))
-                .overflow_hidden()
-                .text_ellipsis()
+                .text_size(px(font_size as f32))
+                .line_height(px((font_size + 4.).max(presentation::TEXT_HEIGHT) as f32))
+                .text_color(gpui::rgba(foreground))
+                .truncate()
                 .aria_label(match label.kind {
                     crate::chart_geometry::LabelKind::Series(series) => {
                         format!("Series {} · {}", series + 1, series_names[series])
@@ -348,7 +453,7 @@ impl State {
                                     .size(px(8.))
                                     .flex_shrink_0()
                                     .rounded_sm()
-                                    .bg(gpui::rgba(style.color(index))),
+                                    .bg(gpui::rgba(ready.plan.series_color(index))),
                             )
                             .child(
                                 div()
@@ -415,6 +520,7 @@ impl State {
 }
 fn paint_error(error: paint::Error) -> Error {
     match error {
+        paint::Error::InvalidConfiguration => Error::InvalidConfig,
         paint::Error::InvalidInput | paint::Error::RenderLimit => Error::RenderLimit,
         paint::Error::Cancelled | paint::Error::NativeFailure => Error::NativeFailure,
     }
@@ -433,6 +539,7 @@ impl View {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let visibility = self.focus.borrow().visibility_identity();
         let session = self.session.borrow();
         let Some(tree) = session.tree(self.id) else {
             for state in self.charts.values() {
@@ -460,9 +567,11 @@ impl View {
                 .or_insert_with(|| {
                     let state = Rc::new(RefCell::new(State {
                         input: input::Input::new(self.focus.clone(), cx),
+                        content: inspection_content::Content::new(cx),
                         node: *id,
                         window: self.id,
                         config: node.chart.clone().unwrap(),
+                        label_slots: node.children.clone(),
                         handler: node.handler,
                         revision: tree.revision(),
                         lease: None,
@@ -480,13 +589,15 @@ impl View {
                         session: Rc::downgrade(&self.session),
                     }));
                     input::install_blur(&state, window, cx);
+                    inspection_content::install(&state, window, cx);
                     state
                 })
                 .borrow_mut()
                 .configure(node, tree.revision(), window);
         }
         for (id, state) in &self.charts {
-            if !self.focus.borrow().visible(*id) {
+            let visible = self.focus.borrow().visible(*id);
+            if !visible {
                 state.borrow_mut().suspend(window);
             } else {
                 if !self.focus.borrow().allows(*id) || !pointer_enabled(tree, *id) {
@@ -497,6 +608,12 @@ impl View {
                 state.borrow_mut().refresh_source(window);
             }
         }
+        drop(session);
+        let visibility_changed =
+            !Rc::ptr_eq(&visibility, &self.focus.borrow().visibility_identity());
+        if visibility_changed {
+            self.sync_tooltips(window, cx);
+        }
     }
     pub(super) fn hide_unvisited_charts(&self, window: &mut Window) {
         for (id, state) in &self.charts {
@@ -506,11 +623,12 @@ impl View {
         }
     }
     pub(super) fn charts_changed(
-        &self,
+        &mut self,
         source: Option<ResourceId>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
+        let visibility = self.focus.borrow().visibility_identity();
         let mut changed = false;
         for (id, state) in &self.charts {
             let mut state = state.borrow_mut();
@@ -522,14 +640,25 @@ impl View {
             }
         }
         if changed {
+            let visibility_changed =
+                !Rc::ptr_eq(&visibility, &self.focus.borrow().visibility_identity());
+            if visibility_changed {
+                // Visibility can change without a retained-tree transaction or
+                // another paint. Retire captures/drag/tooltip owners as well as
+                // focus while their old source target is still hidden.
+                self.sync_tooltips(window, cx);
+            }
             cx.notify();
         }
         changed
     }
     pub(super) fn chart_element(
         &mut self,
+        tree: &crate::tree::Tree,
         node: &crate::tree::Node,
         interaction: Interaction,
+        window: &mut Window,
+        cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         self.visited.insert(node.id);
         let config = node.chart.as_ref().expect("validated chart");
@@ -543,7 +672,24 @@ impl View {
             return element.into_any_element();
         };
         let text = state.borrow().text_element(identity);
-        let overlay = state.borrow().input_overlay();
+        let label_positions = state.borrow().label_positions();
+        let mut label_interaction = interaction;
+        label_interaction.clip_controls = true;
+        let labels = label_positions
+            .into_iter()
+            .map(|position| {
+                let element = self.element(tree, position.node, label_interaction, window, cx);
+                let element = table_view::clip_header_control(position.node, element, &self.focus);
+                (position, element)
+            })
+            .collect();
+        let labels = label_content::element(labels, self.focus.clone());
+        let position = state.borrow().inspection_position();
+        let custom = position.map(|position| {
+            let child = inspection_content::element(self, tree, &position, interaction, window, cx);
+            (position, child)
+        });
+        let overlay = state.borrow().input_overlay(custom);
         let data_view = input::data_element(state.clone());
         let element = input::keyboard(element, state.clone());
         let prepaint = state.clone();
@@ -575,8 +721,11 @@ impl View {
             )
             .children(text)
             .children(overlay)
+            .children(labels)
             .children(data_view);
         crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             element,

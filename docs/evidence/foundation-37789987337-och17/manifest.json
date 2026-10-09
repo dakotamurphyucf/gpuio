@@ -1,0 +1,61 @@
+{
+  "run": 37789987337,
+  "files": [
+    {
+      "path": "jobs.json",
+      "sha256": "9898c60b525bd0cb86281cb3e92a806a57ed6fba9937a9e6cdd0c8a756ac5e4a",
+      "bytes": 76725
+    },
+    {
+      "path": "summary.json",
+      "sha256": "a2f2978d7a5b9fd945cc1ad5496dac1fd3d97415c68981a1da62ced878dbee50",
+      "bytes": 2494
+    },
+    {
+      "path": "foundation/metal-presentation-hook/report.json",
+      "sha256": "f1c39c09d95f7468eee15c9abf0f9b8bb7dbfb2e61a7d9d36a54a704a10f63ab",
+      "bytes": 76200
+    },
+    {
+      "path": "foundation/metal-presentation-hook/native.log",
+      "sha256": "c0b114dcec83a6744a1b14cf21a9af8597b2a09a9227847e74604c511b9f94ac",
+      "bytes": 122
+    },
+    {
+      "path": "foundation/metal-presentation-calibration.json",
+      "sha256": "7943826d73f5cc5def410cb453f09cd7b9a8317bd1db1c5a622b8c11d7e12315",
+      "bytes": 63535
+    },
+    {
+      "path": "foundation/metal-presentation-display.json",
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c",
+      "bytes": 35
+    },
+    {
+      "path": "foundation/macos-package-transfer.log",
+      "sha256": "2e115acfd30fa1d1ac89b89b68d2b96f68dc6f569fcb91700f9d832fee4b16d5",
+      "bytes": 1368
+    },
+    {
+      "path": "receiver/gallery/report.json",
+      "sha256": "202015c51a0d91f704281e199301398f573d558e0aac7fca0632cace8f9b5c2a",
+      "bytes": 6457
+    },
+    {
+      "path": "receiver/agent-chat/report.json",
+      "sha256": "478c899a8b22ef4554ef7107c8fe09848773ed512bf5612629680da0ea5e22ad",
+      "bytes": 1534
+    },
+    {
+      "path": "receiver/signal-studio/report.json",
+      "sha256": "e967f0a32e681826755dc61ea6e609772dc94bcb8a66cc345cdd207a08fcd409",
+      "bytes": 1592
+    },
+    {
+      "path": "receiver/transfer-verification.log",
+      "sha256": "e6ac8292be7ab0c564d788ff2de97c7ae06ed169efbf55b5617e1297f666775f",
+      "bytes": 1099
+    }
+  ],
+  "archive_sha256": "62dff89de6852fe4214dc44721a3b6cf62764bdd084a3264c9b7644018623da0"
+}

@@ -10,6 +10,8 @@ use gpui_base::input;
 use gpuio_protocol::{HandlerId, NodeId, WindowId, otp_input as o, v1::*};
 use std::{ops::Range, sync::Arc};
 
+#[path = "otp_cursor.rs"]
+mod cursor;
 #[path = "otp_input_paint.rs"]
 mod paint;
 
@@ -86,6 +88,8 @@ impl Route {
 
 pub(super) struct Input {
     model: State,
+    cursor: cursor::Cursor,
+    appearance: Option<Arc<gpuio_protocol::otp_presentation::Appearance>>,
     route: Route,
     focus: FocusHandle,
     pointer: bool,
@@ -111,6 +115,7 @@ impl Input {
         match result {
             Ok(events) => {
                 if !events.is_empty() {
+                    self.cursor.reset();
                     if self
                         .layout
                         .as_ref()
@@ -152,6 +157,7 @@ impl Input {
         self.dragging = false;
     }
     fn on_blur(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.cursor.reset();
         self.stop_drag(window);
         let result = self.model.cancel_for_lifecycle();
         self.publish(result, cx);
@@ -159,6 +165,8 @@ impl Input {
         self.publish(result, cx);
     }
     fn hide(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.cursor.in_view = false;
+        self.cursor.reset();
         self.stop_drag(window);
         self.layout = None;
         let result = self.model.cancel_for_lifecycle();
@@ -516,6 +524,8 @@ impl Render for Input {
             });
         }
         crate::semantics::State {
+            identity: None,
+            busy: false,
             element,
             metadata: self.metadata.clone(),
             hidden: false,
@@ -561,6 +571,8 @@ impl Instance {
                 cx.on_focus(&focus, window, Input::on_focus),
                 cx.on_blur(&focus, window, Input::on_blur),
                 cx.observe_window_activation(window, |state, window, cx| {
+                    state.cursor.reset();
+                    cx.notify();
                     if !window.is_window_active() {
                         state.stop_drag(window);
                         let result = state.model.cancel_for_lifecycle();
@@ -570,6 +582,8 @@ impl Instance {
             ];
             Input {
                 model,
+                cursor: cursor::Cursor::default(),
+                appearance: node.otp_appearance.clone(),
                 route,
                 focus,
                 pointer: true,
@@ -640,6 +654,7 @@ impl Instance {
                 return o::Response::Failed(o::Error::NativeFailure);
             }
             if changed {
+                state.cursor.reset();
                 cx.notify();
             }
             outcome.response
@@ -686,9 +701,11 @@ impl View {
             let session = self.session.borrow();
             let Some(tree) = session.tree(self.id) else {
                 for instance in self.otps.values() {
-                    instance
-                        .state
-                        .update(cx, |state, _| state.stop_drag(window));
+                    instance.state.update(cx, |state, _| {
+                        state.stop_drag(window);
+                        state.cursor.in_view = false;
+                        state.cursor.reset();
+                    });
                 }
                 self.otps.clear();
                 return;
@@ -699,6 +716,8 @@ impl View {
                 } else {
                     instance.state.update(cx, |state, cx| {
                         state.stop_drag(window);
+                        state.cursor.in_view = false;
+                        state.cursor.reset();
                         if state.focus.is_focused(window) {
                             window.blur(cx);
                         }
@@ -718,6 +737,12 @@ impl View {
                 instance.state.update(cx, |state, cx| {
                     state.route.handler = node.handler.expect("validated OTP handler");
                     state.metadata = node.accessibility.clone();
+                    if state.appearance != node.otp_appearance {
+                        state.appearance = node.otp_appearance.clone();
+                        // Until new geometry paints, platform hit/IME queries must
+                        // not use positions from the preceding grouping/size.
+                        state.layout = None;
+                    }
                     let result = state
                         .model
                         .configure(node.otp_input.as_ref().unwrap().config.clone());

@@ -582,3 +582,88 @@ fn correlated_responses_keep_observation_barriers_and_bound_drain_bytes() {
     assert!(batches > 1);
     assert!(!mailbox.has_window_output(window().slot()));
 }
+
+#[test]
+fn appearance_admission_is_atomic_and_charges_retained_policy_without_replacing_seed() {
+    use gpuio_protocol::otp_presentation::Appearance;
+    let mut s = session();
+    mount(&mut s);
+    let baseline = s.retained_bytes();
+    let appearance = Appearance {
+        groups: 2,
+        cell_width: Some(40.),
+        ..Appearance::default()
+    };
+    s.apply(&tx(
+        1,
+        vec![Op::SetOtpAppearance(node(), Some(appearance.clone()))],
+    ))
+    .unwrap();
+    assert_eq!(
+        s.retained_bytes(),
+        baseline + std::mem::size_of::<Appearance>()
+    );
+    let tree = s.tree(window()).unwrap();
+    assert_eq!(
+        tree.get(node())
+            .unwrap()
+            .otp_input
+            .as_ref()
+            .unwrap()
+            .initial
+            .as_ref(),
+        "12"
+    );
+    for bad in [
+        Appearance {
+            groups: 0,
+            ..appearance.clone()
+        },
+        Appearance {
+            cell_width: Some(f64::NAN),
+            ..appearance.clone()
+        },
+        Appearance {
+            border_width: 65.,
+            ..appearance.clone()
+        },
+    ] {
+        assert!(
+            s.apply(&tx(
+                2,
+                vec![
+                    Op::SetOtpAppearance(node(), None),
+                    Op::SetOtpAppearance(node(), Some(bad))
+                ]
+            ))
+            .is_err()
+        );
+        let tree = s.tree(window()).unwrap();
+        assert_eq!(tree.revision(), 2);
+        assert_eq!(
+            tree.get(node()).unwrap().otp_appearance.as_deref(),
+            Some(&appearance)
+        );
+        assert_eq!(
+            s.retained_bytes(),
+            baseline + std::mem::size_of::<Appearance>()
+        );
+    }
+    s.apply(&tx(2, vec![Op::SetOtpAppearance(node(), None)]))
+        .unwrap();
+    assert_eq!(s.retained_bytes(), baseline);
+    let mut foreign = session();
+    assert!(
+        foreign
+            .apply(&tx(
+                0,
+                vec![
+                    Op::Create(node(), Kind::Container, "".into(), None),
+                    Op::SetOtpAppearance(node(), Some(appearance)),
+                    Op::SetRoot(Some(node()))
+                ]
+            ))
+            .is_err()
+    );
+    assert_eq!(foreign.tree(window()).unwrap().revision(), 0);
+}

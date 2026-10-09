@@ -12,6 +12,23 @@ let px = Length.px_exn
 let style = Style.create_exn
 let full = Length.percent_exn 100.
 
+(* Hiding a retained page may move keyboard focus. Its native lease, content,
+   editing revision, selection and composition must remain unchanged. *)
+let equal_retained_editor before after =
+  let without_focus snapshot =
+    Text_input.Expert.snapshot
+      ~window:(Text_input.Expert.window snapshot)
+      ~node:(Text_input.Expert.node snapshot)
+      ~revision:(Text_input.Snapshot.revision snapshot)
+      ~text:(Text_input.Snapshot.text snapshot)
+      ~selection:(Text_input.Snapshot.selection snapshot)
+      ~composition:(Text_input.Snapshot.composition snapshot)
+      ~focused:false
+    |> ok
+  in
+  Text_input.Snapshot.equal (without_focus before) (without_focus after)
+;;
+
 module Modal = struct
   type t =
     | Closed
@@ -687,6 +704,17 @@ let () =
                    | Error error -> raise_s [%sexp (error : Text_input.Command_error.t)]);
                   let before = read () in
                   let route_before = route_read () in
+                  let check_route stage =
+                    let route_after = route_read () in
+                    if not (equal_retained_editor route_before route_after)
+                    then
+                      raise_s
+                        [%message
+                          "Route editor changed during navigation"
+                            (stage : string)
+                            (route_before : Text_input.Snapshot.t)
+                            (route_after : Text_input.Snapshot.t)]
+                  in
                   let preview_snapshot () =
                     match on_ui (Input.read_snapshot (latest ()).preview_editor) with
                     | Ok snapshot -> snapshot
@@ -700,7 +728,7 @@ let () =
                   send (Preview_open false);
                   await (fun () -> not (model ()).preview_open);
                   assert (Result.is_error (on_ui (Input.focus (latest ()).preview_editor)));
-                  assert (Text_input.Snapshot.equal preview_before (preview_snapshot ()));
+                  assert (equal_retained_editor preview_before (preview_snapshot ()));
                   send (Open_drawer Right);
                   await (fun () ->
                     match (model ()).modal with
@@ -722,10 +750,10 @@ let () =
                     match (model ()).modal with
                     | Closed -> true
                     | Drawer _ | Confirmation _ -> false);
-                  assert (Text_input.Snapshot.equal before (read ()));
+                  assert (equal_retained_editor before (read ()));
                   send Route_forward;
                   await (fun () -> Navigation_stack.can_pop (model ()).routes);
-                  assert (Text_input.Snapshot.equal route_before (route_read ()));
+                  check_route "forward";
                   assert (Result.is_error (on_ui (Input.focus (latest ()).route_editor)));
                   send Route_replace;
                   await (fun () ->
@@ -735,10 +763,11 @@ let () =
                         String.equal (Navigation_stack.Entry.label entry) "Replacement"));
                   send Route_back;
                   await (fun () -> not (Navigation_stack.can_pop (model ()).routes));
-                  assert (Text_input.Snapshot.equal route_before (route_read ()));
+                  check_route "back";
+                  assert (Result.is_ok (on_ui (Input.focus (latest ()).route_editor)));
                   send Toggle_details;
                   await (fun () -> not (model ()).details);
-                  assert (Text_input.Snapshot.equal before (read ()));
+                  assert (equal_retained_editor before (read ()));
                   assert (
                     Result.equal
                       Text_input.Snapshot.equal
@@ -824,7 +853,7 @@ let () =
                           (gallery ()).inject Carousel_lab.Action.Increment)));
                   gallery_send (Navigate Carousel.Request.next);
                   await_gallery "Review";
-                  assert (Text_input.Snapshot.equal gallery_before (gallery_read ()));
+                  assert (equal_retained_editor gallery_before (gallery_read ()));
                   assert (Result.is_error (on_ui (Input.focus (gallery ()).editor)));
                   gallery_send Toggle_axis;
                   await (fun () ->
@@ -836,7 +865,7 @@ let () =
                   gallery_send (Navigate Carousel.Request.next);
                   await_gallery "Draft";
                   assert (Carousel_lab.Model.requests (gallery_model ()) = 3);
-                  assert (Text_input.Snapshot.equal gallery_before (gallery_read ()));
+                  assert (equal_retained_editor gallery_before (gallery_read ()));
                   gallery_send Toggle_looping;
                   gallery_send (Navigate Carousel.Request.last);
                   await_gallery "Deliver";
@@ -845,7 +874,7 @@ let () =
                   gallery_send Restore;
                   gallery_send (Navigate Carousel.Request.first);
                   await_gallery "Draft";
-                  assert (Text_input.Snapshot.equal gallery_before (gallery_read ()));
+                  assert (equal_retained_editor gallery_before (gallery_read ()));
                   gallery_send Toggle_lifetime;
                   await (fun () ->
                     Content_policy.equal

@@ -5,7 +5,16 @@ Read `docs/status.md`, `CONTRIBUTING.md` and
 Follow the accepted stock OCaml 5.3/Bonsai v0.17/Core/Eio design. Use the repository
 toolchain and isolated environment; never mutate unrelated switches or defaults.
 
-Platform priority (owner, 2026-09-28): milestone 07 is a macOS-first v1 release.
+Release priority (owner, 2026-10-08): milestone 07 now targets a usable developer
+preview for real-user feedback. Follow `docs/milestone-07-closeout.md`: one bounded
+catalog evidence reconciliation, concrete normal-use blockers, long-list and
+rapid-update/typing performance, bounded resources, reproducible builds and clear
+docs/limits. Reuse valid evidence, batch CI and avoid exhaustive per-component
+reviews. Broader qualification and signed reference-app distribution are OCH-164;
+do not silently claim them complete. Historical failures stay recorded. See the
+current platform policy for the preview versus later qualification boundary.
+
+Earlier platform split (owner, 2026-09-28): macOS remains the first platform.
 Linux builds/unit/private-bus/consumer checks stay required; graphical smoke is
 informational. Full Linux desktop qualification is OCH-47 in deferred milestone
 07b and does not block milestone 07, milestone 08 or feature development. Do not
@@ -18,6 +27,11 @@ authorized for fast iteration. The owner accepts focus interruptions when needed
 do not wait for CI alone to debug native behavior or ask permission for each run.
 Avoid unnecessary activation and repeated runs. Background rendering/layout
 checks must not be reported as real foreground keyboard/IME validation.
+
+VoiceOver authorization (owner, 2026-10-05, revised): the owner lifted the earlier
+hold. VoiceOver testing, configuration and automation may resume as part of macOS
+accessibility validation; immediate execution is not required. Restore temporary
+test settings afterward and qualify acceptance only from actual test evidence.
 
 OCH-11 delivery workflow (owner, 2026-09-13): complete the remaining ticket scope
 locally, validating incrementally with local builds/tests. Do not wait on hosted
@@ -34,6 +48,15 @@ Historical documents contain research paths and screenshots; these are evidence,
 not build dependencies or current functionality. Keep implementation status honest
 and record exact commands, revisions and actual platform coverage in Linear.
 Complete only tickets whose acceptance criteria have passed.
+
+Every new example component needs an adjacent Markdown walkthrough linked from
+its owning README. Keep it current when behavior, structure or commands change.
+Follow `examples/coverage-guide.md`, maintain its source inventory and run
+`python3 scripts/audit_example_docs.py`. Review explanations against the actual
+code; source/file coverage alone does not prove onboarding or platform acceptance.
+Assume newcomers are new to Bonsai too. Explain relevant code implementation,
+reactive syntax, functions/types and GPUIO API usage, with a concrete interaction
+trace; do not substitute a feature tour for a code walkthrough.
 
 Use `scratch/` for local experiments, logs, implementation notes and handoffs that
 must survive context compaction. Create it when absent; it is ignored by Git and

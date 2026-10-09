@@ -1,0 +1,1042 @@
+{
+  "schema_version": 1,
+  "status": "Root-module ownership map; not release acceptance",
+  "families": [
+    {
+      "id": "presentation",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "local source-row functional equivalents reviewed: status bar, badge, label, group box, Empty, Separator, Link, Attachment, Marker, Alert, Tag, Bubble, Message, Description, Kbd and Settings; contracts and per-row Core/native/installed-consumer evidence are linked in presentation-review.md. Settings includes six field types, 24 appearance/layout retention cases, reset/lifetime guards, US dead-key composition, 48-group virtualization, Eio persistence and independent windows. A real macOS Japanese IME Settings sequence now passes OS candidate selection, committed-versus-preedit state, undo/redo and cancellation. Other methods/multiline geometry, hosted gates and OCH-17 VoiceOver/performance/distribution remain open.",
+      "public_interface": "lib/core/presentation.mli",
+      "example": "examples/presentation",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md",
+        "docs/catalog/presentation-review.md",
+        "docs/design/settings-composition.md",
+        "docs/evidence/macos-ime-och17.md"
+      ],
+      "gallery_page": "presentation",
+      "contract": "Stateless compositions, explicit content slots, semantic roles and theme/style overrides.",
+      "upstream_modules": [
+        "base/link",
+        "component/alert",
+        "component/attachment",
+        "component/badge",
+        "component/bubble",
+        "component/description_list",
+        "component/empty",
+        "component/group_box",
+        "component/kbd",
+        "component/label",
+        "component/link",
+        "component/marker",
+        "component/message",
+        "component/separator",
+        "component/setting",
+        "component/status_bar",
+        "component/tag"
+      ]
+    },
+    {
+      "id": "forms",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "pinned source reviewed; rich collection/slots/placement/footer implemented with passing Core checks. Real macOS gallery forms and editor-group runs pass: 52 geometry cases, OS keyboard actions, retained undo/redo through hide/show and fresh state after page retirement. Consolidated installed-consumer/hosted release acceptance remains open; the earlier Accessibility preflight restriction is resolved. The 2026-10-08 follow-up repairs zero-width rich labels and extends the real 52-case regression to catch single-character wrapping; see form-label-point-routing-och17.md.",
+      "public_interface": "lib/core/form.mli",
+      "example": "examples/presentation",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md",
+        "docs/design/form-composition.md",
+        "docs/evidence/gallery-editor-admission-och41.md",
+        "docs/evidence/form-label-point-routing-och17.md"
+      ],
+      "gallery_page": "text-inputs",
+      "contract": "Rich Form collections, independent grid/label orientation, field placement, rich slots and full-width footer are implemented in the public API. Local macOS gallery behavior passes; consolidated installed-consumer/release acceptance remains pending. Validation and persistence are application-owned.",
+      "upstream_modules": [
+        "component/form"
+      ]
+    },
+    {
+      "id": "avatar",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "pinned source reviewed; group, fixed identity palette and checked rich fallback implemented; TestPlatform selection/nested motion/window-close/resource checks and physical macOS group geometry/identity/source/fallback/input/retirement pass; native GPU clipping/ownership and representative Light/Dark palette pixels plus fresh installed gallery pass; final-source hosted/release acceptance remains",
+      "public_interface": "lib/core/avatar.mli",
+      "example": "examples/gallery",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md",
+        "docs/catalog/avatar-review.md"
+      ],
+      "gallery_page": "presentation",
+      "contract": "Image/fallback/load state, explicit asset ownership and alt semantics.",
+      "upstream_modules": [
+        "base/avatar",
+        "component/avatar"
+      ]
+    },
+    {
+      "id": "rating",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "pinned source reviewed; controlled requests and independent appearance implemented; physical macOS public gallery passes 41 geometry/identity cases, both themes, keyboard/pointer policies and retirement; dedicated native GPU color/alpha/hover/reset/density checks pass; fresh installed public gallery passes; final-source hosted/release acceptance pending",
+      "public_interface": "lib/core/rating.mli",
+      "example": "examples/presentation",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md",
+        "docs/catalog/rating-review.md",
+        "docs/design/rating-appearance.md"
+      ],
+      "gallery_page": "numeric-inputs",
+      "contract": "Ordered relative rating requests, bounded values and read-only/disabled policy.",
+      "upstream_modules": [
+        "component/rating"
+      ]
+    },
+    {
+      "id": "loading",
+      "owner": "OCH-33",
+      "scope": "v1",
+      "audit_status": "pinned source reviewed; custom spinner native GPU/AX and fresh installed public-gallery source/geometry/pixel/input/lifecycle checks pass locally; final-source hosted and measured release acceptance remain",
+      "public_interface": "lib/core/loading.mli",
+      "example": "examples/presentation",
+      "evidence": [
+        "docs/evidence/presentation-components-och33.md",
+        "docs/design/text-shimmer.md",
+        "docs/catalog/loading-review.md",
+        "docs/design/custom-spinner.md"
+      ],
+      "gallery_page": "presentation",
+      "contract": "Native skeleton/spinner/placeholder animation and reduced-motion/static policy; no invented completion value. Glyph shimmer has Core/Bonsai/live transport and mounted Host/selection/highlight integration, explicit application appearances and focused background GPU/lifecycle checks including retained tabs, native responsive branches and managed-row pause/eviction/remount. Shared per-window candidate/glyph budgets have native fallback/recovery evidence. Public gallery and fresh installed-consumer checks now pass theme/width/direction, keyboard Copy and effect toggling, identity, playback/reduced motion and page remount. A visible-layout clock defect has a failing-before regression and passing repair. Measured application-performance acceptance remains pending. Pinned spinner/skeleton configuration and visual differences are reviewed explicitly. View.spinner now provides scoped SVG icons and declarative easing through an atomic bridge update, with paint-driven native clocks and gallery controls. Core/protocol/native-admission and production-View TestPlatform tests pass; real native GPU/AX and installed-gallery runtime checks now pass. An inert-artwork regression now has a failing-before production-View TestPlatform check and a passing repair for all three kinds; current native GPU/AX checks also pass; whole-application performance/resources remain separate.",
+      "upstream_modules": [
+        "component/shimmer",
+        "component/skeleton",
+        "component/spinner"
+      ]
+    },
+    {
+      "id": "buttons",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Seven pinned sources reviewed; rich content, loading/focus policy, appearance, split controls and hover observations implemented. Fresh installed macOS combined rich-button, appearance/busy-Link, menu-observation, split-mode and command-hint scenarios pass after tooltip path and observation-lifetime repairs. Physical shared-hover/menu-held paint passes 20 Light/Dark cases; live menu placement/root scrolling passes 16 geometry samples. Complete family/resource and release acceptance remain separate.",
+      "public_interface": "lib/core/view.mli",
+      "example": "examples/controls",
+      "evidence": [
+        "docs/evidence/button-icons-och11.md",
+        "docs/catalog/button-review.md",
+        "docs/design/button-content.md",
+        "docs/evidence/gallery-och41.md",
+        "docs/evidence/installed-actions-och41.md",
+        "docs/evidence/gallery-lifetime-repairs-och41.md",
+        "docs/evidence/installed-split-paint-menu-placement-och41.md"
+      ],
+      "gallery_page": "controls",
+      "contract": "Native press/key/AX, icon slots and styles exist. Epoch2 connects checked rich content, per-owner loading and preserve/skipped/signed focus policy; Controls gallery exposes the public API. Installed macOS split shared-hover/menu-held pixels and live menu placement/root scrolling now pass; whole-family resource/performance and release acceptance remain separate.",
+      "upstream_modules": [
+        "base/button",
+        "component/button"
+      ]
+    },
+    {
+      "id": "selection",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Nine pinned sources reviewed; toolbar, toggle gallery, checkable appearance/rich labels and standalone-radio/Tab-order extension implemented locally. Core/codec/native checks pass; native checkable GPU and fresh installed appearance/rich-label/toolbar-toggle walkthroughs pass. Installed standalone-radio/Tab-order keyboard, pointer, AX and remount checks also pass; whole-family resource/performance and release acceptance remain separate.",
+      "public_interface": "lib/core/choice.mli",
+      "example": "examples/controls",
+      "evidence": [
+        "docs/evidence/milestones-01-02.md",
+        "docs/catalog/selection-review.md",
+        "docs/design/control-appearance.md",
+        "docs/design/control-labels.md",
+        "docs/design/checkable-navigation.md",
+        "docs/evidence/installed-radio-navigation-och41.md",
+        "docs/evidence/installed-actions-och41.md"
+      ],
+      "gallery_page": "controls",
+      "contract": "Checkbox/switch/radio and command-based toggle compositions. Native toolbar orientation is explicit metadata, with application-owned selection and current-policy reducer guards. Control_appearance supplies validated indicator/mark styles, size/gap/label order with retained identity. Checked passive rich labels preserve keyed owner/slot identity and one activation target. Standalone radio supplies checked no-op semantics and optional set position; Tab_order adds explicit signed order/stop policy; Radio_group semantic containers allow application-owned composition. Managed radio groups preserve rapid asynchronous requests. The Controls gallery demonstrates reset/skip/disable and rich/plain labels; actual macOS checkable appearance/rich-label and installed-consumer checks pass; whole-family navigation and release acceptance remain open.",
+      "upstream_modules": [
+        "base/checkbox",
+        "base/radio",
+        "base/radio_group",
+        "base/switch",
+        "base/toggle",
+        "base/toggle_group",
+        "component/checkbox",
+        "component/radio",
+        "component/switch"
+      ]
+    },
+    {
+      "id": "select",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. The actual macOS picker walkthrough now passes grouped/controlled selection, clearing, disabled policy, native Escape, 4096-option search retention and empty/create/reset behavior after an accessible-empty-slot repair. Search now also passes real foreground OS typing, Backspace, Down/Return commit and retained-query reopening on macOS with verified US layout; no input-source or clipboard changes. IME remains separate. Wider geometry, VoiceOver and consolidated installed-consumer/release acceptance remain open; see choice-review.md.",
+      "public_interface": "lib/core/choice.mli",
+      "example": "examples/controls",
+      "evidence": [
+        "docs/evidence/milestones-01-02.md",
+        "docs/catalog/choice-review.md",
+        "docs/design/choice-picker.md",
+        "docs/evidence/gallery-och41.md",
+        "docs/evidence/choice-picker-macos-och41.md",
+        "docs/evidence/choice-keyboard-och41.md"
+      ],
+      "gallery_page": "controls",
+      "contract": "Retained native popup/highlight; queued selected ID; validated options/appearance. Additive View.choice_picker (lib/core/choice_picker.mli) and Gpuio_eio.Choice_picker (lib/eio/choice_picker.mli) provide grouped single/multiple selection, native popup search, rich slots and explicit ordered requests/observations; native acceptance is incomplete.",
+      "upstream_modules": [
+        "base/select",
+        "component/select"
+      ]
+    },
+    {
+      "id": "combobox",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Eleven pinned root/shared-list sources reviewed. Additive Choice_picker provides public Core/Bonsai/Eio APIs with grouped virtual rows and ordered query/selection/open events. The Pickers gallery now includes grouped multiple selection, controlled single selection, a 4096-item searchable catalog and an empty/create/reset example. Local Core/Bonsai/native TestPlatform checks cover current-model/generation fences, controller sequencing, clear keyboard traversal, clipping, actual AX group/query-focus structure and inherited text-cache invalidation. The actual macOS picker walkthrough now passes grouped/controlled selection, clearing, disabled policy, native Escape, 4096-option search retention and empty/create/reset behavior after an accessible-empty-slot repair. Search now also passes real foreground OS typing, Backspace, Down/Return commit and retained-query reopening on macOS with verified US layout; no input-source or clipboard changes. IME remains separate. Wider geometry, VoiceOver and consolidated installed-consumer/release acceptance remain open; see choice-review.md.",
+      "public_interface": "lib/eio/combobox.mli",
+      "example": "examples/combobox",
+      "evidence": [
+        "docs/evidence/milestones-01-02.md",
+        "docs/catalog/choice-review.md",
+        "docs/design/choice-picker.md",
+        "docs/evidence/gallery-och41.md",
+        "docs/evidence/choice-picker-macos-och41.md",
+        "docs/evidence/choice-keyboard-och41.md"
+      ],
+      "gallery_page": "controls",
+      "contract": "Native query editing, queued semantic selection and explicit controller commands. Additive View.choice_picker (lib/core/choice_picker.mli) and Gpuio_eio.Choice_picker (lib/eio/choice_picker.mli) provide grouped single/multiple selection, native popup search, rich slots and explicit ordered requests/observations; native acceptance is incomplete.",
+      "upstream_modules": [
+        "base/combobox",
+        "component/combobox"
+      ]
+    },
+    {
+      "id": "editor",
+      "owner": "OCH-10",
+      "scope": "v1",
+      "audit_status": "Fourteen pinned plain-input/text-area boundary and shared-engine source snapshots reviewed. Baseline editing, password/reveal, native edit menus, input frames/content hints, formatting/regex validation, clear-on-Escape, multiline layout and viewport commands have public APIs, gallery examples and local automated evidence. Programmatic multiline search/replacement and automatic Search_changed/Eio search_snapshot observations now have paired codecs, retained native tests and controller race/queue-budget regressions. Public Gpuio_eio.Search_bar and a gallery example now have eight Bonsai driver tests plus native command/focus/composition coverage. Physical keyboard/focus/IME/accessibility, visual and performance acceptance remain required. General text-range geometry still needs a separate review. See editor-review.md for feature-level evidence and limits; no whole-family acceptance claim. Code-editor/LSP remains deferred to OCH-44/45.",
+      "public_interface": "lib/eio/text_input.mli",
+      "example": "examples/text_input",
+      "evidence": [
+        "docs/evidence/native-editor-och10.md",
+        "docs/catalog/editor-review.md",
+        "docs/evidence/textarea-search-observations-och41.md",
+        "docs/evidence/search-bar-och41.md"
+      ],
+      "gallery_page": "text-inputs",
+      "contract": "Baseline single/multiline editing, IME, selection, bounded history and revisioned commands. Plain-input extension gaps tracked in docs/design/plain-input-extensions.md; ordinary text-area controls are distinct from deferred code-editor/LSP OCH-44/45.",
+      "upstream_modules": [
+        "base/history",
+        "base/input",
+        "base/text_boundary",
+        "base/undo_history",
+        "component/history",
+        "component/input"
+      ]
+    },
+    {
+      "id": "numbers",
+      "owner": "OCH-34",
+      "scope": "v1",
+      "audit_status": "Pinned base and styled numeric inputs reviewed. Draft/commit/history, side/stacked/hidden controls, integrated adornments/per-part appearance and application-selected steps have public APIs and gallery examples. Native request/repeat guards and managed Eio cancellation/failure cleanup have local deterministic coverage, including a saturated command lane. Duplicate slot painting is repaired with before/after native counts and full native regressions. Fresh installed macOS gallery passes 24 presentation/input/history cases and end-to-end OCaml application step requests; timing, resources and release acceptance remain separate. Workflow Stepper is mapped separately under navigation. See numeric-review.md and the numeric request/presentation contracts.",
+      "public_interface": "lib/eio/number_input.mli",
+      "example": "examples/numeric",
+      "evidence": [
+        "docs/evidence/numeric-inputs-och34.md",
+        "docs/catalog/numeric-review.md",
+        "docs/evidence/installed-numeric-otp-och41.md"
+      ],
+      "gallery_page": "numeric-inputs",
+      "contract": "Native draft versus committed value, stepping and bounded numeric domain.",
+      "upstream_modules": [
+        "base/number_input"
+      ]
+    },
+    {
+      "id": "sliders",
+      "owner": "OCH-34",
+      "scope": "v1",
+      "audit_status": "Pinned base/styled sources reviewed. Existing single/range, axis, linear/log scale, disabled/read-only and native preview/commit/command behavior have public APIs; gallery now exposes these controls. Reversed single-value fill and independent part styling/geometry now have a public Appearance API, paired fixtures and native paint/capture evidence. Native hover/pressed spring rings now have deterministic capture, reduced-motion, idle and lifecycle coverage without OCaml frame events. Scalar rail radius is supported; per-corner rail radii/arbitrary native thumb replacement are not exposed. Installed macOS range input, horizontal linear and vertical logarithmic pointer commit/cancel, policies, remount and 32 GPU appearance cases pass. Physical spring timing and consolidated resource/release acceptance remain open. See slider-review.md.",
+      "public_interface": "lib/eio/slider.mli",
+      "example": "examples/numeric",
+      "evidence": [
+        "docs/evidence/numeric-inputs-och34.md",
+        "docs/catalog/slider-review.md",
+        "docs/evidence/slider-presentation-och41.md",
+        "docs/evidence/installed-sliders-och41.md"
+      ],
+      "gallery_page": "numeric-inputs",
+      "contract": "Single/range, linear/log, horizontal/vertical; native drag/keyboard and explicit commands.",
+      "upstream_modules": [
+        "base/slider",
+        "component/slider"
+      ]
+    },
+    {
+      "id": "otp",
+      "owner": "OCH-34",
+      "scope": "v1",
+      "audit_status": "Pinned base and styled OTP sources reviewed. Public Appearance now provides grouping, cell dimensions and theme colors while retaining one native draft/selection/composition/history owner. Paired fixtures, atomic admission and TestPlatform geometry/paint/retention checks pass; the numeric gallery has live grouping/size controls. Native caret blinking now has paint-only fake-clock and visibility/policy/close-lifecycle coverage with one cancellable task; fresh installed macOS gallery passes 16 retained presentation cases, native typing/history, masking, normalization/rejection and read-only/remount behavior; physical caret timing and measured resource/release acceptance remain separate. See numeric-review.md and OTP presentation/caret evidence.",
+      "public_interface": "lib/eio/otp_input.mli",
+      "example": "examples/numeric",
+      "evidence": [
+        "docs/evidence/numeric-inputs-och34.md",
+        "docs/catalog/numeric-review.md",
+        "docs/evidence/otp-presentation-och41.md",
+        "docs/evidence/otp-caret-och41.md",
+        "docs/evidence/installed-numeric-otp-och41.md"
+      ],
+      "gallery_page": "numeric-inputs",
+      "contract": "Canonical code policy, composition/paste validation, masking and explicit replacements.",
+      "upstream_modules": [
+        "base/otp_input"
+      ]
+    },
+    {
+      "id": "calendar",
+      "owner": "OCH-35",
+      "scope": "v1",
+      "audit_status": "Pinned calendar/date-picker/time sources reviewed. Public presets, explicit Apply, bounded shared-owner panes, passive content and independent viewport observations have Core/codec/native/controller evidence. Fresh installed macOS walkthroughs now pass preset commit/cancel/read-only/focus, content target retention, keyboard cross-month range selection and 11 viewport cases against an independent date-grid oracle (1/2/3/12 panes, month/year modes, unique targets, retained owner/selection and remount). A native nonmodal focus-context defect is repaired. Full pixel geometry, broader locale/constraint coverage and release qualification remain separate; see calendar-color-review.md.",
+      "public_interface": "lib/eio/date_picker.mli",
+      "example": "examples/calendar",
+      "evidence": [
+        "docs/evidence/calendar-och35.md",
+        "docs/catalog/calendar-color-review.md",
+        "docs/design/date-picker-presets.md",
+        "docs/evidence/date-picker-presets-och41.md",
+        "docs/design/calendar-presentation.md",
+        "docs/evidence/calendar-presentation-och41.md",
+        "docs/design/picker-triggers.md",
+        "docs/evidence/picker-triggers-och41.md",
+        "docs/design/calendar-content.md",
+        "docs/evidence/calendar-content-och41.md",
+        "docs/design/calendar-viewport.md",
+        "docs/evidence/calendar-viewport-och41.md",
+        "docs/evidence/installed-picker-presets-och41.md",
+        "docs/evidence/installed-calendar-color-och41.md"
+      ],
+      "gallery_page": "pickers",
+      "contract": "Civil date/range constraints; native calendar draft, explicit picker confirm/cancel and focus restoration.",
+      "upstream_modules": [
+        "base/calendar",
+        "base/date_picker",
+        "component/time"
+      ]
+    },
+    {
+      "id": "color",
+      "owner": "OCH-36",
+      "scope": "v1",
+      "audit_status": "Pinned base/styled color-picker sources reviewed. Full-precision drafts, HSLA/hex, grouped/featured palettes, hover, native panels, appearance and rich popup triggers have model/codec/admission/native/controller evidence. Fresh installed macOS walkthroughs pass explicit popup Apply/Cancel/clear/focus, 27 preview pixel cases across Light/Dark and three sizes, invalid draft/insertion-point/history retention, read-only cancellation, actual roving panel keys and owner remount. Broader channel/IME/selection-range, resource/performance and release checks remain separate. VoiceOver qualification remains pending; see calendar-color-review.md.",
+      "public_interface": "lib/eio/color_picker.mli",
+      "example": "examples/color_input",
+      "evidence": [
+        "docs/evidence/color-inputs-och36.md",
+        "docs/design/color-palette-preview.md",
+        "docs/evidence/color-palette-preview-och41.md",
+        "docs/design/color-presentation.md",
+        "docs/evidence/color-presentation-och41.md",
+        "docs/catalog/calendar-color-review.md",
+        "docs/design/picker-triggers.md",
+        "docs/evidence/picker-triggers-och41.md",
+        "docs/evidence/installed-picker-presets-och41.md",
+        "docs/evidence/installed-calendar-color-och41.md"
+      ],
+      "gallery_page": "pickers",
+      "contract": "RGBA/HSLA, swatches/channels, native hex draft; confirmed application value separate from popup draft.",
+      "upstream_modules": [
+        "base/color_picker",
+        "component/color_picker"
+      ]
+    },
+    {
+      "id": "dialogs",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "Pinned base/styled dialog, sheet, popover, positioner, focus-trap and help-surface sources reviewed. Existing ownership/dismissal/focus/placement and styled-content equivalents are mapped. Modal backdrop color and exported modal semantics are implemented with local codec/admission/theme-reconciliation/native paint/focus checks. Full OCaml, native library, protocol and strict lint checks pass. Opt-in dialog/sheet entry motion now has native paint/hit/AX/focus/lifecycle regression evidence, including deferred autofocus for offscreen entering controls. Opt-in tooltip entry/same-row switching now has native paint/input/retention/timing/controlled-state/cleanup evidence and paired Op92 fixtures. Point/corner and bounded viewport margins now have paired Op93 fixtures and native paint/hit/AX/resize/focus/submenu regressions; ordinary absolute dialog insets are also verified. Explicit Sheet.Insets now provides app-chrome reservation with all-edge containment, small-window decoration compression and native lifecycle/input evidence. The styled toolkit custom-window offsets are mapped explicitly, not inferred as OS safe areas; the focused physical macOS gallery and installed-consumer matrix now passes six theme/size combinations for modal focus, all-edge inset geometry, interactive help and fixed-point corners. Do not infer working sheet resizing or Popover animation from unused fields/private helpers. Confirmation and tooltip replacement pass once per binary. Full motion at Comfortable/Large and Reduced at Compact exercise settling, not frame timing. VoiceOver, full nested/IME, resources and consolidated release acceptance remain open; see overlay-review.md.",
+      "public_interface": "lib/core/overlay.mli",
+      "example": "examples/overlays",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md",
+        "docs/catalog/overlay-review.md",
+        "docs/design/overlay-backdrop.md",
+        "docs/evidence/overlay-backdrop-och41.md",
+        "docs/design/overlay-motion.md",
+        "docs/evidence/overlay-motion-och41.md",
+        "docs/design/tooltip-motion.md",
+        "docs/evidence/tooltip-motion-och41.md",
+        "docs/design/placement-geometry.md",
+        "docs/evidence/placement-geometry-och41.md",
+        "docs/design/sheet-insets.md",
+        "docs/evidence/sheet-insets-och41.md",
+        "docs/evidence/overlay-macos-och41.md"
+      ],
+      "gallery_page": "overlays",
+      "contract": "Dialog/sheet/alert-dialog focus and dismissal policy; safe confirmation action first.",
+      "upstream_modules": [
+        "base/alert_dialog",
+        "base/dialog",
+        "base/focus_trap",
+        "base/sheet",
+        "component/dialog",
+        "component/sheet"
+      ]
+    },
+    {
+      "id": "popovers",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Pinned base/styled dialog, sheet, popover, positioner, focus-trap and help-surface sources reviewed. Existing ownership/dismissal/focus/placement and styled-content equivalents are mapped. Modal backdrop color and exported modal semantics are implemented with local codec/admission/theme-reconciliation/native paint/focus checks. Full OCaml, native library, protocol and strict lint checks pass. Opt-in dialog/sheet entry motion now has native paint/hit/AX/focus/lifecycle regression evidence, including deferred autofocus for offscreen entering controls. Opt-in tooltip entry/same-row switching now has native paint/input/retention/timing/controlled-state/cleanup evidence and paired Op92 fixtures. Point/corner and bounded viewport margins now have paired Op93 fixtures and native paint/hit/AX/resize/focus/submenu regressions; ordinary absolute dialog insets are also verified. Explicit Sheet.Insets now provides app-chrome reservation with all-edge containment, small-window decoration compression and native lifecycle/input evidence. The styled toolkit custom-window offsets are mapped explicitly, not inferred as OS safe areas; the focused physical macOS gallery and installed-consumer matrix now passes six theme/size combinations for modal focus, all-edge inset geometry, interactive help and fixed-point corners. Do not infer working sheet resizing or Popover animation from unused fields/private helpers. Confirmation and tooltip replacement pass once per binary. Full motion at Comfortable/Large and Reduced at Compact exercise settling, not frame timing. VoiceOver, full nested/IME, resources and consolidated release acceptance remain open; see overlay-review.md.",
+      "public_interface": "lib/core/overlay.mli",
+      "example": "examples/overlays",
+      "evidence": [
+        "docs/evidence/milestones-01-02.md",
+        "docs/catalog/overlay-review.md",
+        "docs/design/overlay-backdrop.md",
+        "docs/evidence/overlay-backdrop-och41.md",
+        "docs/design/overlay-motion.md",
+        "docs/evidence/overlay-motion-och41.md",
+        "docs/design/tooltip-motion.md",
+        "docs/evidence/tooltip-motion-och41.md",
+        "docs/design/placement-geometry.md",
+        "docs/evidence/placement-geometry-och41.md",
+        "docs/design/sheet-insets.md",
+        "docs/evidence/sheet-insets-och41.md",
+        "docs/evidence/overlay-macos-och41.md"
+      ],
+      "gallery_page": "overlays",
+      "contract": "Anchored native placement, dismissal and focus restoration; helpers belong to overlay ownership.",
+      "upstream_modules": [
+        "base/popover",
+        "base/popup",
+        "base/positioner",
+        "component/popover"
+      ]
+    },
+    {
+      "id": "tooltips",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "Pinned base/styled dialog, sheet, popover, positioner, focus-trap and help-surface sources reviewed. Existing ownership/dismissal/focus/placement and styled-content equivalents are mapped. Modal backdrop color and exported modal semantics are implemented with local codec/admission/theme-reconciliation/native paint/focus checks. Full OCaml, native library, protocol and strict lint checks pass. Opt-in dialog/sheet entry motion now has native paint/hit/AX/focus/lifecycle regression evidence, including deferred autofocus for offscreen entering controls. Opt-in tooltip entry/same-row switching now has native paint/input/retention/timing/controlled-state/cleanup evidence and paired Op92 fixtures. Point/corner and bounded viewport margins now have paired Op93 fixtures and native paint/hit/AX/resize/focus/submenu regressions; ordinary absolute dialog insets are also verified. Explicit Sheet.Insets now provides app-chrome reservation with all-edge containment, small-window decoration compression and native lifecycle/input evidence. The styled toolkit custom-window offsets are mapped explicitly, not inferred as OS safe areas; the focused physical macOS gallery and installed-consumer matrix now passes six theme/size combinations for modal focus, all-edge inset geometry, interactive help and fixed-point corners. Do not infer working sheet resizing or Popover animation from unused fields/private helpers. Confirmation and tooltip replacement pass once per binary. Full motion at Comfortable/Large and Reduced at Compact exercise settling, not frame timing. VoiceOver, full nested/IME, resources and consolidated release acceptance remain open; see overlay-review.md.",
+      "public_interface": "lib/core/hover_card.mli",
+      "example": "examples/tooltips",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md",
+        "docs/catalog/overlay-review.md",
+        "docs/design/overlay-backdrop.md",
+        "docs/evidence/overlay-backdrop-och41.md",
+        "docs/design/overlay-motion.md",
+        "docs/evidence/overlay-motion-och41.md",
+        "docs/design/tooltip-motion.md",
+        "docs/evidence/tooltip-motion-och41.md",
+        "docs/design/placement-geometry.md",
+        "docs/evidence/placement-geometry-och41.md",
+        "docs/design/sheet-insets.md",
+        "docs/evidence/sheet-insets-och41.md",
+        "docs/evidence/overlay-macos-och41.md"
+      ],
+      "gallery_page": "overlays",
+      "contract": "Native managed/controlled visibility, deadlines and retained hidden content; helper role versus interactive-card role.",
+      "upstream_modules": [
+        "base/hover_card",
+        "base/tooltip",
+        "component/hover_card",
+        "component/tooltip"
+      ]
+    },
+    {
+      "id": "disclosure",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "Pinned base/styled accordion and collapsible reviewed. Core/Bonsai rich labels, heading semantics, per-item styles and gallery retention/mode/disabled controls implemented locally. Core and exact-public-transaction TestPlatform tests cover keyboard, expanded AX, collapse focus and retained native editing. Opt-in measured reveal is implemented with native reversal, immediate settled layout, weak scheduling and explicit Retain/Unmount behavior. TestPlatform verifies focus/draft retention, hidden AX ancestry, blocked outgoing input and lifecycle retirement. Actual macOS repository and fresh installed-consumer walkthroughs now pass six theme/application-size combinations: native Unicode draft undo/redo retention, hidden AX retirement, optional/required/multiple expansion, heading Home/End/Down and disabled skipping, whole-group disabled state and fresh buffers after Unmount. Motion timing, full geometry/IME/VoiceOver, resources and consolidated release acceptance remain open; see disclosure-macos-och41.md.",
+      "public_interface": "lib/core/disclosure.mli",
+      "example": "examples/navigation",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md",
+        "docs/catalog/disclosure-review.md",
+        "docs/evidence/disclosure-presentation-och41.md",
+        "docs/evidence/disclosure-macos-och41.md"
+      ],
+      "gallery_page": "navigation",
+      "contract": "Latest-state expansion reducer, grouped keyboard headers, explicit hidden-content lifetime. Additive accordion_with_labels uses bounded passive titles and validated heading levels. Disclosure.Motion supplies immediate/standard/custom-spring reveal, with conservative layout fallbacks documented in disclosure-presentation.",
+      "upstream_modules": [
+        "base/accordion",
+        "base/collapsible",
+        "component/accordion",
+        "component/collapsible"
+      ]
+    },
+    {
+      "id": "breadcrumb-pagination",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "Pinned breadcrumb/base-pagination/styled-pagination sources reviewed. Core now supports compact paging, interactive bounded gaps, passive intermediate breadcrumbs and per-member styles. Gpuio_eio.Pagination provides a bounded native page-entry popover with guarded asynchronous confirmation. Each gap retains its own Navigation.Gap_popup anchor with independent expanded state, button-relative placement and eligible-trigger focus return. Core/Bonsai driver tests and an exact public transaction sequence rendered on TestPlatform cover identity, stale replies, keyboard/focus and AX behavior. The original checkpoint did not qualify physical macOS; see navigation-review.md and pagination-chooser evidence. Workflow Stepper remains covered separately. Physical macOS root and fresh installed galleries now pass six theme/size combinations, including native entry, Escape ownership, model changes, bounded billion-page controls and teardown; chooser contrast repaired and actual button colors verified. VoiceOver, measured resources and final hosted/release acceptance remain open; see pagination-macos-och41.md.",
+      "public_interface": "lib/core/navigation.mli",
+      "example": "examples/gallery/navigation_page.ml",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md",
+        "docs/catalog/numeric-review.md",
+        "docs/evidence/workflow-stepper-och41.md",
+        "docs/catalog/navigation-review.md",
+        "docs/evidence/pagination-chooser-och41.md",
+        "docs/evidence/pagination-macos-och41.md"
+      ],
+      "gallery_page": "navigation",
+      "contract": "Navigation offers stable-ID breadcrumbs and bounded Full/Compact pagination. Gpuio_eio.Pagination adds seven shortcut buttons plus a numeric gap chooser, fresh opening identity and latest-model asynchronous confirmation. Gpuio.Stepper supplies application-owned workflow stages; application page/validation lifetimes remain explicit.",
+      "upstream_modules": [
+        "base/pagination",
+        "component/breadcrumb",
+        "component/pagination",
+        "component/stepper"
+      ]
+    },
+    {
+      "id": "workspace",
+      "owner": "OCH-15",
+      "scope": "v1",
+      "audit_status": "Seventeen pinned journey/workspace snapshots reviewed. Native tab roles, application-owned workspace, retained panels and nested two-pane splits retain the original OCH-15 foundation. Five static tab variants, per-target styles, decorative/interactive tab content, width limits, native scrolling/reveal and fixed frame/trailing content now have public Core/Bonsai APIs, gallery examples and local TestPlatform evidence. The all-tabs menu now has full-name rows, decorative icons with retained native leases and native selection/keyboard semantics. Native indicator springs and Pill selected-foreground fading now have a typed optional Motion API, gallery toggle and local production-renderer tests, including interruption, scroll/reorder, reduced motion and teardown. Flat split groups now have Core/Bonsai APIs, full per-panel bounds, ID-retained geometry/children, shared/per-handle styling, passive grips, a public Navigation gallery and native admission/Host lifecycle evidence; comprehensive docking remains separately deferred. See journey-workspace-review.md; physical/resource/release acceptance remains open. The 2026-10-08 physical tab follow-up passes root/installed retained panels, rich/plain labels, close/reverse/restore, explicit reveal/fixed suffix/all-tabs selection, thirty variant/theme/scale geometry and native keyboard cases, and page remount. See tabs-macos-och41.md; broader workspace, VoiceOver, motion/resource and release acceptance remain open. The flat split-group desktop follow-up also passes both axes/themes, drag/Escape, keyboard/AX resizing, callback delivery, serial-request clamping, custom grip hit extent, structural editor retention and page remount in root/installed galleries; see split-group-macos-och41.md. Other geometry, paint/full accessibility and resource/release acceptance remain separate.",
+      "public_interface": "lib/core/split_pane.mli",
+      "example": "examples/window_lifecycle",
+      "evidence": [
+        "docs/evidence/agent-workspace-m4.md",
+        "docs/catalog/journey-workspace-review.md",
+        "docs/evidence/tab-appearance-och41.md",
+        "docs/evidence/tab-content-och41.md",
+        "docs/evidence/tab-viewport-och41.md",
+        "docs/evidence/tab-frame-och41.md",
+        "docs/evidence/tab-menu-och41.md",
+        "docs/evidence/tab-menu-icons-och41.md",
+        "docs/evidence/tab-motion-och41.md",
+        "docs/evidence/split-group-bridge-och41.md",
+        "docs/evidence/tabs-macos-och41.md",
+        "docs/evidence/split-group-macos-och41.md"
+      ],
+      "gallery_page": "navigation",
+      "contract": "Application-owned tab choice; retained panels, native split geometry and explicit reset generations.",
+      "upstream_modules": [
+        "base/resizable",
+        "base/tabs",
+        "component/resizable",
+        "component/tab"
+      ]
+    },
+    {
+      "id": "navigation-stack",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "Exact pinned NavStack reviewed. Bounded immutable instance-keyed history, root protection/forward/replace, native slide/fade/immediate transitions and explicit retention are mapped. The modular public Journey preview now exposes new visits, replacement, root/reset and motion/retention policies. Actual macOS Space/AX history and root-editor retention/remount pass six theme/motion combinations locally and in a fresh installed consumer. Custom per-frame render closures use the native extension boundary. Every-frame motion, VoiceOver, scaled geometry/resources and consolidated release qualification remain separate. See journey-workspace-review.md and navigation-history-macos-och41.md.",
+      "public_interface": "lib/core/navigation_stack.mli",
+      "example": "examples/navigation",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md",
+        "docs/catalog/journey-workspace-review.md",
+        "docs/evidence/navigation-history-macos-och41.md"
+      ],
+      "gallery_page": "journeys",
+      "contract": "Bounded history, separate instance identity and native navigation motion; retention does not imply Eio cancellation.",
+      "upstream_modules": [
+        "base/nav_stack"
+      ]
+    },
+    {
+      "id": "carousel",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "Exact pinned carousel state/content/item/control/mask sources reviewed. Existing full-page axis/looping/request/gesture/keyboard/auto-advance behavior is mapped. Measured-track geometry, a GPUI measurement probe, the OCaml value model and paired standalone payloads now have local test evidence. Core/Bonsai variable-extent view construction, paired transport/tree admission and pure native publication/deadline state are now implemented. Measured native rendering and retained partially visible button interaction now have adapter tests. Checked native duration/easing movement now has interruption, resize/loop and both-axis paint/hitbox/AX/lifecycle evidence. Viewport Home/End/axis keys and native single-proposal automatic deadlines now have host controlled-clock lifecycle evidence. Measured captured background dragging now has both-axis pixel/nearest-stop, cancellation and native-editor precedence tests. Trackpad/wheel burst ownership and nested-scroll handoff, grouped controls, clipped-card focus/input/AX and gallery request reduction now have local evidence. Local and installed-consumer desktop checks now pass both-axis/theme Home/End/arrows, real native draft editing/retention, partially clipped neighbor pointer selection, stable-ID reorder/resize, looping, disabled controls and page remount. Local and installed automatic-policy walkthroughs also pass focus/hover/disabled/inactive/reduced-motion pauses, fresh four-second resumes and page-retired timers. Full physical focus/accessibility, captured gestures, precise motion timing and remaining gallery qualification remain required OCH-41 v1 work; track component acceptance is open. Grouping cards inside a full page is not claimed equivalent. See journey-workspace-review.md; current physical/resource/release acceptance remains open.",
+      "public_interface": "lib/core/carousel.mli",
+      "example": "examples/navigation",
+      "evidence": [
+        "docs/evidence/navigation-components-och37.md",
+        "docs/catalog/journey-workspace-review.md",
+        "docs/evidence/carousel-track-macos-och41.md"
+      ],
+      "gallery_page": "journeys",
+      "contract": "Revisioned application selection; native gestures/deadlines, reduced motion and bounded retained pages.",
+      "upstream_modules": [
+        "component/carousel"
+      ]
+    },
+    {
+      "id": "sidebar",
+      "owner": "OCH-37",
+      "scope": "v1",
+      "audit_status": "Five exact sidebar sources reviewed. Grouped/nested destinations, icons/suffix/context menus, responsive slots, collapse modes and native width motion are mapped. Optional Item.Activation now supports Select_only/Expand/Toggle with latest-model eligibility, retained compact preferences and model-only policy updates; full Core tests/format/gallery build pass. Per-item and label-only styling now uses composed links with stable passive slots; Core and native TestPlatform checks cover focus, paint, disabled state and cleanup. Physical macOS and previously staged installed-consumer walkthroughs now pass branch policies, real Return/Space/pointer selection, twelve theme/scale/style cases each, compact/offcanvas state and page remount. Exposed AX identity is preserved; hidden platform objects may be recreated independently of widget retention. VoiceOver, motion timing, measured resources and consolidated release acceptance remain open; see journey-workspace-review.md.",
+      "public_interface": "lib/core/sidebar.mli",
+      "example": "examples/agent_chat",
+      "evidence": [
+        "docs/evidence/agent-chat-m5.md",
+        "docs/catalog/journey-workspace-review.md",
+        "docs/evidence/sidebar-activation-och41.md",
+        "docs/evidence/sidebar-styling-och41.md",
+        "docs/evidence/sidebar-macos-och41.md"
+      ],
+      "gallery_page": "journeys",
+      "contract": "Grouped/nested destinations, independent expansion, collapse modes and current-route semantics.",
+      "upstream_modules": [
+        "component/sidebar"
+      ]
+    },
+    {
+      "id": "managed-list",
+      "owner": "OCH-13",
+      "scope": "v1",
+      "audit_status": "Pinned list/delegate/cache/message/scroll sources reviewed in collections-review.md. Both-axis virtualization and configurable scrollbars have local integration evidence. Selectable_list now provides source-scoped selection/controllers, native keyboard/pointer/AX input and themed bounded rows; List_search adds scoped debounced Eio search, remote upserts, hidden selection, cancellation and retry. Collections includes the persistent Searchable list public example. Local native, Bonsai/Eio and consumer build evidence is recorded separately from unexecuted physical walkthroughs. Animated follow presentation now has a public-API gallery composition and native layout, input, idle, reduced-motion and teardown evidence. Physical/GPU/resource/release qualification remains open. The horizontal-card macOS follow-up fixes a clipped reaction control in the OCaml example; repository and installed checks pass both axes/themes/three sizes, pointer/Space, wheel geometry, local state, data-edit anchors and follow-tail. Sampled adjacency is not a per-frame rendering or hardware-trackpad guarantee; full VoiceOver/resource/release qualification remains open. Standalone searchable-list physical keyboard checks now pass both themes/three sizes locally and in the installed consumer: typed query, primary/secondary/context/cancel intents, hidden selection, remote merge, retry, axis changes, point updates and new-source reset. VoiceOver, other pointer/disabled-state combinations and measured resources remain separate. The managed-scrollbar routing follow-up adds a reactive Bonsai component argument targeting the actual native viewport inside layout wrappers. All five adapter regressions pass; message list, outline and result table pass 18 scoped native range-key/AX/retained-offset cases in both repository and fresh installed galleries. Broader gestures, VoiceOver, timing and release qualification remain separate.",
+      "public_interface": "lib/bonsai/virtual_list.mli",
+      "example": "examples/virtual_list",
+      "evidence": [
+        "docs/evidence/managed-lists-och13.md",
+        "docs/catalog/collections-review.md",
+        "docs/evidence/collections-catalog-och41.md",
+        "docs/evidence/horizontal-list-integration-och41.md",
+        "docs/evidence/scrollbar-table-och41.md",
+        "docs/evidence/selectable-list-managed-och41.md",
+        "docs/evidence/selectable-list-search-och41.md",
+        "docs/evidence/message-follow-presentation-och41.md",
+        "docs/evidence/horizontal-list-macos-och41.md",
+        "docs/evidence/selectable-list-macos-och41.md",
+        "docs/evidence/message-follow-macos-och41.md",
+        "docs/evidence/managed-scrollbar-routing-och41.md"
+      ],
+      "gallery_page": "collections",
+      "contract": "Both-axis virtual rows/paging/anchors/tail following; source-scoped selectable lists with independent cursor/selection/context/confirmation; section-aware option semantics, query ownership and bounded Eio search/upsert results. Hidden loaded membership survives filtering. Helper masks/scroll presentation use retained native viewport ownership.",
+      "upstream_modules": [
+        "base/auto_scroll",
+        "base/list_settings",
+        "base/scrollable_mask",
+        "base/scrollbar",
+        "base/virtual_list",
+        "component/list",
+        "component/message_scroller",
+        "component/scroll",
+        "component/virtual_list"
+      ]
+    },
+    {
+      "id": "tree",
+      "owner": "OCH-38",
+      "scope": "v1",
+      "audit_status": "Exact pinned Base/styled tree reviewed in collections-review.md. Existing stable hierarchy, expansion/selection, keyboard/typeahead, lazy loading and generation-checked reveal/move contracts map the primary behavior. Per-row command/context-menu composition already exists in Tree Lab and agent chat. Boundary, click and context-highlight differences are explicit; shared scrollbar presentation and physical/release qualification remain open. The managed-scrollbar routing follow-up adds a reactive Bonsai component argument targeting the actual native viewport inside layout wrappers. All five adapter regressions pass; message list, outline and result table pass 18 scoped native range-key/AX/retained-offset cases in both repository and fresh installed galleries. Broader gestures, VoiceOver, timing and release qualification remain separate.",
+      "public_interface": "lib/bonsai/tree.mli",
+      "example": "examples/tree",
+      "evidence": [
+        "docs/evidence/managed-trees-och38.md",
+        "docs/catalog/collections-review.md",
+        "docs/evidence/collections-catalog-och41.md",
+        "docs/evidence/managed-scrollbar-routing-och41.md"
+      ],
+      "gallery_page": "collections",
+      "contract": "Stable lazy tree identity, selection/keyboard/reveal and generation-checked loading; editing deferred OCH-42.",
+      "upstream_modules": [
+        "base/tree",
+        "component/tree"
+      ]
+    },
+    {
+      "id": "table",
+      "owner": "OCH-39",
+      "scope": "v1",
+      "audit_status": "Exact pinned managed/structural table, state, column and delegate sources reviewed in collections-review.md. OCH-39 covers native read-only selection/copy/sort/resize/reorder, grouped headers and retained cell budgets. Row-header visibility, Stop/Wrap navigation and per-header selection now have public config/gallery and local bridge/Host/Bonsai behavior evidence. Native stripes, named part colors and shared/per-column padding now have public configuration/gallery and local bridge/layout evidence; GPU color/alpha qualification remains open. Stable horizontal column observations now have a public snapshot/gallery readout and local schema-fenced bridge/layout evidence. Structural Table_view now provides checked keyed sections/rows/cells, real column spans, counts/indices/header roles and captions, with public gallery, native layout and no-window AppKit evidence. Rich keyed leaf/group header Views now have public Core/Bonsai headers parameters, a gallery toggle, paired codec/admission and retained Host evidence including independent button actions and clipped input. Checked Table_presentation.Header/Row now provide scoped paint/typography over native geometry, with public gallery controls, paired codecs, admission and retained Host/Core/Bonsai behavior evidence. Ordinary View layout alone does not provide structural table semantics. The public macOS gallery now passes scoped row tint/hover/reset pixels across two themes and three scales, fixed cell geometry, rich-header AX identity during style changes, pointer/Down selection, independent header action and page remount after the hover-layout repair. The Inspect header button now fits its native slot through public OCaml sizing, with actual glyph margins and pointer/Space activation qualified in all six theme/scale cases. Broader header/state/clip, VoiceOver, resources and consolidated release acceptance remain open. Editing remains OCH-42. The managed-scrollbar routing follow-up adds a reactive Bonsai component argument targeting the actual native viewport inside layout wrappers. All five adapter regressions pass; message list, outline and result table pass 18 scoped native range-key/AX/retained-offset cases in both repository and fresh installed galleries. Broader gestures, VoiceOver, timing and release qualification remain separate.",
+      "public_interface": "lib/bonsai/table.mli",
+      "example": "examples/table",
+      "evidence": [
+        "docs/evidence/data-tables-och39.md",
+        "docs/evidence/table-behavior-och41.md",
+        "docs/evidence/table-appearance-och41.md",
+        "docs/evidence/table-column-viewport-och41.md",
+        "docs/evidence/structural-tables-och41.md",
+        "docs/catalog/collections-review.md",
+        "docs/evidence/collections-catalog-och41.md",
+        "docs/evidence/table-scoped-presentation-och41.md",
+        "docs/evidence/hover-layout-och41.md",
+        "docs/evidence/table-header-fit-och41.md",
+        "docs/evidence/managed-scrollbar-routing-och41.md"
+      ],
+      "gallery_page": "collections",
+      "contract": "Read-only virtual tables with native column interaction and stable identity, plus fully mounted Table_view composition with semantic headers/rows/cells, spans and captions. Editing is deferred OCH-42.",
+      "upstream_modules": [
+        "base/table",
+        "component/table"
+      ]
+    },
+    {
+      "id": "documents",
+      "owner": "OCH-14",
+      "scope": "v1",
+      "audit_status": "Nine pinned Base/component sources reviewed at feature level. Markdown/HTML/code/diff, safe images, navigation with link input metadata, native selection/copy formats, preview budgets/observations, internal styling, Markdown parser switches, frontmatter descriptions and declarative code/table actions now have public APIs, gallery examples and local evidence. Static code/table renderer slots, typed document profiles/plugins, application defaults and virtual control traversal now have implementation and scoped native/installed-consumer evidence. The public macOS profile walkthrough passes code/table keyboard actions, inline/block plugin navigation, property changes, remount, plugin-owned keyboard/wheel scrolling and source retirement; a larger-text rerun also verifies nested viewport clipping. General rich Markdown AX character geometry, VoiceOver and consolidated catalog/release acceptance remain open. These document capabilities do not inherit the editor/LSP deferral.",
+      "public_interface": "lib/core/document.mli",
+      "example": "examples/documents",
+      "evidence": [
+        "docs/evidence/agent-workspace-m4.md",
+        "docs/evidence/subtree-highlighting-och41.md",
+        "docs/catalog/documents-review.md",
+        "docs/evidence/document-selection-format-och41.md",
+        "docs/evidence/document-preview-prerequisites-och41.md",
+        "docs/evidence/document-preview-api-och41.md",
+        "docs/evidence/document-html-och41.md",
+        "docs/evidence/document-styling-och41.md",
+        "docs/evidence/document-link-activation-och41.md",
+        "docs/evidence/document-markdown-options-och41.md",
+        "docs/evidence/document-frontmatter-och41.md",
+        "docs/design/document-actions.md",
+        "docs/evidence/document-actions-och41.md",
+        "docs/evidence/document-sdk-foundation-och41.md",
+        "docs/evidence/document-profile-package-och41.md",
+        "docs/evidence/document-defaults-och41.md",
+        "docs/evidence/document-virtual-focus-och41.md",
+        "docs/evidence/document-profile-macos-och41.md",
+        "docs/evidence/document-profile-scroll-och41.md",
+        "docs/evidence/macos-ci-harness-och17.md"
+      ],
+      "gallery_page": "documents",
+      "contract": "Revisioned Markdown/HTML/code/diff, native selection/navigation, checked reader styling and Markdown parser options, preview observation and literal document search. The Find & highlight page demonstrates subtree query/range scopes, queued counts and selected matches. Custom document extension/rendering and physical acceptance remain open.",
+      "upstream_modules": [
+        "base/selectable_text",
+        "base/text",
+        "base/text_selection",
+        "component/highlighter",
+        "component/text"
+      ]
+    },
+    {
+      "id": "charts",
+      "owner": "OCH-40",
+      "scope": "v1",
+      "audit_status": "All seven pinned chart families and nested plot/scale/shape/axis/tooltip sources reviewed. Local paired/native/GPU and public root/fresh-installed evidence now covers categorical domains, four directions, signed stacking, ordinal colors, independent axes/grids, Sankey/radar/pie presentation, retained rich radar labels and inspection content, mark appearance/patterns, scalar area origins, dense bar backgrounds and per-observation bar origins. Current view/options/style/data schemas are -2/9/-9/3 and require matching packages. Original source IDs/endpoints, explicit aggregation, bounded ownership and teardown remain enforced. charts-review.md maps the supported declarative fill cases and explicitly unsupported arbitrary live pixel-bound callbacks/raw plot helpers; the native extension SDK does not inject custom fills into the built-in Chart. Scoped local evidence is not complete plotting parity, VoiceOver/physical presentation, optimized performance, current-source hosted/Linux or release acceptance.",
+      "public_interface": "lib/core/chart.mli",
+      "example": "examples/charts",
+      "evidence": [
+        "docs/evidence/charts-och40.md",
+        "docs/catalog/charts-review.md",
+        "docs/evidence/chart-directions-och41.md",
+        "docs/evidence/categorical-charts-och41.md",
+        "docs/evidence/stacked-charts-och41.md",
+        "docs/evidence/chart-axis-presentation-och41.md",
+        "docs/evidence/pie-labels-och41.md",
+        "docs/evidence/radar-label-rating-theme-och41.md",
+        "docs/evidence/chart-inspection-gallery-och41.md",
+        "docs/evidence/chart-mark-appearance-och41.md",
+        "docs/evidence/native-pattern-brushes-och41.md",
+        "docs/evidence/area-baselines-och41.md",
+        "docs/evidence/dense-background-gallery-och41.md",
+        "docs/evidence/bar-baselines-och41.md"
+      ],
+      "gallery_page": "charts",
+      "contract": "Seven chart families/mixed layers, bounded source/preparation and original-data accessibility; preserve exact/reduced provenance.",
+      "upstream_modules": [
+        "component/chart",
+        "component/plot"
+      ]
+    },
+    {
+      "id": "motion",
+      "owner": "OCH-25",
+      "scope": "v1",
+      "audit_status": "Eight exact pinned animation/motion sources reviewed in motion-review.md. Native transitions, springs, staged programs, shared clocks, reduced motion and component-specific reveals map to public contracts. Cubic presets, all stepped policies, bounded linear-stop easing, signed initial delays, full unsigned finite counts and all four explicit playback directions now have paired API/codec/native-state evidence and fresh installed macOS Motion walkthroughs. Legacy policies retain their semantics; explicit finite completion and bounded OS timer waits are documented. Arbitrary keyframes, object/color interpolation and general exit-presence retain the existing OCH-25 exclusions. Final-source hosted, physical presentation/performance and broader release acceptance remain open.",
+      "public_interface": "lib/core/animation.mli",
+      "example": "examples/animation_program",
+      "evidence": [
+        "docs/evidence/animation-programs-och25.md",
+        "docs/catalog/motion-review.md",
+        "docs/evidence/cubic-easing-och41.md",
+        "docs/evidence/stepped-easing-och41.md",
+        "docs/evidence/signed-delay-och41.md",
+        "docs/evidence/animation-iterations-och41.md"
+      ],
+      "gallery_page": "motion",
+      "contract": "Native transitions/springs/sequences/repetition and interruption/reduced motion, without OCaml frame callbacks.",
+      "upstream_modules": [
+        "base/animation",
+        "base/motion"
+      ]
+    },
+    {
+      "id": "commands-menus",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Pinned action, command/state/item, popup/context/dropdown/bar, native-menu and shared searchable-list sources reviewed in commands-menus-review.md. Public APIs and scoped native/installed macOS evidence cover passive menu labels/content, palette search policies, grouped/measured rich content, observations/controllers, retained loading, external results and persistent embedding. Native macOS context popups, positioned Show/Close, bounded SVG icons, multi-window/editor-target ownership and queued-start cancellation now have implementation and qualification evidence; Linux uses the documented drawn popup fallback. Native menu-bar icons now have local AppKit and public-gallery nested artwork, clear/restore, dispatch and window-ownership evidence, including the explicit disabled-state validation repair; see native-menu-bar-icons-och41.md. The gallery-header-layout-och41.md follow-up adds a fresh installed-consumer pass. Final-source hosted checks and consolidated family acceptance remain open. Uniform drawn menu row sizing and one native action owner remain explicit limits. General selectable-list composition is not automatic command-route equivalence. Physical coverage is scoped to the linked evidence; full VoiceOver/release acceptance remains open.",
+      "public_interface": "lib/core/command.mli",
+      "example": "examples/palette",
+      "evidence": [
+        "docs/evidence/native-palette-och11.md",
+        "docs/catalog/commands-menus-review.md",
+        "docs/evidence/menu-labels-och41.md",
+        "docs/evidence/menu-content-och41.md",
+        "docs/evidence/palette-policies-och41.md",
+        "docs/evidence/palette-layout-och41.md",
+        "docs/evidence/palette-content-och41.md",
+        "docs/evidence/palette-observation-och41.md",
+        "docs/evidence/palette-commands-och41.md",
+        "docs/evidence/palette-loading-och41.md",
+        "docs/evidence/palette-external-results-och41.md",
+        "docs/evidence/palette-embedded-och41.md",
+        "docs/evidence/native-popup-och41.md",
+        "docs/evidence/menu-commands-och41.md",
+        "docs/evidence/native-menu-icons-och41.md",
+        "docs/evidence/menu-multiwindow-och41.md",
+        "docs/evidence/menu-popup-queue-och41.md"
+      ],
+      "gallery_page": "feedback",
+      "contract": "Shared typed commands/key bindings, native menus/palette search and queued invocations; audit searchable-list composition separately.",
+      "upstream_modules": [
+        "base/actions",
+        "component/actions",
+        "component/command",
+        "component/menu",
+        "component/native_menu",
+        "component/searchable_list"
+      ]
+    },
+    {
+      "id": "progress",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "pinned linear and circular source reviewed; Core/Bonsai circle, native value transitions, rounded fill, atomic bridge and Feedback gallery implemented locally; headless geometry/ownership/center-focus, native GPU/AX and fresh installed public-gallery checks pass, including retained center-editor undo across inert hiding; final-source hosted and measured release acceptance remain open",
+      "public_interface": "lib/core/progress.mli",
+      "example": "examples/progress",
+      "evidence": [
+        "docs/evidence/native-progress-och11.md",
+        "docs/catalog/progress-review.md",
+        "docs/design/progress-presentation.md"
+      ],
+      "gallery_page": "feedback",
+      "contract": "Validated semantic fraction or indeterminate work; passive native progress semantics. Linear and circular rich-center presentation with native value transitions and rounded fill; native GPU/AX and installed public-gallery checks now pass; measured application performance/resource and final-source release acceptance remain required.",
+      "upstream_modules": [
+        "base/progress",
+        "component/progress"
+      ]
+    },
+    {
+      "id": "toasts",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Pinned Base toast and styled notification snapshots reviewed. Keyed application-owned content, active-time expiry/pause, typed dismissal, bounded overflow and separate capability-aware OS notifications have existing contracts/evidence. Toast.Placement now provides all eight anchors and checked outer margins, preserving retained editors and active-time clocks, with Core/codec/admission/production Host evidence and gallery controls. Measured layered geometry, paint-committed reflow, finite lifecycle and accepted-dismissal tokens now have deterministic native foundation tests. Toast.Stack.Layering now connects current-frame measured rendering, hover/focus expansion, named keyboard entry, bounded scroll, decorative input/AX shielding and retained editors through paired metadata, with gallery samples and local evidence. Toast.Stack.Motion now connects independent native reflow and entry/exit through Op107, bounded admission, finite native phase timers and accepted delayed dismissal. Production Host tests cover first-paint/timeout ordering, interrupted exit/focus, composition precedence, nested-modal overflow, reduced/hidden/inactive/disabled/zero-area settlement, removal/overload/window close, legacy order and retained-editor reflow. The public Feedback gallery has an Animate notifications toggle. See notification-review.md; physical/resource/release acceptance remains open. The 2026-10-08 public macOS walkthrough passes 34 settled anchor/theme/motion/inset cases, collapsed semantic shielding, keyboard expansion/dismissal, fresh-owner restoration and page teardown. The example Show-during-exit race is repaired with fresh batch keys and stale dismissal guards; see notification-gallery-och41.md. Smoothness, VoiceOver, IME, hover expiry, reduced motion and resource qualification remain separate. The subsequent local and installed policy walkthrough qualifies actual pointer expansion/collapse and hover/focus active-time expiry under Full/Reduced application preferences; immediate reduced-motion pixels and the other outstanding scopes remain unqualified. The native entrance follow-up observes intermediate Full-motion AX geometry and endpoint-only Reduced samples locally and in the installed consumer; sampling does not establish all physical frames, pixels or FPS.",
+      "public_interface": "lib/core/toast.mli",
+      "example": "examples/toasts",
+      "evidence": [
+        "docs/evidence/native-toasts-och11.md",
+        "docs/catalog/notification-review.md",
+        "docs/evidence/toast-placement-och41.md",
+        "docs/evidence/toast-presentation-foundation-och41.md",
+        "docs/evidence/toast-layering-och41.md",
+        "docs/evidence/toast-motion-renderer-och41.md",
+        "docs/evidence/toast-motion-och41.md"
+      ],
+      "gallery_page": "feedback",
+      "contract": "In-application notifications are toast stacks, distinct from OCH-28 OS notifications. Native deadlines, actions, queue bounds and lifecycle.",
+      "upstream_modules": [
+        "base/toast",
+        "component/notification"
+      ]
+    },
+    {
+      "id": "clipboard",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Pinned standalone Clipboard source reviewed. Typed application-text writes and Bonsai Copy composition now have paired codec, lifecycle/clock and real macOS gallery evidence, including literal/current Unicode text, native keyboard/AX, feedback and restoration of original clipboard representations. Consolidated hosted/consumer qualification and full release acceptance remain open.",
+      "public_interface": "lib/eio/clipboard.mli",
+      "example": "examples/gallery",
+      "evidence": [
+        "docs/evidence/native-editor-och10.md",
+        "docs/catalog/assets-clipboard-review.md",
+        "docs/design/clipboard.md",
+        "docs/evidence/clipboard-och41.md"
+      ],
+      "gallery_page": "assets",
+      "contract": "Core Clipboard.Text validates UTF-8/no NUL/256 KiB; Eio Clipboard.write_text queues an application-scoped native invocation with bounded correlated replies. Copy captures current reactive text, suppresses duplicates and fences obsolete feedback on value/disabled/deactivation changes; shared-clock copied feedback lasts two seconds. Success is invocation, not OS persistence. Icon/tooltip composition uses ordinary public views; Linux GUI qualification remains OCH-47.",
+      "upstream_modules": [
+        "component/clipboard"
+      ]
+    },
+    {
+      "id": "assets",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Pinned Icon source reviewed in assets-clipboard-review.md. Explicit scoped SVG bytes, tint, sizes and decorative/control ownership map to public Asset/Icon/View APIs. Bounded public SRT transforms now have paired codec, native admission, actual GPU/AppKit snapshot and root/fresh-installed gallery input/identity evidence, with full Dune and strict lint passing. Initial window-loss/desktop-obstruction failures and passing repeats remain in the evidence; no broader reliability acceptance is inferred. Upstream path/name lookup is application composition. Broader catalog and release acceptance remain open.",
+      "public_interface": "lib/core/asset.mli",
+      "example": "examples/images",
+      "evidence": [
+        "docs/evidence/assets-och11.md",
+        "docs/catalog/assets-clipboard-review.md",
+        "docs/design/icon-transforms.md",
+        "docs/evidence/icon-transforms-och41.md"
+      ],
+      "gallery_page": "assets",
+      "contract": "Explicit scoped image/SVG assets and tintable icons, with validated visual scale/rotation/translation and replacement/reset. Layout/input/AX ownership stays fixed; native menus retain their bounded snapshot slot. No mandatory upstream icon macro or implicit network acquisition.",
+      "upstream_modules": [
+        "component/icon"
+      ]
+    },
+    {
+      "id": "style-theme",
+      "owner": "OCH-8",
+      "scope": "v1",
+      "audit_status": "Pinned style/state/sizing/theme roots, all six nested theme modules and embedded palette data reviewed in style-theme-review.md. Typed colors/gradients, component appearances, metric/motion composition and runtime ownership are mapped with explicit differences; this is not upstream JSON-schema or pixel-preset compatibility. Native appearance and Follow system have real two-window macOS Light/Dark switching evidence, independent overrides, retained native editing and exact OS preference restoration. Default monospace selection is implemented with four local policy/ownership tests and full native regressions; full OCaml/gallery and strict lint checks pass. The gallery now has bounded file-backed profiles, explicit reload, last-good/error/cancellation policy and stale-choice rejection with parser/Eio/reconciliation expectations and full OCaml/gallery checks. Native scrollbar preference snapshots and an explicit gallery action now have paired codecs and local native dispatch/policy coverage; actual macOS current/legacy/overlay AppKit snapshots, public application while scrolled, native range keys and page reactivation now pass using process-local defaults; live global settings changes and broader scrollbar behavior remain separate; The real file-theme walkthrough now passes Unicode file picker/load/reload, actual palette pixels, retained selection/undo, invalid input, independent windows and Eio cancellation during page/window departure. Consolidated release acceptance remains open.",
+      "public_interface": "lib/core/style.mli",
+      "example": "examples/view_api",
+      "evidence": [
+        "docs/evidence/theme-scale-och11.md",
+        "docs/design/native-aspect-ratio.md",
+        "docs/design/window-appearance.md",
+        "docs/evidence/window-appearance-och41.md",
+        "docs/catalog/style-theme-review.md",
+        "docs/evidence/default-fonts-och41.md",
+        "docs/evidence/gallery-theme-files-och41.md",
+        "docs/evidence/scrollbar-preference-och41.md",
+        "docs/evidence/scrollbar-input-macos-och41.md"
+      ],
+      "gallery_page": "presentation",
+      "contract": "Typed styles/tokens/native states. Compare values and scope restrictions using gpuix-styles.json, not only field names. Native aspect ratio now has paired transport, validation and retained GPU geometry/state/unset evidence; public gallery and a fresh installed consumer pass proportional geometry, explicit-height reset, keyboard focus/state/identity retention and page remount. Specialized-widget and release acceptance remain separate.",
+      "upstream_modules": [
+        "base/state_style",
+        "base/styled",
+        "base/theme",
+        "base/theme_tokens",
+        "component/sizing",
+        "component/styled",
+        "component/theme"
+      ]
+    },
+    {
+      "id": "native-events",
+      "owner": "OCH-11",
+      "scope": "v1",
+      "audit_status": "Pinned Base event helpers reviewed in native-events-review.md. Dominant-axis native scrolling and double-click observation map to existing scrolling/Input_region routes; captured gestures and IME remain distinct. Current native checks and gallery examples are linked; consolidated physical trackpad/input/accessibility acceptance remains open.",
+      "public_interface": "lib/core/pointer.mli",
+      "example": "examples/pointer",
+      "evidence": [
+        "docs/evidence/native-pointer-och11.md",
+        "docs/evidence/drag-drop-och11.md",
+        "docs/evidence/input-observations-och41.md",
+        "docs/catalog/native-events-review.md"
+      ],
+      "gallery_page": "input",
+      "contract": "Typed captured gestures and general input-region observations with explicit phase, focus, pointer/wheel occlusion and asynchronous ownership. Input & transfers and Input observations gallery pages have local native evidence; consolidated gates remain.",
+      "upstream_modules": [
+        "base/event"
+      ]
+    },
+    {
+      "id": "geometry",
+      "owner": "OCH-8",
+      "scope": "v1",
+      "audit_status": "Three pinned helper sources reviewed in geometry-review.md. Placement/axis/edge values map to checked public styles and placement; layout resolution, scope ownership and native extension prepaint stay native. Container-query and specialized geometry observations are documented without claiming a generic OCaml bounds subscription or rem conversion. Current public tests and existing targeted native evidence are linked; physical gallery/display-scale acceptance remains open.",
+      "public_interface": "lib/core/length.mli",
+      "example": "examples/view_api",
+      "evidence": [
+        "docs/evidence/theme-scale-och11.md",
+        "docs/catalog/geometry-review.md"
+      ],
+      "gallery_page": "runtime",
+      "contract": "Typed length/placement/layout and View composition; Rust extension traits do not require one-for-one FFI wrappers.",
+      "upstream_modules": [
+        "base/element_ext",
+        "base/geometry",
+        "component/element_ext"
+      ]
+    },
+    {
+      "id": "window",
+      "owner": "OCH-15",
+      "scope": "v1",
+      "audit_status": "Three pinned sources reviewed in window-review.md. Existing native window configuration/observations/close decisions are mapped. Programmatic minimize has paired wire fixtures, public gallery integration and passing local builds/regression checks; custom chrome/title-bar composition, guarded native move/double-click and explicit Linux resize regions are implemented with local tests. Live presentation snapshots and backend-supported control composition are implemented with local checks. Automatic client framing, stable platform inset, tiled/fullscreen geometry and content-aware overlays are implemented with local geometry/layout/regression checks. Metadata-only focused-input lookup is implemented with generation-aware controller matching and native/codec checks. Window-wide selection helpers implement bounded UTF-8 reads, presence, clear and end-drag operations; native/codec/OCaml/gallery/lint checks and exact vendor reconstruction pass. Real macOS standard/custom window lifecycle checks now pass minimize/restore with retained draft/selection/undo, custom native move, fullscreen restore, border resizing and default double-click zoom. Native focused-input queries cover ordinary/masked/read-only controls, independent windows and remount. Window-selection checks pass exact bounded Unicode reads, end/clear, independent windows and page-unmount retirement with the clipboard unchanged. Other OS gesture policies, Linux GUI, VoiceOver and consolidated release acceptance remain separate; no blanket platform claim is made.",
+      "public_interface": "lib/core/window.mli",
+      "example": "examples/window_lifecycle",
+      "evidence": [
+        "docs/evidence/agent-workspace-m4.md",
+        "docs/catalog/window-review.md",
+        "docs/evidence/window-minimize-och41.md",
+        "docs/evidence/window-regions-och41.md",
+        "docs/evidence/window-presentation-och41.md",
+        "docs/evidence/window-frame-och41.md",
+        "docs/evidence/window-input-query-och41.md",
+        "docs/evidence/window-selection-och41.md",
+        "docs/evidence/window-lifecycle-och41.md"
+      ],
+      "gallery_page": "runtime",
+      "contract": "Native window configuration/chrome/commands; no general OS-owned titlebar object crosses FFI.",
+      "upstream_modules": [
+        "component/title_bar",
+        "component/window_border",
+        "component/window_ext"
+      ]
+    },
+    {
+      "id": "runtime",
+      "owner": "OCH-9",
+      "scope": "v1",
+      "audit_status": "Eight pinned helper/Root sources reviewed in runtime-helpers-review.md. Native global/provider ownership, Eio bounded cancellation/delivery, keyed construction, overlays and window lifetimes are mapped to existing APIs. Re-export modules are distinguished from independent widgets. Current scoped tests and dated runtime evidence are linked; full physical/teardown/performance acceptance remains open.",
+      "public_interface": "lib/eio/app.mli",
+      "example": "examples/runtime",
+      "evidence": [
+        "docs/evidence/runtime-och9.md",
+        "docs/catalog/runtime-helpers-review.md"
+      ],
+      "gallery_page": "runtime",
+      "contract": "Native runtime ownership, typed IDs, validated config and scoped Eio tasks replace upstream global helpers/traits.",
+      "upstream_modules": [
+        "base/async_util",
+        "base/component_traits",
+        "base/global_state",
+        "base/index_path",
+        "component/component_traits",
+        "component/global_state",
+        "component/index_path",
+        "component/root"
+      ]
+    },
+    {
+      "id": "diagnostics",
+      "owner": "OCH-17",
+      "scope": "v1",
+      "audit_status": "Four pinned measurement/test-observation/accessibility sources reviewed in diagnostics-review.md. Public counters and test infrastructure have explicit units and limits. The host now installs the pinned NSWindow AX hit-test forwarder; the real two-window regression obtains exact editor identity at visible screen points. A further 21 exact system-wide AX hits now pass across controls, overlays and restored triggers. VoiceOver remains separate. Performance/resource/startup/distribution gates remain open.",
+      "public_interface": "lib/eio/app.mli",
+      "example": "examples/runtime",
+      "evidence": [
+        "docs/evidence/runtime-och9.md",
+        "docs/catalog/diagnostics-review.md",
+        "docs/evidence/form-label-point-routing-och17.md"
+      ],
+      "gallery_page": "runtime",
+      "contract": "Internal measurement/observation/accessibility integration maps to diagnostics/native automation. Audit general public geometry/automation surface for release.",
+      "upstream_modules": [
+        "base/macos_accessibility",
+        "base/measure",
+        "base/observe",
+        "base/test_support"
+      ]
+    },
+    {
+      "id": "docking",
+      "owner": "OCH-43",
+      "scope": "post_v1",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/core/split_pane.mli",
+      "example": "examples/navigation",
+      "evidence": [
+        "docs/design/component-catalog.md"
+      ],
+      "gallery_page": null,
+      "contract": "Post-v1: comprehensive docking/detachable panels. Existing splits/tabs are not an assertion of full docking.",
+      "upstream_modules": [
+        "base/dock",
+        "component/dock"
+      ]
+    },
+    {
+      "id": "inspector",
+      "owner": "OCH-17",
+      "scope": "excluded_development_tooling",
+      "audit_status": "mapping established; detailed behavioral review pending",
+      "public_interface": "lib/eio/app.mli",
+      "example": "examples/runtime",
+      "evidence": [
+        "docs/design/component-catalog.md"
+      ],
+      "gallery_page": null,
+      "contract": "Upstream development inspector is excluded from component/application-functionality parity; runtime diagnostics still required.",
+      "upstream_modules": [
+        "component/inspector"
+      ]
+    }
+  ]
+}

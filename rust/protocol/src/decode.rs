@@ -2,11 +2,53 @@ use crate::{HandlerId, NodeId, WindowId, v1::*};
 use binprot::BinProtRead;
 use std::io::{Cursor, Read};
 
+mod button;
+pub use button::decode_button_config;
+mod split_group;
+mod split_group_appearance;
+pub use split_group::{decode_split_group_config, decode_split_group_snapshot};
+pub use split_group_appearance::decode_split_group_appearance;
+mod split_button;
+pub use split_button::decode_split_button_config;
+mod checkable;
+mod command_binding;
+pub use checkable::{decode_radio_position, decode_tab_order};
+pub use command_binding::{decode_command_binding_config, decode_command_binding_observation};
+mod choice_picker;
+mod input;
+mod input_format;
+mod input_validation;
+mod text_area_layout;
+pub use input_format::decode_input_format;
+pub use input_validation::decode_input_validation_source;
+mod link;
+pub use choice_picker::{
+    decode_choice_picker_config, decode_choice_picker_event, decode_choice_picker_presentation,
+};
+mod text_content;
+mod text_shimmer;
+pub use input::{decode_input_config, decode_input_event};
+pub use link::decode_link_config;
+pub use text_content::decode_text_content;
+pub use text_shimmer::decode_text_shimmer_config;
+mod highlight;
+pub use highlight::{decode_highlight_config, decode_highlight_observation};
+mod document_diff;
+pub use document_diff::{decode_document_diff_config, decode_document_diff_event};
 mod accessibility;
+mod chart_appearance;
+pub use chart_appearance::decode_chart_appearance;
+mod chart_axis;
 mod chart_data;
+mod chart_inspection;
+mod chart_inspection_content;
+pub use chart_inspection_content::decode_chart_inspection_content;
+mod chart_node_labels;
+pub use chart_node_labels::decode_chart_node_labels;
 mod chart_options;
 mod chart_style;
 mod chart_view;
+mod list_input;
 pub use chart_style::decode_chart_style;
 pub use chart_view::decode_chart_view_config;
 mod chart_resource;
@@ -26,11 +68,17 @@ pub use notification::{
 mod avatar;
 mod calendar;
 mod carousel;
+mod carousel_track;
+pub use carousel_track::{decode_carousel_track_config, decode_carousel_track_request};
+mod document_actions;
+mod document_profile;
 mod table;
+mod table_header;
 pub use carousel::{decode_carousel_config, decode_carousel_request};
 pub use table::{
     decode_table_cell, decode_table_command, decode_table_config, decode_table_request,
 };
+pub use table_header::decode_table_header_target;
 mod color_input;
 pub use calendar::{
     decode_calendar_command, decode_calendar_config, decode_calendar_constraints,
@@ -40,6 +88,10 @@ pub use color_input::{
     decode_color_command, decode_color_config, decode_color_event, decode_color_response,
 };
 mod loading;
+mod spinner;
+pub use spinner::decode_spinner_config;
+mod progress_presentation;
+pub use progress_presentation::decode_progress_presentation;
 mod navigation_stack;
 pub use navigation_stack::decode_navigation_stack;
 mod number_input;
@@ -53,8 +105,18 @@ pub use number_input::{
     decode_number_input_command, decode_number_input_config, decode_number_input_event,
     decode_number_input_response,
 };
+mod calendar_content;
+mod calendar_presentation;
+pub use calendar_content::decode_calendar_content;
+mod color_presentation;
+mod number_presentation;
+mod otp_presentation;
 mod rating;
+mod reveal;
+mod scrollbar;
+pub use scrollbar::decode_scrollbar_config;
 mod slider;
+mod slider_presentation;
 pub use accessibility::decode_accessibility;
 pub use numeric::decode_numeric_domain;
 pub use slider::{decode_slider_command, decode_slider_config, decode_slider_event};
@@ -179,8 +241,8 @@ impl Decoder<'_> {
         crate::ResourceId::from_parts(self.int()?, self.int()?).ok_or(DecodeError::Malformed)
     }
     fn animation_targets(&mut self) -> Result<Vec<crate::animation::Target>, DecodeError> {
-        use crate::animation::{PROPERTY_COUNT, Property, Target};
-        let count = self.count(PROPERTY_COUNT)?;
+        use crate::animation::{MAX_TARGETS, Property, Target};
+        let count = self.count(MAX_TARGETS)?;
         (0..count)
             .map(|_| {
                 let property = match self.tag()? {
@@ -195,6 +257,7 @@ impl Decoder<'_> {
                     8 => Property::TopRightRadius,
                     9 => Property::BottomLeftRadius,
                     10 => Property::BottomRightRadius,
+                    11 => Property::OpacityFactor,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Ok(Target {
@@ -205,7 +268,7 @@ impl Decoder<'_> {
             .collect()
     }
     fn animation_config(&mut self) -> Result<crate::animation::Config, DecodeError> {
-        use crate::animation::{Config, Repeat};
+        use crate::animation::Config;
         let generation = self.int()?;
         let targets = self.animation_targets()?;
         let initial = match self.tag()? {
@@ -216,12 +279,7 @@ impl Decoder<'_> {
         let duration_ms = self.int()?;
         let delay_ms = self.int()?;
         let easing = self.animation_easing()?;
-        let repeat = match self.tag()? {
-            0 => Repeat::Once,
-            1 => Repeat::Loop,
-            2 => Repeat::Alternate,
-            _ => return Err(DecodeError::Malformed),
-        };
+        let repeat = self.animation_repeat()?;
         let config = Config {
             generation,
             targets,
@@ -277,6 +335,7 @@ impl Decoder<'_> {
                 0 => Mode::Markdown,
                 1 => Mode::Code(self.bounded_text(64)?),
                 2 => Mode::Diff,
+                3 => Mode::Html,
                 _ => return Err(DecodeError::Malformed),
             },
             dark: self.boolean()?,
@@ -532,6 +591,20 @@ impl Decoder<'_> {
                 self.color()?,
                 self.float()?,
             )),
+            2 => Ok(Fill::LinearGradientIn(
+                self.int()?,
+                self.float()?,
+                self.color()?,
+                self.float()?,
+                self.color()?,
+                self.float()?,
+            )),
+            3 => Ok(Fill::PatternSlash(
+                self.color()?,
+                self.float()?,
+                self.float()?,
+            )),
+            4 => Ok(Fill::Checkerboard(self.color()?, self.float()?)),
             _ => Err(DecodeError::Malformed),
         }
     }
@@ -550,6 +623,32 @@ impl Decoder<'_> {
             blur: self.float()?,
             spread: self.float()?,
             inset: self.boolean()?,
+        })
+    }
+    fn grid_edge(&mut self) -> Result<crate::grid_location::Edge, DecodeError> {
+        use crate::grid_location::Edge;
+        let edge = match self.tag()? {
+            0 => Edge::Auto,
+            1 => Edge::Line(self.int()?),
+            2 => Edge::Span(self.int()?),
+            _ => return Err(DecodeError::Malformed),
+        };
+        if edge.valid() {
+            Ok(edge)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+    fn grid_axis(&mut self) -> Result<crate::grid_location::Axis, DecodeError> {
+        Ok(crate::grid_location::Axis {
+            start: self.grid_edge()?,
+            end: self.grid_edge()?,
+        })
+    }
+    fn grid_location(&mut self) -> Result<crate::grid_location::Location, DecodeError> {
+        Ok(crate::grid_location::Location {
+            column: self.grid_axis()?,
+            row: self.grid_axis()?,
         })
     }
     fn field(&mut self) -> Result<Field, DecodeError> {
@@ -620,8 +719,33 @@ impl Decoder<'_> {
             63 => Field::SelectionColor(self.color()?),
             64 => Field::AccessibleName(self.text()?),
             65 => Field::Inert(self.boolean()?),
+            66 => Field::PointerOcclusion(self.int()?),
+            67 => Field::BorderStyle(self.int()?),
+            68 => Field::AspectRatio(self.float()?),
+            69 => Field::Disabled(self.boolean()?),
+            70 => Field::GridLocation(self.grid_location()?),
             _ => return Err(DecodeError::Malformed),
         })
+    }
+
+    fn table_presentation(&mut self, row: bool) -> Result<Vec<Style>, DecodeError> {
+        let mut remaining = crate::table_presentation::MAX_DECLARATIONS;
+        let styles = self.list(remaining, |decoder| {
+            let style = decoder.style()?;
+            let count = match &style {
+                Style::Fields(fields) | Style::State(_, fields) => fields.len(),
+                _ => return Err(DecodeError::Malformed),
+            };
+            remaining = remaining
+                .checked_sub(count)
+                .ok_or(DecodeError::LimitExceeded)?;
+            Ok(style)
+        })?;
+        if crate::table_presentation::valid_scope(&styles, row) {
+            Ok(styles)
+        } else {
+            Err(DecodeError::Malformed)
+        }
     }
 
     fn style(&mut self) -> Result<Style, DecodeError> {
@@ -662,7 +786,7 @@ impl Decoder<'_> {
 
     fn shortcut(&mut self) -> Result<Shortcut, DecodeError> {
         Ok(Shortcut {
-            key: self.text()?,
+            key: self.bounded_text(256)?,
             modifiers: self.list(5, |this| {
                 Ok(match this.tag()? {
                     0 => ShortcutModifier::Primary,
@@ -687,24 +811,112 @@ impl Decoder<'_> {
             during_composition: self.boolean()?,
         })
     }
+    fn bounded_metadata_text(
+        &mut self,
+        limit: usize,
+        bytes: &mut usize,
+    ) -> Result<String, DecodeError> {
+        let value = self.bounded_text(limit.min(262144usize.saturating_sub(*bytes)))?;
+        *bytes += value.len();
+        Ok(value)
+    }
+    fn palette_layout(&mut self) -> Result<crate::palette_layout::Config, DecodeError> {
+        use crate::palette_layout::{Config, Entry};
+        let size = self.count(1024)?;
+        let mut entries = Vec::with_capacity(size);
+        let mut remaining = 1024usize;
+        let mut bytes = 0;
+        for _ in 0..size {
+            entries.push(match self.tag()? {
+                0 => {
+                    remaining = remaining.checked_sub(1).ok_or(DecodeError::Malformed)?;
+                    Entry::Command(self.int()?)
+                }
+                1 => {
+                    let id = self.bounded_metadata_text(256, &mut bytes)?;
+                    let label = self.option(|this| this.bounded_metadata_text(4096, &mut bytes))?;
+                    let count = self.count(remaining)?;
+                    remaining -= count;
+                    let mut commands = Vec::with_capacity(count);
+                    for _ in 0..count {
+                        commands.push(self.int()?);
+                    }
+                    Entry::Group(id, label, commands)
+                }
+                2 => Entry::Separator,
+                _ => return Err(DecodeError::Malformed),
+            });
+        }
+        let config = Config(entries);
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
+    fn palette_options(&mut self) -> Result<crate::palette_options::Config, DecodeError> {
+        use crate::palette_options::{Config, Escape, Keywords, Presentation, Search};
+        let search = match self.tag()? {
+            0 => Search::AllTerms,
+            1 => Search::Substring,
+            2 => Search::Unfiltered,
+            3 => Search::External,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let searchable = self.boolean()?;
+        let escape = match self.tag()? {
+            0 => Escape::Dismiss,
+            1 => Escape::ClearQueryFirst,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let size = self.count(1024)?;
+        let mut bytes = 0;
+        let mut keywords = Vec::with_capacity(size);
+        for _ in 0..size {
+            let command = self.bounded_metadata_text(256, &mut bytes)?;
+            let size = self.count(64)?;
+            let mut words = Vec::with_capacity(size);
+            for _ in 0..size {
+                words.push(self.bounded_metadata_text(4096, &mut bytes)?);
+            }
+            keywords.push(Keywords { command, words });
+        }
+        let presentation = match self.tag()? {
+            0 => Presentation::Modal,
+            1 => Presentation::Embedded,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let config = Config {
+            search,
+            searchable,
+            escape,
+            keywords,
+            presentation,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
     fn menu_definition(
         &mut self,
         depth: usize,
         count: &mut usize,
+        bytes: &mut usize,
     ) -> Result<MenuDefinition, DecodeError> {
         if depth > 8 {
             return Err(DecodeError::LimitExceeded);
         }
-        let label = self.text()?;
+        let label = self.bounded_metadata_text(4096, bytes)?;
         let disabled = self.boolean()?;
         let size = self.count(1024usize.saturating_sub(*count))?;
         *count += size;
         let mut items = Vec::with_capacity(size);
         for _ in 0..size {
             items.push(match self.tag()? {
-                0 => MenuItem::Command(self.text()?),
+                0 => MenuItem::Command(self.bounded_metadata_text(256, bytes)?),
                 1 => MenuItem::Separator,
-                2 => MenuItem::Submenu(self.menu_definition(depth + 1, count)?),
+                2 => MenuItem::Submenu(self.menu_definition(depth + 1, count, bytes)?),
+                3 => MenuItem::Label(self.bounded_metadata_text(4096, bytes)?),
                 _ => return Err(DecodeError::Malformed),
             });
         }
@@ -720,13 +932,16 @@ impl Decoder<'_> {
             1 => MenuPresentation::Context,
             2 => MenuPresentation::Bar,
             3 => MenuPresentation::PlatformBar,
+            4 => MenuPresentation::EditorContext,
+            5 => MenuPresentation::PlatformContext,
             _ => return Err(DecodeError::Malformed),
         };
         let size = self.count(32)?;
         let mut count = 0;
+        let mut bytes = 0;
         let mut menus = Vec::with_capacity(size);
         for _ in 0..size {
-            menus.push(self.menu_definition(1, &mut count)?);
+            menus.push(self.menu_definition(1, &mut count, &mut bytes)?);
         }
         let config = MenuConfig {
             presentation,
@@ -822,6 +1037,98 @@ impl Decoder<'_> {
         })
     }
 
+    fn toast_motion(&mut self) -> Result<crate::toast_motion::Config, DecodeError> {
+        let config = crate::toast_motion::Config {
+            spring: crate::animation::Spring {
+                stiffness: self.float()?,
+                damping: self.float()?,
+                mass: self.float()?,
+                epsilon: self.float()?,
+                max_duration_ms: self.int()?,
+            },
+            enter_ms: self.int()?,
+            exit_ms: self.int()?,
+            offset: self.float()?,
+        };
+        if config.is_valid() {
+            Ok(config)
+        } else {
+            Err(DecodeError::Malformed)
+        }
+    }
+    fn toast_layering(&mut self) -> Result<crate::toast_layering::Layering, DecodeError> {
+        let config = crate::toast_layering::Layering {
+            peek: self.float()?,
+            gap: self.float()?,
+            width_step: self.float()?,
+            visible: self.int()?,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
+    fn toast_placement(&mut self) -> Result<crate::toast_placement::Placement, DecodeError> {
+        use crate::toast_placement::{Anchor, Placement};
+        let anchor = match self.tag()? {
+            0 => Anchor::TopLeft,
+            1 => Anchor::TopRight,
+            2 => Anchor::BottomLeft,
+            3 => Anchor::BottomRight,
+            4 => Anchor::TopCenter,
+            5 => Anchor::BottomCenter,
+            6 => Anchor::LeftCenter,
+            7 => Anchor::RightCenter,
+            _ => return Err(DecodeError::Malformed),
+        };
+        let p = Placement {
+            anchor,
+            top: self.float()?,
+            right: self.float()?,
+            bottom: self.float()?,
+            left: self.float()?,
+        };
+        if !p.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(p)
+    }
+    fn sheet_insets(&mut self) -> Result<crate::sheet_insets::Insets, DecodeError> {
+        let insets = crate::sheet_insets::Insets {
+            top: self.float()?,
+            right: self.float()?,
+            bottom: self.float()?,
+            left: self.float()?,
+        };
+        if !insets.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(insets)
+    }
+    fn placement_geometry(&mut self) -> Result<crate::placement_geometry::Config, DecodeError> {
+        use crate::placement_geometry::{Config, Corner, Point};
+        let config = Config {
+            viewport_margin: self.float()?,
+            point: self.option(|r| {
+                let corner = match r.tag()? {
+                    0 => Corner::TopLeft,
+                    1 => Corner::TopRight,
+                    2 => Corner::BottomLeft,
+                    3 => Corner::BottomRight,
+                    _ => return Err(DecodeError::Malformed),
+                };
+                Ok(Point {
+                    corner,
+                    x: r.float()?,
+                    y: r.float()?,
+                })
+            })?,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
     fn placement(&mut self) -> Result<Placement, DecodeError> {
         Ok(Placement {
             side: match self.tag()? {
@@ -912,6 +1219,14 @@ impl Decoder<'_> {
                     46 => Kind::HoverCard,
                     47 => Kind::Carousel,
                     48 => Kind::ChartView,
+                    49 => Kind::InputRegion,
+                    50 => Kind::HighlightScope,
+                    51 => Kind::Link,
+                    52 => Kind::Radio,
+                    53 => Kind::ChoicePicker,
+                    54 => Kind::CarouselTrack,
+                    55 => Kind::CarouselTrackGroup,
+                    56 => Kind::SplitGroup,
                     _ => return Err(DecodeError::Malformed),
                 };
                 Op::Create(id, kind, self.text()?, self.handler()?)
@@ -1006,7 +1321,182 @@ impl Decoder<'_> {
             52 => Op::SetTable(self.node()?, self.table_config()?),
             53 => Op::SetTableCell(self.node()?, self.table_cell()?),
             54 => Op::TableCommand(self.node()?, self.table_command()?),
-            55 => Op::SetChart(self.node()?, self.chart_view_config()?),
+            55 => Op::SetChart(self.node()?, Box::new(self.chart_view_config()?)),
+            56 => Op::SetInputRegion(self.node()?, self.input_config()?),
+            57 => Op::SetHighlightScope(self.node()?, self.highlight_config()?),
+            59 => Op::SetStyledText(self.node()?, self.text_content()?),
+            60 => Op::SetLink(self.node()?, self.link_config()?),
+            61 => Op::SetTextShimmer(self.node()?, self.option(Self::text_shimmer_config)?),
+            62 => Op::SetCommandBinding(self.node()?, self.option(Self::command_binding_config)?),
+            63 => Op::SetNumberInputDraft(self.node()?, self.option(Self::number_initial_draft)?),
+            64 => Op::SetRatingAppearance(self.node()?, self.option(Self::rating_appearance)?),
+            65 => Op::SetSpinner(self.node()?, self.spinner_config()?),
+            66 => Op::SetProgressPresentation(self.node()?, self.progress_presentation()?),
+            67 => Op::SetControlAppearance(self.node()?, self.option(Self::control_appearance)?),
+            68 => Op::SetTabOrder(self.node()?, self.option(Self::tab_order)?),
+            69 => Op::SetButtonPresentation(self.node()?, self.option(Self::button_config)?),
+            70 => Op::SetSplitButton(self.node()?, self.option(Self::split_button_config)?),
+            71 => Op::SetHoverObserver(self.node()?, self.handler()?),
+            72 => Op::SetChoicePicker(self.node()?, Box::new(self.choice_picker_presentation()?)),
+            78 => Op::SetTextAreaLayout(self.node()?, self.option(Self::text_area_layout)?),
+            79 => Op::SetEditorClearOnEscape(self.node()?, self.boolean()?),
+            80 => Op::SetEditorSearchable(self.node()?, self.boolean()?),
+            81 => Op::SetOtpAppearance(self.node()?, self.option(Self::otp_appearance)?),
+            82 => Op::SetNumberPresentation(self.node()?, self.option(Self::number_presentation)?),
+            84 => Op::SetSliderAppearance(self.node()?, self.option(Self::slider_appearance)?),
+            85 => Op::SetReveal(self.node()?, self.option(Self::reveal_config)?),
+            86 => Op::SetCalendarAppearance(self.node()?, self.option(Self::calendar_appearance)?),
+            87 => Op::SetColorPresentation(self.node()?, self.option(Self::color_presentation)?),
+            88 => Op::SetPopover(self.node()?, self.boolean()?),
+            89 => Op::SetCalendarContent(self.node()?, self.option(Self::calendar_content)?),
+            90 => Op::SetOverlayBackdrop(self.node()?, self.option(Self::int)?),
+            91 => Op::SetOverlayMotion(self.node()?, self.boolean()?),
+            92 => Op::SetTooltipMotion(self.node()?, self.boolean()?),
+            93 => Op::SetPlacementGeometry(self.node()?, self.option(Self::placement_geometry)?),
+            94 => Op::SetSheetInsets(self.node()?, self.option(Self::sheet_insets)?),
+            95 => Op::SetCalendarViewportObserver(self.node()?, self.handler()?),
+            96 => Op::SetCarouselTrack(self.node()?, self.carousel_track_config()?),
+            97 => {
+                Op::SetCarouselTrackMotion(self.node()?, self.option(Self::carousel_track_motion)?)
+            }
+            98 => Op::SetTabAppearance(self.node()?, self.option(Self::tab_appearance)?),
+            99 => Op::SetTabContent(self.node()?, self.option(Self::tab_content)?),
+            100 => Op::SetTabViewport(self.node()?, self.option(Self::tab_viewport)?),
+            101 => Op::SetTabTrailing(self.node()?, self.boolean()?),
+            102 => Op::SetChoiceMenu(self.node()?, self.boolean()?),
+            105 => Op::SetToastPlacement(self.node()?, self.option(Self::toast_placement)?),
+            106 => Op::SetToastLayering(self.node()?, self.option(Self::toast_layering)?),
+            107 => Op::SetToastMotion(self.node()?, self.option(Self::toast_motion)?),
+            110 => Op::SetListInput(self.node()?, self.option(Self::list_input_config)?),
+            111 => Op::SetTableBehavior(self.node()?, self.option(Self::table_behavior)?),
+            112 => Op::SetTableAppearance(self.node()?, self.option(Self::table_appearance)?),
+            113 => Op::SetTableHeader(self.node()?, self.option(Self::table_header_target)?),
+            114 => Op::SetTableHeaderStyle(self.node()?, self.table_presentation(false)?),
+            115 => Op::SetTableRowStyle(self.node()?, self.table_presentation(true)?),
+            116 => Op::SetDocumentSelectionFormat(self.node()?, self.boolean()?),
+            118 => Op::SetDocumentTextStyle(self.node()?, self.option(Self::document_style)?),
+            120 => Op::SetDocumentActions(self.node()?, self.document_actions()?),
+            121 => Op::SetDocumentProfile(self.node()?, self.document_profile()?),
+            123 => Op::CreateTableText(self.node()?, self.table_cell()?),
+            124 => Op::SetTableText(self.node()?, self.table_cell()?),
+            125 => Op::SetPaletteOptions(self.node()?, self.option(Self::palette_options)?),
+            126 => Op::SetPaletteLayout(self.node()?, self.option(Self::palette_layout)?),
+            127 => Op::SetPaletteObserved(self.node()?, self.boolean()?),
+            128 => Op::SetIconTransform(
+                self.node()?,
+                self.option(|d| {
+                    let transform = crate::icon_transform::Transform {
+                        scale_x: d.float()?,
+                        scale_y: d.float()?,
+                        rotation_degrees: d.float()?,
+                        translate_x: d.float()?,
+                        translate_y: d.float()?,
+                    };
+                    if !transform.is_valid() {
+                        return Err(DecodeError::Malformed);
+                    }
+                    Ok(transform)
+                })?,
+            ),
+            122 => Op::SetWindowRegion(
+                self.node()?,
+                self.option(|d| {
+                    use crate::window_region::{Edge, Region};
+                    Ok(match d.tag()? {
+                        0 => Region::TitleBar,
+                        1 => Region::Exclude,
+                        2 => Region::Resize(match d.tag()? {
+                            0 => Edge::Top,
+                            1 => Edge::Bottom,
+                            2 => Edge::Left,
+                            3 => Edge::Right,
+                            4 => Edge::TopLeft,
+                            5 => Edge::TopRight,
+                            6 => Edge::BottomLeft,
+                            7 => Edge::BottomRight,
+                            _ => return Err(DecodeError::Malformed),
+                        }),
+                        _ => return Err(DecodeError::Malformed),
+                    })
+                })?,
+            ),
+            119 => Op::SetDocumentMarkdownOptions(
+                self.node()?,
+                crate::document::MarkdownOptions {
+                    frontmatter: match self.tag()? {
+                        0 => crate::document::Frontmatter::Disabled,
+                        1 => crate::document::Frontmatter::CodeBlock,
+                        2 => crate::document::Frontmatter::DescriptionList,
+                        _ => return Err(DecodeError::Malformed),
+                    },
+                    mdx: self.boolean()?,
+                },
+            ),
+            117 => {
+                let node = self.node()?;
+                let config = crate::document_preview::Config {
+                    epoch: self.int()?,
+                    max_lines: self.option(Self::int)?,
+                    observe: self.boolean()?,
+                };
+                if !config.is_valid() {
+                    return Err(DecodeError::Malformed);
+                }
+                Op::SetDocumentPreview(node, config)
+            }
+            109 => Op::SetListAxis(
+                self.node()?,
+                match self.tag()? {
+                    0 => crate::list::Axis::Vertical,
+                    1 => crate::list::Axis::Horizontal,
+                    _ => return Err(DecodeError::Malformed),
+                },
+            ),
+            108 => Op::SetScrollbar(
+                self.node()?,
+                self.option(Self::scrollbar_config)?.map(Box::new),
+            ),
+            103 => Op::SetTabMotion(self.node()?, self.option(Self::tab_motion)?),
+            104 => Op::SetSplitGroup(
+                self.node()?,
+                self.split_group()?,
+                self.split_group_appearance()?,
+            ),
+            83 => Op::SetNumberStepMode(
+                self.node()?,
+                match self.tag()? {
+                    0 => crate::number_input::StepMode::Native,
+                    1 => crate::number_input::StepMode::Application,
+                    _ => return Err(DecodeError::Malformed),
+                },
+            ),
+            76 => Op::SetEditorFormat(self.node()?, self.option(Self::input_format_config)?),
+            77 => Op::SetEditorValidation(self.node()?, self.option(Self::input_validation_rule)?),
+            75 => Op::SetEditorContentHint(
+                self.node()?,
+                self.option(|decoder| {
+                    crate::input_content_hint::Hint::from_tag(decoder.tag()?)
+                        .ok_or(DecodeError::Malformed)
+                })?,
+            ),
+            74 => Op::SetEditorFrame(self.node()?, self.option(Self::editor_frame_config)?),
+            73 => Op::SetEditorPrivacy(
+                self.node()?,
+                match self.tag()? {
+                    0 => EditorPrivacy::Plain,
+                    1 => EditorPrivacy::PasswordHidden,
+                    2 => EditorPrivacy::PasswordRevealed,
+                    _ => return Err(DecodeError::Malformed),
+                },
+            ),
+            58 => {
+                let node = self.node()?;
+                let epoch = self.int()?;
+                if epoch <= 0 {
+                    return Err(DecodeError::Malformed);
+                }
+                Op::SetDocumentDiff(node, epoch, self.option(Self::document_diff_config)?)
+            }
             47 => Op::SetColorInput(
                 self.node()?,
                 Box::new(self.color_config()?),
@@ -1157,6 +1647,11 @@ impl Decoder<'_> {
                 Control::Checkbox(state, self.boolean()?)
             }
             2 => Control::Switch(self.boolean()?, self.boolean()?),
+            3 => Control::Radio(
+                self.boolean()?,
+                self.option(Self::radio_position)?,
+                self.boolean()?,
+            ),
             _ => return Err(DecodeError::Malformed),
         })
     }
@@ -1174,6 +1669,18 @@ impl Decoder<'_> {
         Ok(selection)
     }
 
+    fn editor_frame_config(&mut self) -> Result<crate::editor_frame::Config, DecodeError> {
+        let config = crate::editor_frame::Config {
+            clear_label: self.option(Self::text)?,
+            loading: self.boolean()?,
+            gap: self.float()?,
+        };
+        if !config.is_valid() {
+            return Err(DecodeError::Malformed);
+        }
+        Ok(config)
+    }
+
     fn editor_config(&mut self) -> Result<EditorConfig, DecodeError> {
         let config = EditorConfig {
             label: self.text()?,
@@ -1189,6 +1696,68 @@ impl Decoder<'_> {
             return Err(DecodeError::Malformed);
         }
         Ok(config)
+    }
+
+    fn editor_search_command(&mut self) -> Result<crate::editor_search::Command, DecodeError> {
+        use crate::editor_search::{Case, Command, MAX_QUERY_BYTES, Stamp, valid_query};
+        Ok(match self.tag()? {
+            0 => Command::Read,
+            1 => Command::Open(self.boolean()?),
+            2 => Command::Close,
+            3 => {
+                let query = self.bounded_text(MAX_QUERY_BYTES)?;
+                if !valid_query(&query) {
+                    return Err(DecodeError::Malformed);
+                }
+                let case = match self.tag()? {
+                    0 => Case::Sensitive,
+                    1 => Case::AsciiInsensitive,
+                    _ => return Err(DecodeError::Malformed),
+                };
+                Command::SetQuery(query, case)
+            }
+            tag @ (6 | 7) => {
+                let stamp = Stamp {
+                    editor_revision: self.int()?,
+                    search_revision: self.int()?,
+                };
+                if !stamp.is_valid() {
+                    return Err(DecodeError::Malformed);
+                }
+                let replacement = self.text()?;
+                if replacement.contains('\0') {
+                    return Err(DecodeError::Malformed);
+                }
+                if tag == 6 {
+                    Command::ReplaceCurrent(stamp, replacement)
+                } else {
+                    Command::ReplaceAll(stamp, replacement)
+                }
+            }
+            4 => Command::Next,
+            5 => Command::Previous,
+            11 => Command::ToggleCase,
+            9 => {
+                let query = self.bounded_text(MAX_QUERY_BYTES)?;
+                if !valid_query(&query) {
+                    return Err(DecodeError::Malformed);
+                }
+                Command::SetQueryText(query)
+            }
+            10 => Command::SetCase(match self.tag()? {
+                0 => Case::Sensitive,
+                1 => Case::AsciiInsensitive,
+                _ => return Err(DecodeError::Malformed),
+            }),
+            8 => {
+                let activation = self.int()?;
+                if activation < 0 {
+                    return Err(DecodeError::Malformed);
+                }
+                Command::CloseAndFocus(activation)
+            }
+            _ => return Err(DecodeError::Malformed),
+        })
     }
 
     fn editor_command(&mut self) -> Result<EditorCommand, DecodeError> {
@@ -1219,6 +1788,26 @@ impl Decoder<'_> {
             4 => EditorCommand::Redo,
             5 => EditorCommand::Submit,
             6 => EditorCommand::ReadSnapshot,
+            7 => EditorCommand::ReadContentHintStatus,
+            8 => EditorCommand::ReadViewport,
+            9 => {
+                let offset = crate::editor_viewport::Offset {
+                    x: self.float()?,
+                    y: self.float()?,
+                };
+                if !offset.is_valid() {
+                    return Err(DecodeError::Malformed);
+                }
+                EditorCommand::ScrollViewport(offset)
+            }
+            10 => EditorCommand::Search(self.editor_search_command()?),
+            11 => {
+                let revision = self.int()?;
+                if revision < 0 {
+                    return Err(DecodeError::Malformed);
+                }
+                EditorCommand::ReadRangeBounds(revision, self.editor_selection()?)
+            }
             _ => return Err(DecodeError::Malformed),
         })
     }
@@ -1232,6 +1821,61 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
     }
     let d = &mut Decoder(Cursor::new(bytes));
     let value = match d.tag()? {
+        23 => {
+            use crate::menu_command::{Command, Position};
+            let correlation = d.int()?;
+            let window = d.window()?;
+            let node = d.node()?;
+            let handler =
+                HandlerId::from_parts(d.int()?, d.int()?).ok_or(DecodeError::Malformed)?;
+            let command = match d.tag()? {
+                0 => {
+                    let position = Position {
+                        x: d.float()?,
+                        y: d.float()?,
+                    };
+                    if !position.is_valid() {
+                        return Err(DecodeError::Malformed);
+                    }
+                    Command::Show(position)
+                }
+                1 => Command::Close,
+                _ => return Err(DecodeError::Malformed),
+            };
+            if correlation <= 0 {
+                return Err(DecodeError::Malformed);
+            }
+            Message::MenuCommand(correlation, window, node, handler, command)
+        }
+        22 => {
+            use crate::palette_command::Command;
+            let correlation = d.int()?;
+            let window = d.window()?;
+            let node = d.node()?;
+            let handler =
+                HandlerId::from_parts(d.int()?, d.int()?).ok_or(DecodeError::Malformed)?;
+            let expected = d.option(|d| d.int())?;
+            let command = match d.tag()? {
+                0 => Command::ReadSnapshot,
+                1 => Command::Focus,
+                2 => Command::SetQuery(d.text()?),
+                3 => Command::Highlight(d.option(|d| d.text())?),
+                4 => Command::SetLoading(d.boolean()?),
+                5 => {
+                    let commands = d.list(1024, |d| d.bounded_text(256))?;
+                    let layout = d.option(Decoder::palette_layout)?;
+                    if expected.is_none() {
+                        return Err(DecodeError::Malformed);
+                    }
+                    Command::PublishResults(crate::palette_results::Results { commands, layout })
+                }
+                _ => return Err(DecodeError::Malformed),
+            };
+            if correlation <= 0 || expected.is_some_and(|r| r <= 0) || !command.is_valid() {
+                return Err(DecodeError::Malformed);
+            }
+            Message::PaletteCommand(correlation, window, node, handler, expected, command)
+        }
         0 => Message::Hello(d.int()?, d.int()?),
         1 => Message::Open(d.int()?, d.window()?, d.text()?, d.float()?, d.float()?),
         2 => Message::Close(d.int()?, d.window()?),
@@ -1287,6 +1931,12 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                     path: d.option(|d| d.file_path())?,
                     edited: d.boolean()?,
                 }),
+                8 => Command::Minimize,
+                9 => Command::FocusedInput,
+                10 => Command::HasTextSelection,
+                11 => Command::SelectedText(d.int()?),
+                12 => Command::ClearTextSelection,
+                13 => Command::EndTextSelection,
                 _ => return Err(DecodeError::Malformed),
             };
             if correlation <= 0 || !command.is_valid() {
@@ -1305,9 +1955,14 @@ pub fn decode(bytes: &[u8]) -> Result<Message, DecodeError> {
                 chrome: match d.tag()? {
                     0 => crate::window::Chrome::Standard,
                     1 => crate::window::Chrome::Hidden,
+                    2 => crate::window::Chrome::Custom,
                     _ => return Err(DecodeError::Malformed),
                 },
                 resizable: d.boolean()?,
+                frame: crate::window::Frame {
+                    shadow_size: d.float()?,
+                    resize_hit_size: d.float()?,
+                },
             };
             if correlation <= 0 || !config.is_valid() {
                 return Err(DecodeError::Malformed);
@@ -1407,3 +2062,14 @@ pub(crate) fn decode_drag_source(bytes: &[u8]) -> Result<crate::drag_drop::Sourc
 pub(crate) fn decode_drag_target(bytes: &[u8]) -> Result<crate::drag_drop::Target, DecodeError> {
     decode_drag_data(bytes, |decoder| decoder.drag_target())
 }
+
+mod control_appearance;
+pub use control_appearance::decode_control_appearance;
+
+mod tab_appearance;
+mod tab_content;
+mod tab_motion;
+mod tab_viewport;
+
+mod document_style;
+pub use document_style::decode_document_style;

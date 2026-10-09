@@ -1,0 +1,106 @@
+{
+  "original_run_complete": false,
+  "replayed_surface_gate": "passed",
+  "verified_raw_file_hashes": 20,
+  "cycles": [
+    {
+      "cycle": 1,
+      "footprint_bytes": 43731008,
+      "iosurface": {
+        "IOSurface": {
+          "dirty": 0,
+          "swapped": 0,
+          "clean": 0,
+          "reclaimable": 0,
+          "wired": 0,
+          "regions": 4
+        }
+      }
+    },
+    {
+      "cycle": 2,
+      "footprint_bytes": 51546240,
+      "iosurface": {
+        "IOSurface": {
+          "dirty": 0,
+          "swapped": 0,
+          "clean": 0,
+          "reclaimable": 0,
+          "wired": 0,
+          "regions": 4
+        }
+      }
+    },
+    {
+      "cycle": 3,
+      "footprint_bytes": 55986304,
+      "iosurface": {
+        "IOSurface": {
+          "dirty": 0,
+          "swapped": 0,
+          "clean": 0,
+          "reclaimable": 0,
+          "wired": 0,
+          "regions": 4
+        }
+      }
+    },
+    {
+      "cycle": 4,
+      "footprint_bytes": 60704896,
+      "iosurface": {
+        "IOSurface": {
+          "dirty": 0,
+          "swapped": 0,
+          "clean": 0,
+          "reclaimable": 0,
+          "wired": 0,
+          "regions": 4
+        }
+      }
+    }
+  ],
+  "metal_audit": {
+    "cycles": [
+      {
+        "cycle": 1,
+        "registry_id": 4294967706,
+        "render_samples": 3,
+        "live_sampled_max_bytes": 26050560,
+        "closed_bytes": 5242880
+      },
+      {
+        "cycle": 2,
+        "registry_id": 4294967706,
+        "render_samples": 3,
+        "live_sampled_max_bytes": 26050560,
+        "closed_bytes": 5242880
+      },
+      {
+        "cycle": 3,
+        "registry_id": 4294967706,
+        "render_samples": 2,
+        "live_sampled_max_bytes": 22151168,
+        "closed_bytes": 5242880
+      },
+      {
+        "cycle": 4,
+        "registry_id": 4294967706,
+        "render_samples": 4,
+        "live_sampled_max_bytes": 26050560,
+        "closed_bytes": 5242880
+      }
+    ],
+    "registry_id": 4294967706,
+    "final_baseline_growth_bytes": 0,
+    "final_range_bytes": 0,
+    "first_closed_bytes": 5242880,
+    "last_closed_bytes": 5242880,
+    "peak_closed_bytes": 5242880,
+    "full_range_bytes": 0,
+    "warmup_baseline_bytes": 5242880,
+    "last_minus_warmup_bytes": 0,
+    "qualification": false,
+    "scope": "Actual renderer device currentAllocatedSize; sampled render maximum and settled closed samples; not all GPU memory or presentation"
+  }
+}

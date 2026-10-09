@@ -9,6 +9,8 @@ repository.workspace = true
 crate-type = ["staticlib", "rlib"]
 
 [features]
+performance-diagnostics = ["gpui/profiler"]
+presentation-diagnostics = ["performance-diagnostics", "gpui/presentation-diagnostics", "dep:gpui_apple", "gpui_apple/presentation-diagnostics"]
 native-tests = []
 native-canvas-tests = ["native-tests", "gpui_platform/test-support"]
 native-image-tests = ["native-tests", "gpui_platform/test-support"]
@@ -17,7 +19,10 @@ wayland = ["gpui/wayland", "gpui_platform/wayland", "dep:gpuio-wayland"]
 x11 = ["gpui/x11", "gpui_platform/x11"]
 
 [dependencies]
+regex-automata = { version = "=0.4.18", default-features = false, features = ["std", "meta", "unicode", "perf", "hybrid", "dfa-onepass", "nfa-backtrack"] }
+regex-syntax = "=0.8.11"
 gpuio-extension-sdk = { path = "../extension-sdk" }
+gpuio-document-sdk = { path = "../document-sdk" }
 gpui-base = { path = "../../vendor/gpui-base" }
 gpuio-protocol = { path = "../protocol" }
 gpuio-table-adapter = { path = "../table" }
@@ -41,10 +46,12 @@ roxmltree = "=0.21.1"
 flate2 = "=1.1.10"
 
 [target.'cfg(target_os = "macos")'.dependencies]
+gpui_apple = { git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b", optional = true }
 cocoa = "=0.26.0"
 objc2 = "0.6.4"
+objc2-core-foundation = { version = "=0.3.2", default-features = false, features = ["std", "CFRunLoop", "CFString", "block2"] }
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSRange", "NSURL", "NSArray", "NSDictionary", "NSBundle", "NSError", "NSNotification", "NSOperation", "NSProcessInfo", "NSUUID", "NSSet"] }
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSRunningApplication", "NSAccessibility", "block2"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSApplication", "NSOpenPanel", "NSSavePanel", "NSPanel", "NSResponder", "NSWindow", "NSView", "NSWorkspace", "NSRunningApplication", "NSAccessibility", "NSMenu", "NSMenuItem", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSGraphics", "block2"] }
 block2 = "0.6.2"
 objc2-user-notifications = "=0.3.2"
 
@@ -52,12 +59,25 @@ objc2-user-notifications = "=0.3.2"
 gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland", optional = true }
 
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+accesskit_macos = "=0.26.3"
+
 [dev-dependencies]
+serde_json = "1"
 zbus = { version = "=5.19.0", default-features = false, features = ["async-io"] }
 async-io = "2"
 taffy = { version = "=0.13.0", default-features = false, features = ["std", "taffy_tree"] }
 gpuio-portal = { path = "../portal" }
 gpuio-wayland = { path = "../wayland" }
+
+[[test]]
+name = "accessibility_busy"
+harness = false
+
+[[test]]
+name = "native_chart_inspection"
+harness = false
+required-features = ["native-canvas-tests"]
 
 [[test]]
 name = "native_chart_input"
@@ -70,6 +90,11 @@ harness = false
 required-features = ["native-canvas-tests"]
 
 [[test]]
+name = "native_chart_labels"
+harness = false
+required-features = ["native-canvas-tests"]
+
+[[test]]
 name = "native_chart_paint"
 harness = false
 required-features = ["native-canvas-tests"]
@@ -77,6 +102,11 @@ required-features = ["native-canvas-tests"]
 [[test]]
 name = "native_ui"
 path = "tests/native_ui.rs"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_menu_popup_queue"
 harness = false
 required-features = ["native-tests"]
 
@@ -278,3 +308,95 @@ name = "native_table_history"
 path = "tests/native_table_history.rs"
 harness = false
 required-features = ["native-tests"]
+
+[[test]]
+name = "native_input_region"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_highlight_host"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "native_highlight_paint"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_highlight_view"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_highlight_document"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_styled_text"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_link"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_border_style"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_text_shimmer_paint"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_text_shimmer_clock"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_text_shimmer_view"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_grid_location"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_aspect_ratio"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_opacity_factor"
+harness = false
+required-features = ["native-image-tests"]
+
+[[test]]
+name = "native_command_binding"
+harness = false
+required-features = ["native-tests"]
+
+[[test]]
+name = "input_content_macos"
+harness = false
+
+[[test]]
+name = "accessibility_list_selection"
+harness = false
+
+[[test]]
+name = "accessibility_structural_table"
+harness = false
+
+[[test]]
+name = "native_metal_presentation"
+harness = false
+required-features = ["presentation-diagnostics"]

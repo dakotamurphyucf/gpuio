@@ -1,0 +1,122 @@
+{
+  "base_commit": "95e9b070498df58230be4199815473a7d4d10f78",
+  "scope": "Local macOS queued popup scheduling qualification; no full milestone acceptance",
+  "archive_sha256": "482f6787a7ac51be3ac408c57a9dca139e29fb0ecb95a2c9c257e8a67805176f",
+  "files": [
+    {
+      "path": "binary.json",
+      "bytes": 155,
+      "sha256": "5fc75dc5b866ebe4df7b2d1a6f89a72140f8237c31ac2abdf4ecdf1ac7e593ef"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 867,
+      "sha256": "029999c04b1d8d571de1f35a39bc359341b315664aca38472dd07bc6edce337c"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 94,
+      "sha256": "f71d688044d8758a2c30718cd6f7616d55fca356b20bb02f0721f73f567d2de9"
+    },
+    {
+      "path": "logs/popup-queue-build.log",
+      "bytes": 588383,
+      "sha256": "2380796cb611aee13fff127815b7212638bc48783b6ac8e79790ed57a622db9b"
+    },
+    {
+      "path": "logs/popup-queue-clippy.log",
+      "bytes": 588723,
+      "sha256": "e31e532430bfe490f16c3614e83c2e31aa15782bffc690a5aa834537bcb675b3"
+    },
+    {
+      "path": "logs/popup-queue-detach-build.log",
+      "bytes": 588383,
+      "sha256": "7606920a7d97de956fd591967460fd06147472fbc03d9b61b838ab5892f2b021"
+    },
+    {
+      "path": "logs/popup-queue-detach-native.log",
+      "bytes": 588712,
+      "sha256": "06974bd229be9880dd96ae8bbd797a2492b056bbd313d002057f92da44c533af"
+    },
+    {
+      "path": "logs/popup-queue-final-native.log",
+      "bytes": 588641,
+      "sha256": "0fd154c3f712483ef97cc38e788de85a50f8610105396ce539e5fd1457309b63"
+    },
+    {
+      "path": "logs/popup-queue-native.log",
+      "bytes": 588497,
+      "sha256": "9fe16ecad097a839e079e420b62d6f961930970722267f93451d4904f28c7b02"
+    },
+    {
+      "path": "logs/popup-queue-remount-build.log",
+      "bytes": 588383,
+      "sha256": "b9703f8863d88cbe66278442f5d84605cbdc092399f158b36fbe225b851eb158"
+    },
+    {
+      "path": "source/.github/workflows/foundation.yml",
+      "bytes": 76430,
+      "sha256": "68dac59ffdc9a9f1daef45744f5f63aa74574762b05118aff7c32d1f5b5297aa"
+    },
+    {
+      "path": "source/docs/catalog/commands-menus-review.md",
+      "bytes": 15588,
+      "sha256": "4c20c20cdddc35215de125d0a32ce7ffddb1d6128fae1960e19fe5190e5c76ef"
+    },
+    {
+      "path": "source/docs/design/native-popup-menu.md",
+      "bytes": 10900,
+      "sha256": "8b4445c81bdc52b50a012f6190183c327ba0d22d61a55585ca14cd44dfef2182"
+    },
+    {
+      "path": "source/docs/evidence/menu-popup-queue-och41.md",
+      "bytes": 3985,
+      "sha256": "f844332c4725fffede19347f0a87bc5f58b5ad24124b657b05fea31ce9d56e25"
+    },
+    {
+      "path": "source/docs/status.md",
+      "bytes": 46631,
+      "sha256": "4805f6fe8616483cfb5d52b20ef0b339b51c219caa188728d7d9503de821fabb"
+    },
+    {
+      "path": "source/rust/native/Cargo.toml",
+      "bytes": 10032,
+      "sha256": "f8e1f3ee75e14d375d93ec9aeca1bf85e9c5d0ff66f45ad4f51cc18ea08a60b5"
+    },
+    {
+      "path": "source/rust/native/src/host.rs",
+      "bytes": 104296,
+      "sha256": "33b819bf37900680748f5c6f7617ca050f37aded3c128b824c4196dcd68490a2"
+    },
+    {
+      "path": "source/rust/native/src/lib.rs",
+      "bytes": 10889,
+      "sha256": "82d10bd0c475d21fd571dc2a587ce22c06507a4463bfef6c3996420d5153bbc0"
+    },
+    {
+      "path": "source/rust/native/src/menu.rs",
+      "bytes": 55213,
+      "sha256": "6c10968cd8cb86fea0a756bb3fc18e7a94b15dc16ca062a2df1b27b4a2bf2e87"
+    },
+    {
+      "path": "source/rust/native/src/menu_popup_macos.rs",
+      "bytes": 8810,
+      "sha256": "347886f00c2694c164f3a8b3d5d05bb55f88733ab9f36dea0cf80a71699ff575"
+    },
+    {
+      "path": "source/rust/native/src/menu_popup_queue_test.rs",
+      "bytes": 10386,
+      "sha256": "6c0f86ef18b9c13265035769ada6d28d55fac9d78496293aba9d2017fc5ef942"
+    },
+    {
+      "path": "source/rust/native/tests/native_menu_popup_queue.rs",
+      "bytes": 209,
+      "sha256": "2eb62c202a16b38a4028962a3b0907d5735c4a15ea405e9b5c6f9e8fe9af9f99"
+    },
+    {
+      "path": "tracked.patch",
+      "bytes": 8931,
+      "sha256": "00085b557e42a31a48550d1011b7ee7f998360e84012ff7ba577464d81ea59dd"
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "base_revision": "847747ff74c863bf01fec0358a99e3ef94cdedd3",
+  "archive_files": 21,
+  "runs": [
+    {
+      "name": "carousel-native-002",
+      "identity_line": "GALLERY_EXECUTABLE_SHA256 b2453383c1932e4b95831bfc8c4115485e2c68d8e787779dac29f17dcafc3f4e /Users/dakotamurphy/gpuio/_build/default/examples/gallery/main.exe",
+      "report": {
+        "complete": true,
+        "cases": [
+          {
+            "theme": "Dark",
+            "axis": "horizontal",
+            "viewport": [
+              593.0,
+              324.0,
+              360.0,
+              210.0
+            ]
+          },
+          {
+            "theme": "Dark",
+            "axis": "vertical",
+            "viewport": [
+              593.0,
+              324.0,
+              360.0,
+              250.0
+            ]
+          },
+          {
+            "theme": "Light",
+            "axis": "horizontal",
+            "viewport": [
+              593.0,
+              324.0,
+              360.0,
+              210.0
+            ]
+          },
+          {
+            "theme": "Light",
+            "axis": "vertical",
+            "viewport": [
+              593.0,
+              324.0,
+              360.0,
+              250.0
+            ]
+          }
+        ],
+        "scope": "OS keyboard/pointer and native state/geometry; not VoiceOver or presentation timing",
+        "input_source": "com.apple.keylayout.US",
+        "partial_neighbor_button": {
+          "bounds": [
+            907.0,
+            450.5,
+            204.0,
+            43.0
+          ],
+          "click": [
+            930.0,
+            472.0
+          ]
+        }
+      }
+    },
+    {
+      "name": "carousel-installed-001",
+      "identity_line": "GALLERY_EXECUTABLE_SHA256 a1083299477d1221012a0e7ad1a7a3fca4c7129e269c33f42b3a7c8381539acc /Users/dakotamurphy/gpuio/scratch/agents/root-20261007-access-check/notifications-consumer/consumer/_build/default/main.exe",
+      "report": {
+        "complete": true,
+        "cases": [
+          {
+            "theme": "Dark",
+            "axis": "horizontal",
+            "viewport": [
+              593.0,
+              324.0,
+              360.0,
+              210.0
+            ]
+          },
+          {
+            "theme": "Dark",
+            "axis": "vertical",
+            "viewport": [
+              593.0,
+              324.0,
+              360.0,
+              250.0
+            ]
+          },
+          {
+            "theme": "Light",
+            "axis": "horizontal",
+            "viewport": [
+              593.0,
+              324.0,
+              360.0,
+              210.0
+            ]
+          },
+          {
+            "theme": "Light",
+            "axis": "vertical",
+            "viewport": [
+              593.0,
+              324.0,
+              360.0,
+              250.0
+            ]
+          }
+        ],
+        "scope": "OS keyboard/pointer and native state/geometry; not VoiceOver or presentation timing",
+        "input_source": "com.apple.keylayout.US",
+        "partial_neighbor_button": {
+          "bounds": [
+            907.0,
+            450.5,
+            204.0,
+            43.0
+          ],
+          "click": [
+            930.0,
+            472.0
+          ]
+        }
+      }
+    }
+  ]
+}

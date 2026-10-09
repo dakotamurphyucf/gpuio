@@ -19,6 +19,8 @@ pub(crate) struct ParsedDocument {
 
 #[derive(Default, Clone, Copy)]
 pub(crate) struct NodeRenderOptions {
+    pub(crate) semantic_owner: Option<super::RenderedSemanticId>,
+    pub(crate) semantic_nested: bool,
     pub(crate) ix: usize,
     pub(crate) in_list: bool,
     pub(crate) todo: bool,
@@ -28,6 +30,18 @@ pub(crate) struct NodeRenderOptions {
 }
 
 impl NodeRenderOptions {
+    pub(crate) fn child(self, ix: usize, context: &NodeContext) -> Self {
+        let owner = context
+            .semantic_attachments
+            .as_ref()
+            .and_then(|(projection, _)| projection.semantic_child_block(self.semantic_owner?, ix));
+        Self {
+            ix,
+            semantic_owner: owner,
+            semantic_nested: true,
+            ..self
+        }
+    }
     pub(crate) fn is_last(mut self, is_last: bool) -> Self {
         self.is_last = is_last;
         self
@@ -177,6 +191,7 @@ impl ParsedDocument {
 
     pub(super) fn render_root(
         &self,
+        scopes: std::collections::BTreeMap<usize, gpui::FocusHandle>,
         list_state: Option<ListState>,
         node_cx: &NodeContext,
         window: &mut Window,
@@ -188,16 +203,21 @@ impl ParsedDocument {
                 .id("document")
                 .children(self.blocks.iter().enumerate().map(move |(ix, node)| {
                     let is_last = ix + 1 == blocks_len;
-                    node.render_block(
+                    let element = node.render_block(
                         NodeRenderOptions {
                             ix,
+                            semantic_owner: node_cx
+                                .semantic_attachments
+                                .as_ref()
+                                .and_then(|(projection, _)| projection.semantic_block(ix)),
                             is_last,
                             ..Default::default()
                         },
                         node_cx,
                         window,
                         cx,
-                    )
+                    );
+                    wrap_block(ix, scopes.get(&ix), element, node_cx)
                 }));
         };
 
@@ -217,21 +237,49 @@ impl ParsedDocument {
                 let blocks = blocks.clone();
                 move |ix, window, cx| {
                     let is_last = ix + 1 == blocks.len();
-                    blocks[ix]
-                        .render_block(
-                            NodeRenderOptions {
-                                ix,
-                                is_last,
-                                ..options
-                            },
-                            &node_cx,
-                            window,
-                            cx,
-                        )
-                        .into_any_element()
+                    let element = blocks[ix].render_block(
+                        NodeRenderOptions {
+                            ix,
+                            semantic_owner: node_cx
+                                .semantic_attachments
+                                .as_ref()
+                                .and_then(|(projection, _)| projection.semantic_block(ix)),
+                            is_last,
+                            ..options
+                        },
+                        &node_cx,
+                        window,
+                        cx,
+                    );
+                    wrap_block(ix, scopes.get(&ix), element, &node_cx).into_any_element()
                 }
             })
             .size_full(),
         )
+    }
+}
+
+fn wrap_block(
+    ix: usize,
+    scope: Option<&gpui::FocusHandle>,
+    element: impl IntoElement,
+    node_cx: &NodeContext,
+) -> gpui::AnyElement {
+    let element = if let Some(scope) = scope {
+        div()
+            .id(("document-block", ix))
+            .w_full()
+            .track_focus(scope)
+            .child(element)
+            .into_any_element()
+    } else {
+        element.into_any_element()
+    };
+    if let Some((projection, frame)) = &node_cx.semantic_attachments
+        && let Some(owner) = projection.semantic_block(ix)
+    {
+        frame.wrap(ix, owner, element)
+    } else {
+        element
     }
 }

@@ -1,0 +1,3312 @@
+{
+  "base_revision": "f5109d8444492805b2761d13dfc3c724057f3102",
+  "runs": [
+    {
+      "name": "carousel-auto-native-001",
+      "identity_line": "GALLERY_EXECUTABLE_SHA256 b2453383c1932e4b95831bfc8c4115485e2c68d8e787779dac29f17dcafc3f4e /Users/dakotamurphy/gpuio/_build/default/examples/gallery/main.exe",
+      "report": {
+        "complete": true,
+        "holds": [
+          {
+            "reason": "viewport-focus",
+            "selected": "Capture",
+            "seconds": 5.2446613339707255,
+            "samples": 97
+          },
+          {
+            "reason": "focus-release-no-burst",
+            "selected": "Explore",
+            "seconds": 0.4257701672613621,
+            "samples": 8
+          },
+          {
+            "reason": "track-hover",
+            "selected": "Explore",
+            "seconds": 5.2067421255633235,
+            "samples": 96
+          },
+          {
+            "reason": "hover-release-no-burst",
+            "selected": "Refine",
+            "seconds": 0.42577220778912306,
+            "samples": 8
+          },
+          {
+            "reason": "disabled",
+            "selected": "Refine",
+            "seconds": 5.2413158332929015,
+            "samples": 97
+          },
+          {
+            "reason": "reenabled-no-burst",
+            "selected": "Publish",
+            "seconds": 0.428847917355597,
+            "samples": 8
+          },
+          {
+            "reason": "inactive-original-window",
+            "selected": "Publish",
+            "seconds": 5.223685249686241,
+            "samples": 93
+          },
+          {
+            "reason": "reactivated-no-burst",
+            "selected": "Capture",
+            "seconds": 0.4336956664919853,
+            "samples": 8
+          },
+          {
+            "reason": "reduced-motion",
+            "selected": "Capture",
+            "seconds": 5.226659874431789,
+            "samples": 97
+          },
+          {
+            "reason": "full-motion-restored-no-burst",
+            "selected": "Explore",
+            "seconds": 0.4288614997640252,
+            "samples": 8
+          }
+        ],
+        "resumes": [
+          {
+            "reason": "focus-release",
+            "seconds": 4.177287332713604,
+            "selected": "Explore",
+            "observations": [
+              {
+                "seconds": 0.06411874946206808,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.11889929044991732,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.17436991538852453,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.22799833305180073,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.28193354047834873,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.333124415948987,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.38627070747315884,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.43936770781874657,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.4945105407387018,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.5492220409214497,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.6029811250045896,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.6543680410832167,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.709347540512681,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.7631514575332403,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.8169643748551607,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.8705854155123234,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.9233320830389857,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.977943915873766,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.032362749800086,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.0853486247360706,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.1386319156736135,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.1931928750127554,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.2448911247774959,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.301740082912147,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.3555521247908473,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.4118957500904799,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.4624694157391787,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.5149233331903815,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.5659542074427009,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.619888249784708,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.6754427077248693,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.7296321662142873,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.7828680407255888,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.8381162909790874,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.8921294156461954,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.9474542904645205,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.003055707551539,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.058275915682316,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.11348741594702,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.16866129077971,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.2227498749271035,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.2777878744527698,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.3330974159762263,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.3883062079548836,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.439657957293093,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.494842415675521,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.549487540498376,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.6077788323163986,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.663194333203137,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.716159749776125,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.771605458110571,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.824398582801223,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.879317999817431,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.933405832387507,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.9884326653555036,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.0426980825141072,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.095006499439478,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.1476288326084614,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.199142291210592,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.2526838751509786,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.3077833745628595,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.36441533267498,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.4164227908477187,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.4672588324174285,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.52240458317101,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.577385957352817,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.6306585408747196,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.684136999770999,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.7350341249257326,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.7885077074170113,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.843721291050315,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.899478707462549,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.950779582373798,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.006448165513575,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.060511582531035,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.115145415998995,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.177287332713604,
+                "selected": "Selected card: Explore"
+              }
+            ]
+          },
+          {
+            "reason": "hover-release",
+            "seconds": 4.291307750158012,
+            "selected": "Refine",
+            "observations": [
+              {
+                "seconds": 0.0654367096722126,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.12098458409309387,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.17319820914417505,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.22915087547153234,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.28094970900565386,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.33595166727900505,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.38992166705429554,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.44221254251897335,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.49723829235881567,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.552492375485599,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.6076578749343753,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.662818250246346,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.7157333754003048,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.7664581248536706,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.8179813753813505,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.8720288751646876,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.9277429170906544,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.9824751252308488,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.0364187089726329,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.089248875156045,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.1408293340355158,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.195726292207837,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.2484314171597362,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.3029029592871666,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.3574193343520164,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.4085599593818188,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.4636129587888718,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.5165621675550938,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.5719044590368867,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.6234659170731902,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.6785502918064594,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.7298359591513872,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.783391167409718,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.8364010425284505,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.8876750841736794,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.9402686255052686,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.9942082092165947,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.049622959457338,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.1047177501022816,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.156948124989867,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.2115607922896743,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.264999959617853,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.315599124878645,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.3672626251354814,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.418394833803177,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.473862667568028,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.5283908750861883,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.583583749830723,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.638297041878104,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.6886029997840524,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.7444991674274206,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.7998105846345425,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.852607167325914,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.9079910004511476,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.96477875020355,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.0204614168033004,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.076054542325437,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.128342041745782,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.185237209312618,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.240763791836798,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.295555208809674,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.3470317497849464,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.4029840426519513,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.457558333873749,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.512670334428549,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.5680062090978026,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.619751125574112,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.6741159595549107,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.729111334308982,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.782162042334676,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.837957833893597,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.892248167656362,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.947571000084281,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.00290191732347,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.054645375348628,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.1076429998502135,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.159044291824102,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.214507042430341,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.291307750158012,
+                "selected": "Selected card: Refine"
+              }
+            ]
+          },
+          {
+            "reason": "reenabled",
+            "seconds": 4.1823140839114785,
+            "selected": "Publish",
+            "observations": [
+              {
+                "seconds": 0.09159833379089832,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.14697783440351486,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.20230145938694477,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.25770091731101274,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.3127290839329362,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.36507629230618477,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.4197089169174433,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.47343954257667065,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.5290195001289248,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.5845337919890881,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.6361130839213729,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.6908688750118017,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.7417895421385765,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.7956922501325607,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.8512190422043204,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.903421875089407,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.9554650420323014,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.0105115845799446,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.0651683751493692,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.1186945838853717,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.1745266672223806,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.2278386252000928,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.2836567498743534,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.340410167351365,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.396231791935861,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.4484828747808933,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.5037132920697331,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.5564732505008578,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.6110067497938871,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.6662664590403438,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.7216282924637198,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.7745402501896024,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.8282732497900724,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.8840082921087742,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.9390218751505017,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.9899755418300629,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.0430597504600883,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.0983885005116463,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.149422791786492,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.205115499906242,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.2600979590788484,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.3160436674952507,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.368958292528987,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.423624084331095,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.4768700003623962,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.5319714173674583,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.5873191254213452,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.638095583766699,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.693717292509973,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.7487865844741464,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.802575584501028,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.856939542107284,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.912324375472963,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.967585959471762,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.023178292438388,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.0761915845796466,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.1295509999617934,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.1832171250134706,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.238080625422299,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.2931846668943763,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.3482324173673987,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.4031284591183066,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.458639584481716,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.5142787089571357,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.5668694591149688,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.621275625191629,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.6752256248146296,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.730353958904743,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.7836467092856765,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.8370940843597054,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.8882023338228464,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.9410245837643743,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.9960922924801707,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 4.051449709571898,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 4.106103667058051,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 4.1823140839114785,
+                "selected": "Selected card: Publish"
+              }
+            ]
+          },
+          {
+            "reason": "reactivated",
+            "seconds": 4.174236625432968,
+            "selected": "Capture",
+            "observations": [
+              {
+                "seconds": 0.05575366597622633,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.11099666636437178,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.16118979081511497,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.2164593329653144,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.27195825055241585,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.3274215832352638,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.380646999925375,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.4355804156512022,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.4907124163582921,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.5439765835180879,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.5973767079412937,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.653005207888782,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.7038388326764107,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.760588625445962,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.8157483749091625,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.8689839160069823,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.9231745833531022,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.978731875307858,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.0327122081071138,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.0874770833179355,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.1465006656944752,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.202082791365683,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.2552413754165173,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.3106922497972846,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.3657750003039837,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.4184754164889455,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.4724581250920892,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.5252802083268762,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.5786857912316918,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.6315890001133084,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.6841789158061147,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.7371760001406074,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.792676749639213,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.8467060830444098,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.901698375120759,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.956437500193715,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.0114025408402085,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.0650836247950792,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.1180797908455133,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.1733507504686713,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.2287993747740984,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.28021708317101,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.335110332816839,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.3897897908464074,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.445054874755442,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.4973308332264423,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.55216895788908,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.6065065003931522,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.661673041060567,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.717309541068971,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.772208208218217,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.82729525025934,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.8804338751360774,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.9331730408594012,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.9887110833078623,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.043155625462532,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.0961565831676126,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.15146629139781,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.2045424999669194,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.2572341663762927,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.3114171251654625,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.3645355412736535,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.4152979580685496,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.4708217084407806,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.5220257081091404,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.573605832643807,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.628818375058472,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.683199125342071,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.7378386249765754,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.792414166033268,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.8475854163989425,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.903067541308701,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.9544550832360983,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 4.005892541259527,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 4.058762124739587,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 4.113313750363886,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 4.174236625432968,
+                "selected": "Selected card: Capture"
+              }
+            ]
+          },
+          {
+            "reason": "full-motion-restored",
+            "seconds": 4.183221875689924,
+            "selected": "Explore",
+            "observations": [
+              {
+                "seconds": 0.06903758365660906,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.12288762535899878,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.1776533331722021,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.23286775033921003,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.28357379231601954,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.336237832903862,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.3897762503474951,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.44068950042128563,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.4934226255863905,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.5487646674737334,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.6001040004193783,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.6543842507526278,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.707953667268157,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.7615094175562263,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.8164597079157829,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.870794958434999,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.9231467926874757,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.9779374999925494,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.0312666250392795,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.0864320425316691,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.1417359169572592,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.1956253331154585,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.247808875516057,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.3014788748696446,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.3574863756075501,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.4082410419359803,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.4623832926154137,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.5181431248784065,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.5725834583863616,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.6278325002640486,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.6832622503861785,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.7387206675484776,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.793734542094171,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.8493140004575253,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.902157749980688,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.9575032079592347,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.012490374967456,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.067159083671868,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.122473042458296,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.177261875011027,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.2311425423249602,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.2858204171061516,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.339510125108063,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.3950510006397963,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.4495749585330486,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.5039813332259655,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.5543338749557734,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.6097423331812024,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.66403541713953,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.719755083322525,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.772194500081241,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.827298792079091,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.8812248334288597,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.9340379582718015,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.990045958198607,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.044425125233829,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.0996498335152864,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.1548282084986567,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.2103707501664758,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.2649719174951315,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.3180305007845163,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.3722114581614733,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.4225155832245946,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.4777405420318246,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.5280640004202724,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.583264750428498,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.633627333678305,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.689087875187397,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.743493542075157,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.796811291947961,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.8520226255059242,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.903341041877866,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.9537643752992153,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.006100833415985,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.059287583455443,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.111877582967281,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.183221875689924,
+                "selected": "Selected card: Explore"
+              }
+            ]
+          }
+        ],
+        "scope": "sampled real deadline behavior; not exact frame timing or idle resource measurement"
+      }
+    },
+    {
+      "name": "carousel-auto-installed-001",
+      "identity_line": "GALLERY_EXECUTABLE_SHA256 a1083299477d1221012a0e7ad1a7a3fca4c7129e269c33f42b3a7c8381539acc /Users/dakotamurphy/gpuio/scratch/agents/root-20261007-access-check/notifications-consumer/consumer/_build/default/main.exe",
+      "report": {
+        "complete": true,
+        "holds": [
+          {
+            "reason": "viewport-focus",
+            "selected": "Capture",
+            "seconds": 5.225901124998927,
+            "samples": 97
+          },
+          {
+            "reason": "focus-release-no-burst",
+            "selected": "Explore",
+            "seconds": 0.42970750015228987,
+            "samples": 8
+          },
+          {
+            "reason": "track-hover",
+            "selected": "Explore",
+            "seconds": 5.213970000855625,
+            "samples": 97
+          },
+          {
+            "reason": "hover-release-no-burst",
+            "selected": "Refine",
+            "seconds": 0.43223199993371964,
+            "samples": 8
+          },
+          {
+            "reason": "disabled",
+            "selected": "Refine",
+            "seconds": 5.214772333391011,
+            "samples": 97
+          },
+          {
+            "reason": "reenabled-no-burst",
+            "selected": "Publish",
+            "seconds": 0.43288495764136314,
+            "samples": 8
+          },
+          {
+            "reason": "inactive-original-window",
+            "selected": "Publish",
+            "seconds": 5.249396459199488,
+            "samples": 95
+          },
+          {
+            "reason": "reactivated-no-burst",
+            "selected": "Capture",
+            "seconds": 0.4303468745201826,
+            "samples": 8
+          },
+          {
+            "reason": "reduced-motion",
+            "selected": "Capture",
+            "seconds": 5.235761917196214,
+            "samples": 97
+          },
+          {
+            "reason": "full-motion-restored-no-burst",
+            "selected": "Explore",
+            "seconds": 0.42839100025594234,
+            "samples": 8
+          }
+        ],
+        "resumes": [
+          {
+            "reason": "focus-release",
+            "seconds": 4.141764208674431,
+            "selected": "Explore",
+            "observations": [
+              {
+                "seconds": 0.10185808315873146,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.15615887567400932,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.20709704235196114,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.26223316695541143,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.3177997088059783,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.3731736671179533,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.427456958219409,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.48146058339625597,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.5329668754711747,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.5859397081658244,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.639205583371222,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.6932277083396912,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.743945125490427,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.7992903329432011,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.8532438334077597,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.9078361671417952,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.9586540833115578,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.0129252504557371,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.0654286677017808,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.1172792501747608,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.1728017926216125,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.228661042638123,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.2832852499559522,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.3345617083832622,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.3893746249377728,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.4450537506490946,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.500201833434403,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.5531350830569863,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.6046380829066038,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.6603032080456614,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.7165904585272074,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.7719976250082254,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.823455249890685,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.8753707921132445,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.9265596251934767,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.978887208737433,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.0336859580129385,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.0889922082424164,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.1426929999142885,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.1970649175345898,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.24941929243505,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.3027838757261634,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.35597004275769,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.4069365831092,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.460524333640933,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.515938083641231,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.5696400832384825,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.6231958335265517,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.67721258290112,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.732391042634845,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.78730820864439,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.8375934176146984,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.888019500300288,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.9435575427487493,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.998829792253673,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.054039374925196,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.107998332940042,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.1635238332673907,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.2167082922533154,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.270146792754531,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.325556792318821,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.3805435420945287,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.436523833312094,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.4889559587463737,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.5438015833497047,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.599399042315781,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.6547991251572967,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.7080050837248564,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.758752374909818,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.8138776253908873,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.86962900031358,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.9215978756546974,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.9744545007124543,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.029213041998446,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.084523125551641,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.141764208674431,
+                "selected": "Selected card: Explore"
+              }
+            ]
+          },
+          {
+            "reason": "hover-release",
+            "seconds": 4.340543666854501,
+            "selected": "Refine",
+            "observations": [
+              {
+                "seconds": 0.055604999884963036,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.11075566709041595,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.16447295900434256,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.21470383368432522,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.2668172502890229,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.3218034999445081,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.3723040418699384,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.42747366707772017,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.4826245419681072,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.5358987497165799,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.5863748751580715,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.6415783334523439,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.6968049993738532,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.748671917244792,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.8030578745529056,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.8581903744488955,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.9133523339405656,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 0.9653522921726108,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.019761041738093,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.0749172493815422,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.128104541450739,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.181951374746859,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.2364344587549567,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.2903495421633124,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.3444712916389108,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.398744000121951,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.45310387481004,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.508297124877572,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.5614286251366138,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.6166687086224556,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.6692447494715452,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.7244730833917856,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.7791930418461561,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.8323995834216475,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.88758962508291,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.9385564588010311,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 1.9913456244394183,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.0447442084550858,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.098820791579783,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.1530138747766614,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.2056948337703943,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.260905916802585,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.315740709193051,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.3706891667097807,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.4257037919014692,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.4761634171009064,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.5308278342708945,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.585924624465406,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.640876249410212,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.6959319999441504,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.7511002914980054,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.8054238744080067,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.8595572086051106,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.911317958496511,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 2.9657871667295694,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.0165829993784428,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.0718480413779616,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.125726416707039,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.1770845418795943,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.2280140416696668,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.28266629204154,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.3378002494573593,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.3929319167509675,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.44718583393842,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.502296458929777,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.5530799590051174,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.608320167288184,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.6609227918088436,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.7162399170920253,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.769645417109132,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.8209251249209046,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.8761743744835258,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.927990334108472,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 3.9831250002607703,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.036266083829105,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.0907195415347815,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.1432999996468425,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.197597166523337,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.252756958827376,
+                "selected": "Selected card: Explore"
+              },
+              {
+                "seconds": 4.340543666854501,
+                "selected": "Selected card: Refine"
+              }
+            ]
+          },
+          {
+            "reason": "reenabled",
+            "seconds": 4.187052583321929,
+            "selected": "Publish",
+            "observations": [
+              {
+                "seconds": 0.0914837084710598,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.1476179165765643,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.2034564157947898,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.2586064161732793,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.3088782085105777,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.36407358292490244,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.415416500531137,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.46858800016343594,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.5193722909316421,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.5716727497056127,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.6268887501209974,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.67844916600734,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.7336745830252767,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.7888643331825733,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.8410214576870203,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.8962513748556376,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 0.9515495831146836,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.0018343748524785,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.055210250429809,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.105665541253984,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.1559861665591598,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.2063215002417564,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.259826916269958,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.3152126660570502,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.366162708029151,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.4165771249681711,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.4718003328889608,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.5220464998856187,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.5779940830543637,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.6318134162575006,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.6870095413178205,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.742171499878168,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.7957621663808823,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.8509100833907723,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.9062081659212708,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 1.9607388330623507,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.0159429581835866,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.0710768327116966,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.129381916485727,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.182313040830195,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.232536790892482,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.2858942914754152,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.3399866251274943,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.3951484160497785,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.449025208130479,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.504173083230853,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.5577765414491296,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.6116764582693577,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.666817916557193,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.7219968335703015,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.77413116581738,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.8293259581550956,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.8845145413652062,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.9382777083665133,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 2.993436415679753,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.046887165866792,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.0990767078474164,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.1536307083442807,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.2089241249486804,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.264240915887058,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.315937458537519,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.3672564579173923,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.422446208074689,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.4776125829666853,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.5278597082942724,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.5782315833494067,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.6333982907235622,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.688600624911487,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.743680332787335,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.795190582983196,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.8495265003293753,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.9046835834160447,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 3.9598599998280406,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 4.015041958540678,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 4.070206291042268,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 4.1241312911733985,
+                "selected": "Selected card: Refine"
+              },
+              {
+                "seconds": 4.187052583321929,
+                "selected": "Selected card: Publish"
+              }
+            ]
+          },
+          {
+            "reason": "reactivated",
+            "seconds": 4.120772833935916,
+            "selected": "Capture",
+            "observations": [
+              {
+                "seconds": 0.05250654183328152,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.10766237508505583,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.16175299976021051,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.217010541819036,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.268176625482738,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.3192245839163661,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.37447016686201096,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.42987120896577835,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.4851362919434905,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.5358838336542249,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.5866217501461506,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.64184904191643,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.695726209320128,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.7498778337612748,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.8025148753076792,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.8577618338167667,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.9112144587561488,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 0.9624880841001868,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.0146270422264934,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.0691325003281236,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.1243411675095558,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.175022916868329,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.227523459121585,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.2827800419181585,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.3379656672477722,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.393231624737382,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.447736625559628,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.5029546255245805,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.557831167243421,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.612777791917324,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.6678655417636037,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.7192692095413804,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.7713810419663787,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.8265442503616214,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.8818479590117931,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.9371338747441769,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 1.9897614996880293,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.040033374913037,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.0944619169458747,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.1448836252093315,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.1961300000548363,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.2465049996972084,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.297424292191863,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.3524561254307628,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.4056647922843695,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.460660459473729,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.5115383751690388,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.5630344171077013,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.6180822923779488,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.673286166973412,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.728479541838169,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.7836455842480063,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.8362568337470293,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.891711709089577,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.943121625110507,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 2.998308166861534,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.053470709361136,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.1086211670190096,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.161059834063053,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.2146980417892337,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.269845874980092,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.325025875121355,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.3774180421605706,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.4325859174132347,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.4858867498114705,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.541068334132433,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.593733958899975,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.6439551673829556,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.694266959093511,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.749474917538464,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.801071791909635,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.8525134595111012,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.90688700042665,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 3.961137958802283,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 4.0124800419434905,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 4.067638709209859,
+                "selected": "Selected card: Publish"
+              },
+              {
+                "seconds": 4.120772833935916,
+                "selected": "Selected card: Capture"
+              }
+            ]
+          },
+          {
+            "reason": "full-motion-restored",
+            "seconds": 4.158694334328175,
+            "selected": "Explore",
+            "observations": [
+              {
+                "seconds": 0.05380229186266661,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.10563591681420803,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.16087404172867537,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.21553670894354582,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.2708275839686394,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.3234231248497963,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.3757945420220494,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.4305153340101242,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.4815463339909911,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.5367677500471473,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.5894555421546102,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.6446070419624448,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.6991006247699261,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.7534003751352429,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.8056020839139819,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.857769999653101,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.9129637917503715,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 0.9684147089719772,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.023631208576262,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.0777296666055918,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.1307531669735909,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.1847819173708558,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.239913959056139,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.2931200424209237,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.343398959375918,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.3985747918486595,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.4536155415698886,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.5089124171063304,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.5636517088860273,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.614403917454183,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.669606584124267,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.724777833558619,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.7799532916396856,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.8344986671581864,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.888915916904807,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.9440626669675112,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 1.9992633340880275,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.054421833716333,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.1056872503831983,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.1566463746130466,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.21188404224813,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.267118209041655,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.322348584420979,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.3775112917646766,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.43064137455076,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.4859188748523593,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.5391669999808073,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.593549959361553,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.6473812917247415,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.7025467501953244,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.75777745898813,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.812950959429145,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.868094500154257,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.9232612922787666,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 2.9783129999414086,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.032521459273994,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.0829702923074365,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.1382729168981314,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.193563542328775,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.247490791603923,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.2976665422320366,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.349364667199552,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.404399291612208,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.4563027918338776,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.506553458981216,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.5617926251143217,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.613649125210941,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.668898125179112,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.724015833809972,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.7742728339508176,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.829310334287584,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.880873708985746,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.9320306247100234,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 3.98724012542516,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.038876499980688,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.094047958962619,
+                "selected": "Selected card: Capture"
+              },
+              {
+                "seconds": 4.158694334328175,
+                "selected": "Selected card: Explore"
+              }
+            ]
+          }
+        ],
+        "scope": "sampled real deadline behavior; not exact frame timing or idle resource measurement"
+      }
+    }
+  ],
+  "archive_files": 7
+}

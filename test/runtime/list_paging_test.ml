@@ -188,19 +188,20 @@ let%expect_test
     in
     let controls = P.controls pager in
     let config =
-      V.Config.create ~max_active:8 ~height:(Estimated 80.) () |> Or_error.ok_exn
+      B.Expert.Var.create
+        (V.Config.horizontal ~max_active:8 ~width:(Estimated 80.) () |> Or_error.ok_exn)
     in
     let driver =
       Bonsai_driver.create
         ~action_history:Release_after_flush
         ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
         (fun graph ->
-           V.paged
+           V.paged_with_config
              (module Int)
              (P.value pager)
              ~paging:(B.return controls)
              ~row_key:Gpuio.Key.of_int
-             ~config
+             ~config:(B.Expert.Var.value config)
              ~render_row:(fun ~key:_ ~data ~lifetime:_ _ -> B.map data ~f:Gpuio.View.text)
              graph)
     in
@@ -258,6 +259,15 @@ let%expect_test
     report ~at_end:false;
     display ();
     assert (List.length !calls = 2);
+    B.Expert.Var.set
+      config
+      (V.Config.create ~max_active:8 ~height:(Estimated 80.) () |> Or_error.ok_exn);
+    display ();
+    assert (Option.is_none (V.Output.viewport (result ())));
+    Eio.Fiber.yield ();
+    drain inbox;
+    display ();
+    assert (List.length !calls = 2);
     fail := true;
     report ~at_end:true;
     display ();
@@ -310,4 +320,176 @@ let%expect_test "append during queued older history preserves scoped completion"
     ((1 history) (2 live))
     true
     |}]
+;;
+
+let%expect_test "resets bound producers while cancellation cleanup waits" =
+  with_scope (fun scope inbox ->
+    let cleanup_ready, resolver = Eio.Promise.create () in
+    let released = ref false in
+    let release () =
+      if not !released
+      then (
+        released := true;
+        Eio.Promise.resolve resolver ())
+    in
+    let active = ref 0 in
+    let peak = ref 0 in
+    let started = ref [] in
+    let rejected = ref 0 in
+    let settle () =
+      for _ = 1 to 12 do
+        Eio.Fiber.yield ();
+        drain inbox
+      done
+    in
+    let t =
+      P.create
+        ~scope
+        (empty ())
+        ~before:(More None)
+        ~after:(More None)
+        ~load:(fun request ->
+          let generation = P.Request.generation request in
+          started := generation :: !started;
+          incr active;
+          peak := Int.max !peak !active;
+          Exn.protect
+            ~f:(fun () ->
+              if Int64.equal generation 0L then Eio.Fiber.await_cancel ();
+              let key =
+                match P.Request.direction request with
+                | Before -> 1
+                | After -> 2
+              in
+              Ok { P.Page.rows = [ key, "latest" ]; next = End })
+            ~finally:(fun () ->
+              if Int64.equal generation 0L
+              then Eio.Cancel.protect (fun () -> Eio.Promise.await cleanup_ready);
+              decr active))
+      |> Or_error.ok_exn
+    in
+    Exn.protect ~finally:release ~f:(fun () ->
+      let request direction =
+        match P.request t direction with
+        | Ok () -> ()
+        | Error _ -> incr rejected
+      in
+      request Before;
+      request After;
+      settle ();
+      for _ = 1 to 100 do
+        P.reset t (empty ()) ~before:(More None) ~after:(More None) |> Or_error.ok_exn;
+        request Before;
+        request After;
+        settle ()
+      done;
+      print_s
+        [%sexp
+          (!active : int), (!peak : int), (List.length !started : int), (!rejected : int)];
+      release ();
+      settle ();
+      print_s
+        [%sexp
+          (List.sort !started ~compare:Int64.compare : int64 list)
+        , (!peak : int)
+        , (!active : int)];
+      print_s [%sexp (C.to_alist (P.items t) : (int * string) list)];
+      P.close t;
+      settle ()));
+  [%expect
+    {|
+    (2 2 2 0)
+    ((0 0 100 100) 2 0)
+    ((1 latest) (2 latest))
+  |}]
+;;
+
+let%expect_test "closing a pager publishes cancelled boundaries to its reactive value" =
+  with_scope (fun scope inbox ->
+    let changes = ref 0 in
+    let t =
+      P.create
+        ~scope
+        (empty ())
+        ~before:(More None)
+        ~after:(More None)
+        ~load:(fun _ -> Eio.Fiber.await_cancel ())
+        ~on_change:(fun _ -> Bonsai.Effect.of_thunk (fun () -> incr changes))
+      |> Or_error.ok_exn
+    in
+    let driver =
+      Bonsai_driver.create
+        ~action_history:Release_after_flush
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        (fun _graph -> P.value t)
+    in
+    let report () =
+      Bonsai_driver.flush driver;
+      let reactive = Bonsai_driver.result driver in
+      let direct = P.snapshot t in
+      print_s
+        [%sexp
+          (reactive.before : P.Status.t)
+        , (reactive.after : P.Status.t)
+        , (direct.before : P.Status.t)
+        , (direct.after : P.Status.t)
+        , (!changes : int)]
+    in
+    P.request t Before |> Or_error.ok_exn;
+    P.request t After |> Or_error.ok_exn;
+    Eio.Fiber.yield ();
+    report ();
+    P.close t;
+    P.close t;
+    Eio.Fiber.yield ();
+    drain inbox;
+    report ();
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect
+    {|
+    (Loading Loading Loading Loading 2)
+    (Ready Ready Ready Ready 2)
+  |}]
+;;
+
+let%expect_test "worker admission failure remains an explicit retryable result" =
+  with_scope (fun scope inbox ->
+    let occupied =
+      List.init 8 ~f:(fun _ ->
+        Scope.start
+          scope
+          ~f:Eio.Fiber.await_cancel
+          ~on_result:(fun (_ : unit Or_error.t) -> Bonsai.Effect.Ignore)
+        |> Or_error.ok_exn)
+    in
+    let calls = ref 0 in
+    let t =
+      P.create ~scope (empty ()) ~before:End ~after:(More None) ~load:(fun _ ->
+        incr calls;
+        Ok { P.Page.rows = [ 1, "loaded" ]; next = End })
+      |> Or_error.ok_exn
+    in
+    let rejected = Result.is_error (P.request t After) in
+    print_s [%sexp (rejected : bool), (P.status t After : P.Status.t)];
+    List.iter occupied ~f:Scope.Task.cancel;
+    Eio.Fiber.yield ();
+    drain inbox;
+    P.request t After |> Or_error.ok_exn;
+    assert (!calls = 0);
+    P.retry t After |> Or_error.ok_exn;
+    Eio.Fiber.yield ();
+    drain inbox;
+    print_s
+      [%sexp
+        (!calls : int), (P.status t After : P.Status.t), ((Scope.stats scope).tasks : int)];
+    P.close t;
+    Eio.Fiber.yield ();
+    drain inbox;
+    print_s [%sexp ((Scope.stats scope).tasks : int)]);
+  [%expect
+    {|
+    (true (Failed "task limit reached"))
+    (1 End 1)
+    0
+  |}]
 ;;

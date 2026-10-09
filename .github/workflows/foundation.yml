@@ -30,12 +30,20 @@ jobs:
       matrix:
         os: [macos-15, ubuntu-24.04]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 90
+    # The macOS required suite includes a measured ~18-minute full-history test
+    # after dependency/consumer builds. Run 36791905054 was cancelled near the
+    # 90-minute ceiling during the final workload; per-test watchdogs remain.
+    timeout-minutes: ${{ matrix.os == 'macos-15' && 180 || 90 }}
     env:
       GPUIO_JOBS: 3
       CARGO_TERM_COLOR: never
+      # A CI job does not edit sources between builds; incremental variants consume
+      # scarce hosted-runner disk across the native feature matrix.
+      CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Example documentation inventory
+        run: python3 scripts/audit_example_docs.py
       - name: Linux system prerequisites
         if: runner.os == 'Linux'
         run: |
@@ -72,10 +80,17 @@ jobs:
             .opam-root
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
+          key: foundation-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
           restore-keys: |
+            foundation-v2-${{ runner.os }}-${{ runner.arch }}-
             foundation-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: Prepare bounded CI build storage
+        run: |
+          mkdir -p .cache/ci
+          python3 scripts/test_ci_storage.py
+          # A legacy v1 fallback may contain target/. Keep package/switch caches,
+          # but start this job's native feature builds without stale outputs.
+          python3 scripts/ci_storage.py --discard-restored-target 2>&1 | tee .cache/ci/storage-start.log
       - name: Bootstrap isolated environment
         run: |
           mkdir -p .cache/ci
@@ -83,7 +98,14 @@ jobs:
           ./scripts/gpuio doctor
       - name: Formatting
         run: ./scripts/gpuio check-fmt
+      - name: Offline Bonsai reconstruction admission
+        run: python3 scripts/test_vendor_bonsai.py 2>&1 | tee .cache/ci/bonsai-vendor-inputs.log
+      - name: Pinned accessibility consumer reconstruction
+        run: |
+          curl --fail --location --retry 3 --output .cache/ci/accesskit_consumer-0.38.0.crate https://crates.io/api/v1/crates/accesskit_consumer/0.38.0/download
+          python3 scripts/verify_accesskit_consumer.py --archive .cache/ci/accesskit_consumer-0.38.0.crate 2>&1 | tee .cache/ci/accessibility-consumer-source.log
       - name: Build
+        id: build
         run: ./scripts/gpuio build 2>&1 | tee .cache/ci/build.log
       - name: Preserve successful dependency build
         if: ${{ !inputs.clean_build && steps.dependency-cache.outputs.cache-hit != 'true' }}
@@ -93,10 +115,125 @@ jobs:
             .opam-root
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: foundation-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
+          key: foundation-v2-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gpuio.opam.locked', 'third_party/sources.json', 'rust-toolchain.toml', 'Cargo.lock') }}
       - name: OCaml and Rust tests
+        id: unit_tests
         run: ./scripts/gpuio test 2>&1 | tee .cache/ci/tests.log
+      - name: macOS AppKit scroll phase conversion (no window)
+        if: runner.os == 'macOS'
+        run: python3 scripts/test_macos_scroll_phases.py --output .cache/ci/scroll-phases
+      - name: Diagnose Linux native test stack failure
+        if: runner.os == 'Linux' && failure() && steps.unit_tests.outcome == 'failure'
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          # Diagnostic only: the original test step remains a required failure.
+          # Compare the failing fixture at the default stack and at 8 MiB; do
+          # not silently increase the stack for the required suite.
+          sudo apt-get install -y gdb
+          ./scripts/gpuio exec cargo test -p gpuio-native --lib --locked \
+            --features native-image-tests,native-canvas-tests --no-run \
+            --message-format=json -j "$GPUIO_JOBS" > .cache/ci/native-stack-build.jsonl
+          python3 - <<'PY'
+          import json, os, signal, subprocess
+          from pathlib import Path
+          messages = [json.loads(line) for line in Path('.cache/ci/native-stack-build.jsonl').read_text().splitlines()]
+          binaries = {m['executable'] for m in messages
+                      if m.get('reason') == 'compiler-artifact' and m.get('executable')
+                      and m['target']['name'] == 'gpuio_native' and m['profile']['test']}
+          assert len(binaries) == 1, binaries
+          binary = binaries.pop()
+          case = 'host::sidebar_labels_view_test::public_sidebar_labels_retain_focus_paint_once_and_route_one_activation'
+          arguments = [binary, '--exact', case, '--nocapture', '--test-threads=1']
+          probes = [
+              ('default-backtrace', ['gdb', '--batch', '-ex', 'set pagination off',
+                                    '-ex', 'set disable-randomization off', '-ex', 'run',
+                                    '-ex', 'thread apply all bt 60', '--args', *arguments], {}),
+              ('eight-mib', arguments, {'RUST_MIN_STACK': '8388608'}),
+          ]
+          for name, command, overrides in probes:
+              with Path(f'.cache/ci/native-stack-{name}.log').open('w') as log:
+                  process = subprocess.Popen(command, env={**os.environ, **overrides},
+                                             stdout=log, stderr=subprocess.STDOUT,
+                                             start_new_session=True)
+                  try:
+                      print(name, 'exit', process.wait(timeout=90), flush=True)
+                  except subprocess.TimeoutExpired:
+                      # Include the debugger's inferior, not just the debugger.
+                      try:
+                          os.killpg(process.pid, signal.SIGKILL)
+                      except ProcessLookupError:
+                          pass
+                      process.wait()
+                      print(name, 'timed out', flush=True)
+          PY
+      - name: Inherited output and Eio cancellation (no display)
+        run: |
+          ./scripts/gpuio build test/output/probe.exe
+          python3 scripts/test_output_sink.py 2>&1 | tee .cache/ci/output-sink.log
+      - name: Chart measurement diagnostics (no display)
+        run: python3 scripts/test_measure_chart_stream.py 2>&1 | tee .cache/ci/chart-measurement-diagnostics.log
+      - name: Accessibility traversal diagnostics (no display)
+        run: python3 scripts/test_mac_ax_helpers.py 2>&1 | tee .cache/ci/ax-traversal.log
+      - name: Window pointer readiness (no display)
+        run: python3 scripts/test_mac_window_readiness.py 2>&1 | tee .cache/ci/window-pointer-readiness.log
+      - name: Results column geometry readiness (no display)
+        run: python3 scripts/test_results_geometry.py 2>&1 | tee .cache/ci/results-geometry-readiness.log
+      - name: Document profile focus and cleanup acknowledgement (no display)
+        run: |
+          python3 scripts/test_document_profile_focus_wait.py 2>&1 | tee .cache/ci/document-profile-focus-wait.log
+          python3 scripts/test_document_profile_cleanup.py 2>&1 | tee .cache/ci/document-profile-cleanup.log
+      - name: Input-source restoration scope (no display)
+        run: python3 scripts/test_mac_input_source.py 2>&1 | tee .cache/ci/input-source-scope.log
+      - name: Clipboard preservation scope (no display)
+        run: python3 scripts/test_mac_clipboard.py 2>&1 | tee .cache/ci/clipboard-preservation.log
+      - name: System appearance restoration scope (no display)
+        run: python3 scripts/test_mac_system_appearance.py 2>&1 | tee .cache/ci/appearance-restoration.log
+      - name: Appearance palette backing-scale validation (no display)
+        run: python3 scripts/test_appearance_palette.py 2>&1 | tee .cache/ci/appearance-palette.log
+      - name: Loaded-history measurement diagnostics (no display)
+        run: python3 scripts/test_measure_list_history.py 2>&1 | tee .cache/ci/list-measurement-diagnostics.log
+      - name: Presentation report pairing and failure sensitivity (no display)
+        run: python3 scripts/test_presentation_report.py 2>&1 | tee .cache/ci/presentation-report-diagnostics.log
+      - name: Hosted Metal timing availability classification (no display)
+        run: python3 scripts/test_metal_timing_availability.py 2>&1 | tee .cache/ci/metal-availability-tests.log
+      - name: Table performance report validation
+        run: python3 scripts/test_measure_table_history.py 2>&1 | tee .cache/ci/table-measurement-diagnostics.log
+      - name: Resource lifecycle report validation (no display)
+        run: python3 scripts/test_measure_resource_lifecycle.py 2>&1 | tee .cache/ci/lifecycle-measurement-diagnostics.log
+      - name: Native entity audit sensitivity (no display)
+        run: |
+          ./scripts/gpuio exec cargo test --manifest-path examples/resource_audit/rust/Cargo.toml --locked --lib 2>&1 | tee .cache/ci/native-entity-audit.log
+          ./scripts/gpuio exec cargo test --manifest-path examples/resource_audit/rust/Cargo.toml --locked --features presentation-diagnostics --lib 2>&1 | tee .cache/ci/presentation-retirement-sensitivity.log
+      - name: macOS physical-memory report validation (no display)
+        run: python3 scripts/test_mac_process_memory.py 2>&1 | tee .cache/ci/physical-memory-report-diagnostics.log
+      - name: macOS Metal counter calibration (no visible window)
+        if: runner.os == 'macOS'
+        run: |
+          xcrun swiftc scripts/qualify_metal_counter.swift -o .cache/ci/qualify-metal-counter
+          .cache/ci/qualify-metal-counter | tee .cache/ci/metal-counter-calibration.json
+      - name: GPUI standalone manifest validation (no display)
+        run: python3 scripts/test_vendor_gpui.py 2>&1 | tee .cache/ci/gpui-manifest-diagnostics.log
+      - name: Document growth report validation (no display)
+        run: python3 scripts/test_measure_document_growth.py 2>&1 | tee .cache/ci/document-measurement-diagnostics.log
+      - name: Concurrent streaming and typing report validation (no display)
+        run: python3 scripts/test_measure_streaming_typing.py 2>&1 | tee .cache/ci/streaming-typing-diagnostics.log
+      - name: Focused and unfocused idle report validation (no display)
+        run: python3 scripts/test_measure_idle.py 2>&1 | tee .cache/ci/idle-report-diagnostics.log
+      - name: Reference packaging input validation (no display)
+        run: python3 scripts/test_package_macos_reference.py 2>&1 | tee .cache/ci/reference-package-inputs.log
+      - name: Extracted package runtime admission (no display)
+        run: python3 scripts/test_package_runtime_inputs.py 2>&1 | tee .cache/ci/package-runtime-inputs.log
+      - name: Package transfer provenance validation (no display)
+        run: python3 scripts/test_package_transfer.py 2>&1 | tee .cache/ci/package-transfer-inputs.log
+      - name: Notarization final-artifact validation (simulated Apple tools, no upload)
+        run: python3 scripts/test_finalize_macos_notarization.py 2>&1 | tee .cache/ci/notarization-finalization.log
+      - name: Static backend composition tests (no display)
+        run: python3 scripts/test_compose_backend.py 2>&1 | tee .cache/ci/backend-composition.log
+      - name: Dependency notice collection tests (no display)
+        run: python3 scripts/test_collect_rust_notices.py 2>&1 | tee .cache/ci/dependency-notices.log
+      - name: OCaml dependency notice collection (no display)
+        run: python3 scripts/test_collect_ocaml_notices.py 2>&1 | tee .cache/ci/ocaml-dependency-notices.log
       - name: Linux desktop instance arbitration (private bus, no display)
         if: runner.os == 'Linux'
         run: scripts/test_desktop_instance_bus.sh 2>&1 | tee .cache/ci/desktop-instance.log
@@ -111,6 +248,15 @@ jobs:
       - name: Lint
         id: lint
         run: ./scripts/gpuio lint 2>&1 | tee .cache/ci/lint.log
+      - name: Performance collector checks (no display)
+        run: |
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features presentation-diagnostics,native-image-tests,native-canvas-tests --lib performance::tests 2>&1 | tee .cache/ci/performance-collector.log
+          ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features presentation-diagnostics,native-image-tests,native-canvas-tests --lib --tests -- -D warnings
+      - name: Presentation workload builds and probe contracts (no display)
+        run: |
+          ./scripts/gpuio build examples/performance_presented/list/main.exe examples/performance_presented/table/main.exe examples/performance_presented/document/main.exe examples/performance_presented/streaming/main.exe
+          ./scripts/gpuio exec cargo test --manifest-path examples/performance_presented/backend/Cargo.toml --locked -p gpuio-performance-probe --lib 2>&1 | tee .cache/ci/presentation-probe.log
+          ./scripts/gpuio exec cargo clippy --manifest-path examples/performance_presented/backend/Cargo.toml --locked -p gpuio-performance-probe --lib --tests -- -D warnings
       - name: Build and lint native UI tests
         id: native-ui-build
         run: |
@@ -118,23 +264,210 @@ jobs:
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-table-adapter --features native-tests --all-targets -- -D warnings
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_ui --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_editor --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --test native_table_host --test native_table_history --no-run
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_document --test native_window --test native_tabs --test native_navigation --test native_tree --test native_carousel --test native_hover_card --test native_split --test native_extension --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_controls --test native_command_binding --test native_menu_popup_queue --test native_table_host --test native_table_history --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_scroll --test native_list --test native_highlight_host --test native_document --test native_window --test native_tabs --test native_navigation --test native_tree --test native_carousel --test native_hover_card --test native_split --test native_extension --no-run
           ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-tests --test native_animation --test native_animation_program --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --test native_drag_drop --test native_file_dialog --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-tests --all-targets -- -D warnings
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_image_views --test native_container_query --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-image-tests --test native_images --test native_text_shimmer_paint --test native_text_shimmer_clock --test native_text_shimmer_view --test native_styled_text --test native_border_style --test native_aspect_ratio --test native_grid_location --test native_opacity_factor --test native_link --test native_highlight_paint --test native_highlight_view --test native_highlight_document --test native_image_views --test native_container_query --test native_presentation --test native_slider --test native_number_input --test native_otp_input --test native_calendar --test native_color_input --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-image-tests --all-targets -- -D warnings
-          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --test native_chart_paint --test native_chart_view --test native_chart_input --no-run
+          ./scripts/gpuio exec cargo test --locked -p gpuio-native --features native-canvas-tests --test native_canvas --test native_canvas_view --test native_canvas_input --test native_chart_paint --test native_chart_labels --test native_chart_view --test native_chart_input --test native_chart_inspection --no-run
           ./scripts/gpuio exec cargo clippy --locked -p gpuio-native --features native-canvas-tests --all-targets -- -D warnings
+      - name: Record storage before independent consumers
+        if: ${{ !cancelled() }}
+        run: python3 scripts/ci_storage.py 2>&1 | tee .cache/ci/storage-consumers.log
+      - name: Independent default-backend starter consumer
+        id: starter-consumer
+        run: python3 scripts/test_extension_consumer.py --cleanup --example getting_started 2>&1 | tee .cache/ci/starter-consumer.log
       - name: Independent native extension consumer
         id: extension-consumer
-        run: python3 scripts/test_extension_consumer.py 2>&1 | tee .cache/ci/extension-consumer.log
+        run: python3 scripts/test_extension_consumer.py --cleanup 2>&1 | tee .cache/ci/extension-consumer.log
+      - name: Independent public gallery consumer
+        id: gallery-consumer
+        run: python3 scripts/test_extension_consumer.py --cleanup --example gallery 2>&1 | tee .cache/ci/gallery-consumer.log
+      - name: macOS Settings keyboard composition
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section settings-composition --images .cache/ci/settings-composition 2>&1 | tee .cache/ci/macos-settings-composition.log
+      - name: macOS Settings field retention
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section settings-fields --images .cache/ci/settings-fields 2>&1 | tee .cache/ci/macos-settings-fields.log
+      - name: macOS gallery forms and editor admission
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: |
+          python3 scripts/test_gallery.py --section forms --images .cache/ci/forms 2>&1 | tee .cache/ci/macos-forms.log
+          python3 scripts/test_gallery.py --section editor-groups 2>&1 | tee .cache/ci/macos-editor-groups.log
+      - name: macOS public editor and accessibility range geometry
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery_editor_geometry.py --report .cache/ci/editor-range-geometry.json 2>&1 | tee .cache/ci/macos-editor-range-geometry.log
+      - name: macOS screen-point accessibility routing
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_macos_hit_testing.py --output .cache/ci/ax-point-routing 2>&1 | tee .cache/ci/macos-ax-point-routing.log
+      - name: macOS public choice picker keyboard search
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section choice-pickers --images .cache/ci/choice-pickers 2>&1 | tee .cache/ci/macos-choice-pickers.log
+      - name: macOS native scrollbar preference application
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 5
+        run: python3 scripts/test_macos_scrollbar_preference.py --output .cache/ci/scrollbar-preference 2>&1 | tee .cache/ci/macos-scrollbar-preference.log
+      - name: macOS measured carousel keyboard and retained cards
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section carousel-track --images .cache/ci/carousel-track 2>&1 | tee .cache/ci/macos-carousel-track.log
+      - name: macOS rich tabs and retained panels
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section tabs --images .cache/ci/tabs 2>&1 | tee .cache/ci/macos-tabs-gallery.log
+      - name: macOS flat split-group input and retention
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section split-group --images .cache/ci/split-group 2>&1 | tee .cache/ci/macos-split-group-gallery.log
+      - name: macOS pagination themes and chooser lifetimes
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_gallery.py --section pagination --images .cache/ci/pagination 2>&1 | tee .cache/ci/macos-pagination-gallery.log
+      - name: macOS searchable list keyboard and source lifetimes
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_gallery.py --section selectable-matrix --images .cache/ci/selectable-matrix 2>&1 | tee .cache/ci/macos-selectable-matrix.log
+      - name: macOS scrollbar input and retained offsets
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_gallery.py --section scrollbars --images .cache/ci/scrollbars 2>&1 | tee .cache/ci/macos-scrollbars.log
+      - name: macOS managed collection scrollbar input and retained offsets
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 6
+        run: python3 scripts/test_gallery.py --section managed-scrollbars --images .cache/ci/managed-scrollbars 2>&1 | tee .cache/ci/macos-managed-scrollbars.log
+      - name: macOS message follow input and reading anchors
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_gallery.py --section message-follow --images .cache/ci/message-follow 2>&1 | tee .cache/ci/macos-message-follow.log
+      - name: macOS horizontal list input and geometry
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_gallery.py --section horizontal-list --images .cache/ci/horizontal-list 2>&1 | tee .cache/ci/macos-horizontal-list.log
+      - name: macOS overlay focus and live geometry
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_gallery.py --section overlay-matrix --images .cache/ci/overlay-matrix 2>&1 | tee .cache/ci/macos-overlay-matrix.log
+      - name: macOS disclosure themes and draft lifetimes
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section disclosure --images .cache/ci/disclosure 2>&1 | tee .cache/ci/macos-disclosure-gallery.log
+      - name: macOS measured carousel automatic pause and resume
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section carousel-automatic --images .cache/ci/carousel-automatic 2>&1 | tee .cache/ci/macos-carousel-automatic.log
+      - name: macOS measured carousel pointer ownership and cancellation
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section carousel-drag --images .cache/ci/carousel-drag 2>&1 | tee .cache/ci/macos-carousel-drag.log
+      - name: macOS measured carousel line-wheel routing and edges
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section carousel-wheel --images .cache/ci/carousel-wheel 2>&1 | tee .cache/ci/macos-carousel-wheel.log
+      - name: macOS measured carousel interrupted drag lifecycle
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section carousel-lifecycle --images .cache/ci/carousel-lifecycle 2>&1 | tee .cache/ci/macos-carousel-lifecycle.log
+      - name: macOS measured carousel focus and clipped cards
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section carousel-focus --images .cache/ci/carousel-focus 2>&1 | tee .cache/ci/macos-carousel-focus.log
+      - name: Navigation history and page retention (macOS)
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section journey-history --images .cache/ci/journey-history 2>&1 | tee .cache/ci/macos-journey-history.log
+
+      - name: macOS sidebar policies and retained appearance
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section sidebar --images .cache/ci/sidebar 2>&1 | tee .cache/ci/macos-sidebar.log
+      - name: macOS notification placement and keyboard lifecycle
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_gallery.py --section notifications --images .cache/ci/notifications 2>&1 | tee .cache/ci/macos-notifications.log
+      - name: macOS notification hover and active-time expiry
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section notification-policy --images .cache/ci/notification-policy 2>&1 | tee .cache/ci/macos-notification-policy.log
+      - name: macOS notification entrance and reduced-motion geometry
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 2
+        run: python3 scripts/test_gallery.py --section notification-motion --images .cache/ci/notification-motion 2>&1 | tee .cache/ci/macos-notification-motion.log
+      - name: macOS public clipboard writes and feedback
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_gallery.py --section clipboard 2>&1 | tee .cache/ci/macos-clipboard.log
+      - name: macOS selected document shutdown with Rust backtraces
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_macos_document_shutdown.py --log .cache/ci/document-shutdown-app.log --report .cache/ci/document-shutdown.json 2>&1 | tee .cache/ci/macos-document-shutdown.log
+      - name: macOS native context popup interaction and lifecycle
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 5
+        run: |
+          ./scripts/gpuio build examples/menus/main.exe
+          python3 scripts/test_native_popup_macos.py 2>&1 | tee .cache/ci/macos-native-popup.log
+          for mode in close retire invalidate replace hide disable modal; do
+            python3 scripts/test_native_popup_macos.py --lifecycle "$mode" 2>&1 | tee ".cache/ci/macos-native-popup-$mode.log"
+          done
+          ./scripts/gpuio build examples/menu_controller/main.exe
+          python3 scripts/test_menu_controller_macos.py 2>&1 | tee .cache/ci/macos-menu-controller.log
+          python3 scripts/test_native_menu_icons_macos.py --output .cache/ci/native-menu-icons 2>&1 | tee .cache/ci/macos-native-menu-icons.log
+      - name: macOS native popup window and editor ownership
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: |
+          ./scripts/gpuio build examples/menu_controller/main.exe
+          python3 scripts/test_menu_multiwindow_macos.py 2>&1 | tee .cache/ci/macos-menu-multiwindow.log
+      - name: macOS native popup queued-start cancellation
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_menu_popup_queue"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-menu-popup-queue.log
+      - name: macOS cross-application file drop
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: |
+          xcrun swiftc -module-cache-path .cache/macos-display-modules scripts/macos_file_drag_source.swift -o .cache/ci/file-drag-source
+          python3 scripts/test_macos_external_file_drop.py --source .cache/ci/file-drag-source --output .cache/ci/external-file-drop 2>&1 | tee .cache/ci/macos-external-file-drop.log
+      - name: macOS file themes and scoped reads
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_macos_theme_files.py --output .cache/ci/theme-files 2>&1 | tee .cache/ci/macos-theme-files.log
+      - name: macOS public native document profile
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_macos_document_profile.py --output .cache/ci/document-profile 2>&1 | tee .cache/ci/macos-document-profile.log
+      - name: macOS system appearance and retained editing
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_macos_system_appearance.py --output .cache/ci/system-appearance 2>&1 | tee .cache/ci/macos-system-appearance.log
+      - name: macOS public focused-input query
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 3
+        run: python3 scripts/test_macos_focused_input.py --output .cache/ci/focused-input 2>&1 | tee .cache/ci/macos-focused-input.log
+      - name: macOS public window selection helpers
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 4
+        run: python3 scripts/test_macos_window_selection.py --output .cache/ci/window-selection 2>&1 | tee .cache/ci/macos-window-selection.log
+      - name: macOS window commands and custom chrome
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success'
+        timeout-minutes: 6
+        run: |
+          python3 scripts/test_macos_window_lifecycle.py --output .cache/ci/window-standard 2>&1 | tee .cache/ci/macos-window-standard.log
+          python3 scripts/test_macos_window_lifecycle.py --custom-chrome --output .cache/ci/window-custom 2>&1 | tee .cache/ci/macos-window-custom.log
       - name: Independent Signal Studio consumer
         id: signal-consumer
         run: |
           extra=()
           if [[ "$RUNNER_OS" == "macOS" ]]; then extra+=(--run); fi
-          python3 scripts/test_extension_consumer.py --example signal_studio "${extra[@]}" 2>&1 | tee .cache/ci/signal-consumer.log
+          python3 scripts/test_extension_consumer.py --cleanup --example signal_studio "${extra[@]}" 2>&1 | tee .cache/ci/signal-consumer.log
       - name: macOS Signal Studio input and responsive composition
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.signal-consumer.outcome == 'success'
         run: python3 scripts/test_signal_studio.py --output .cache/ci/signal-studio 2>&1 | tee .cache/ci/macos-signal-studio.log
@@ -170,10 +503,20 @@ jobs:
       - name: macOS chart resource uploads without windows
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["_build/default/examples/chart_upload/main.exe"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-upload.log
+      - name: macOS worker chart font measurement without windows
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_labels"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-labels.log
       - name: macOS prepared chart GPU pixels
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_paint"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-paint.log
+      - name: macOS retained chart inspection content
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          set -o pipefail
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_inspection"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-inspection.log
       - name: macOS mounted charts and public chart gallery
+        env:
+          GPUIO_PIE_LABEL_DIAGNOSTIC: ${{ github.workspace }}/.cache/ci/pie-leader-failure.png
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-canvas-tests", "--test", "native_chart_view", "--test", "native_chart_input"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-chart-view.log
@@ -196,7 +539,7 @@ jobs:
       - name: macOS public runtime checks
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
-          python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/main.exe", flag], check=True, timeout=90) for flag in ["--self-test", "--shutdown-test", "--last-window-test"]]' 2>&1 | tee .cache/ci/macos-runtime.log
+          python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/main.exe", flag], check=True, timeout=90) for flag in ["--self-test", "--shutdown-test", "--last-window-test", "--worker-backtrace-test"]]' 2>&1 | tee .cache/ci/macos-runtime.log
           python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/runtime/bench.exe", str(windows)] + mode, check=True, timeout=90) for windows in [1, 4] for mode in [[], ["--clock"]]]' 2>&1 | tee .cache/ci/macos-runtime-measurements.log
           _build/default/examples/runtime/bench_input.exe 2>&1 | tee .cache/ci/macos-runtime-input-core.log
       - name: macOS typed UI checks
@@ -208,6 +551,72 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_controls"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-controls-native.log
+      - name: macOS native binding observation checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 - <<'PY' 2>&1 | tee .cache/ci/macos-command-binding-native.log
+          import os, signal, subprocess
+          process = subprocess.Popen(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_command_binding"], start_new_session=True)
+          try:
+              result = process.wait(timeout=90)
+          except subprocess.TimeoutExpired:
+              os.killpg(process.pid, signal.SIGTERM)
+              try:
+                  process.wait(timeout=5)
+              except subprocess.TimeoutExpired:
+                  os.killpg(process.pid, signal.SIGKILL)
+                  process.wait()
+              raise
+          raise SystemExit(result)
+          PY
+      - name: macOS native input-region checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_input_region"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-input-region-native.log
+      - name: macOS highlight worker lifecycle checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_highlight_host"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-highlight-host-native.log
+      - name: macOS shaped highlight paint checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_highlight_paint"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-highlight-paint-native.log
+      - name: macOS mounted highlight view checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_highlight_view"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-highlight-view-native.log
+      - name: macOS ordinary styled text checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_styled_text"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-styled-text-native.log
+      - name: macOS native text shimmer checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_text_shimmer_paint", "--test", "native_text_shimmer_clock", "--test", "native_text_shimmer_view"], check=True, timeout=180)' 2>&1 | tee .cache/ci/macos-text-shimmer-native.log
+      - name: macOS native border style checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_border_style"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-border-style-native.log
+      - name: macOS native aspect ratio checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_aspect_ratio"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-aspect-ratio-native.log
+      - name: macOS native grid placement checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_grid_location"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-grid-location-native.log
+      - name: macOS native opacity factor checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_opacity_factor"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-opacity-factor-native.log
+      - name: macOS composed link checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_link"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-link-native.log
+      - name: macOS native document highlighting checks
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-image-tests", "--test", "native_highlight_document"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-highlight-document-native.log
       - name: macOS native drag-drop and public lifecycle checks
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
@@ -321,6 +730,7 @@ jobs:
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_list"], check=True, timeout=180)' 2>&1 | tee .cache/ci/macos-list-native.log
+          python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_list", "--", "--inherited-metrics"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-list-inherited-metrics.log
           python3 -c 'import subprocess; subprocess.run(["_build/default/examples/virtual_list/main.exe", "--self-test"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-list-public.log
       - name: macOS native disclosure and navigation
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
@@ -378,6 +788,11 @@ jobs:
         run: |
           python3 -c 'import subprocess; subprocess.run(["./scripts/gpuio", "exec", "cargo", "test", "--locked", "-p", "gpuio-native", "--features", "native-tests", "--test", "native_window"], check=True, timeout=90)' 2>&1 | tee .cache/ci/macos-window-native.log
           python3 -c 'import subprocess; [subprocess.run(["_build/default/examples/window_lifecycle/main.exe"] + flags, check=True, timeout=90) for flags in [[], ["--last-window"]]]' 2>&1 | tee .cache/ci/macos-window-public.log
+      - name: macOS renderer allocation and entity lifecycle smoke
+        if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
+        run: |
+          ./scripts/gpuio exec dune build examples/resource_audit/main.exe
+          python3 scripts/measure_resource_lifecycle.py --build-profile dev --native-entities --presentation --metal-memory --physical-memory --check-closed-surfaces --executable _build/default/examples/resource_audit/main.exe --smoke --output .cache/ci/metal-lifecycle --timeout 120
       - name: macOS streaming documents
         if: runner.os == 'macOS' && !cancelled() && steps.native-ui-build.outcome == 'success' && steps.extension-consumer.outcome == 'success'
         run: |
@@ -487,21 +902,58 @@ jobs:
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-          result = {"required": False, "deferred_acceptance": "OCH-17",
+          result = {"required": False, "deferred_acceptance": "OCH-47",
                     "x11": os.environ["GPUIO_X11_OUTCOME"],
                     "wayland": os.environ["GPUIO_WAYLAND_OUTCOME"]}
           Path(".cache/ci").mkdir(parents=True, exist_ok=True)
           Path(".cache/ci/linux-gui-status.json").write_text(json.dumps(result, indent=2) + "\n")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-              summary.write("Linux GUI checks are informational; full acceptance is tracked in OCH-17.\n\n")
+              summary.write("Linux GUI checks are informational; full acceptance is tracked in OCH-47.\n\n")
               summary.write(f"X11: {result['x11']}; Wayland: {result['wayland']}\n")
           PY
+      # Preview CI distinguishes fully delivered zero-time callbacks from errors.
+      # This does not qualify timing or waive physical core-workload measurements.
+      # Crashes, partial reports, callback loss and failed retirement still fail.
+      - name: macOS GPUI Metal presentation hook
+        if: runner.os == 'macOS' && !cancelled()
+        run: python3 scripts/test_metal_presentation.py --allow-unavailable-timing --output .cache/ci/metal-presentation-hook
+      - name: macOS Metal presentation API calibration
+        if: runner.os == 'macOS' && !cancelled()
+        timeout-minutes: 2
+        run: |
+          system_profiler SPDisplaysDataType -json > .cache/ci/metal-presentation-display.json
+          xcrun swiftc -O scripts/qualify_metal_presentation.swift -o .cache/ci/metal-presentation-probe
+          python3 scripts/metal_timing_availability.py --api-binary .cache/ci/metal-presentation-probe --output .cache/ci/metal-api-availability
+      - name: Check independent Metal timing evidence
+        if: runner.os == 'macOS' && !cancelled()
+        run: python3 scripts/metal_timing_availability.py --hook-output .cache/ci/metal-presentation-hook --api-output .cache/ci/metal-api-availability --output .cache/ci/metal-preview-summary
       - name: Record environment
         if: always()
         run: |
           mkdir -p .cache/ci
           uname -a > .cache/ci/platform.txt
           opam list --root .opam-root --switch gpuio --installed --columns=name,version --short > .cache/ci/packages.txt || true
+      - name: Assemble macOS runtime qualification inputs
+        id: runtime-inputs
+        # Independent qualification: a failed timing/behavior check must not
+        # suppress fresh-machine evidence for successfully built executables.
+        # The failed foundation check still blocks overall acceptance.
+        if: runner.os == 'macOS' && !cancelled() && steps.build.outcome == 'success'
+        timeout-minutes: 5
+        run: |
+          python3 scripts/ci_macos_package_transfer.py stage \
+            --directory .cache/macos-runtime-inputs --revision "$GITHUB_SHA" \
+            2>&1 | tee .cache/ci/macos-package-transfer.log
+      - name: Transfer macOS qualification archives
+        if: runner.os == 'macOS' && !cancelled() && steps.runtime-inputs.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos-runtime-qualification-inputs
+          path: .cache/macos-runtime-inputs
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
       - name: Preserve validation logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -514,3 +966,75 @@ jobs:
         with:
           name: foundation-example-${{ runner.os }}-${{ runner.arch }}
           path: _build/default/examples/foundation/main.exe
+
+  macos-package-runtime:
+    name: macOS extracted apps (fresh runner)
+    needs: foundation
+    # Run independently of foundation's result. Missing/unverified archives
+    # fail admission rather than looking like passing runtime qualification.
+    if: ${{ !cancelled() }}
+    runs-on: macos-15
+    timeout-minutes: 20
+    # No dependency cache, opam bootstrap, Rust build or project installation.
+    # The hosted image includes platform tools; this is not a blank macOS image.
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Receive exact qualification archives
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: macos-runtime-qualification-inputs
+          path: .cache/macos-runtime-inputs
+      - name: Verify transferred revision and hashes
+        id: transfer
+        run: |
+          mkdir -p .cache/ci
+          test ! -e .opam-root
+          test ! -e _build
+          test ! -e target
+          python3 scripts/ci_macos_package_transfer.py verify \
+            --directory .cache/macos-runtime-inputs --revision "$GITHUB_SHA" \
+            2>&1 | tee .cache/ci/transfer-verification.log
+      - name: Prepare the hosted desktop
+        id: desktop
+        run: |
+          xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --apply 2>&1 | tee .cache/ci/display.log
+          xcrun swift -module-cache-path .cache/macos-display-modules scripts/ci_macos_display.swift --check 2>&1 | tee -a .cache/ci/display.log
+          python3 scripts/ci_macos_notifications.py 2>&1 | tee .cache/ci/notification-service.log
+      - name: Extracted gallery runtime
+        timeout-minutes: 5
+        run: python3 scripts/test_macos_package_runtime.py --package .cache/macos-runtime-inputs/gallery --output .cache/ci/gallery 2>&1 | tee .cache/ci/gallery.log
+      - name: Extracted Agent Workspace runtime
+        if: ${{ !cancelled() && steps.transfer.outcome == 'success' && steps.desktop.outcome == 'success' }}
+        timeout-minutes: 5
+        run: python3 scripts/test_macos_package_runtime.py --package .cache/macos-runtime-inputs/agent_chat --output .cache/ci/agent-chat 2>&1 | tee .cache/ci/agent-chat.log
+      - name: Extracted Signal Studio runtime
+        if: ${{ !cancelled() && steps.transfer.outcome == 'success' && steps.desktop.outcome == 'success' }}
+        timeout-minutes: 5
+        run: python3 scripts/test_macos_package_runtime.py --package .cache/macos-runtime-inputs/signal_studio --output .cache/ci/signal-studio 2>&1 | tee .cache/ci/signal-studio.log
+      - name: Preserve fresh-runner native crash reports
+        if: always()
+        run: |
+          python3 - <<'PYCRASH'
+          from pathlib import Path
+          import shutil
+          import time
+          output = Path('.cache/ci/crashes')
+          output.mkdir(parents=True, exist_ok=True)
+          reports = Path.home() / 'Library/Logs/DiagnosticReports'
+          cutoff = time.time() - 3600
+          # This isolated hosted job is at most 20 minutes. Keep recent native
+          # diagnostics alongside Python faulthandler output, bounded in size.
+          candidates = [p for p in reports.glob('*.ips')
+                        if p.is_file() and not p.is_symlink()
+                        and p.stat().st_mtime >= cutoff and p.stat().st_size <= 5_000_000]
+          for source in sorted(candidates, key=lambda p: p.stat().st_mtime, reverse=True)[:10]:
+              shutil.copy2(source, output / source.name)
+          print('CRASH_REPORTS_COLLECTED', len(list(output.iterdir())))
+          PYCRASH
+      - name: Preserve fresh-runner evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos-package-runtime-evidence
+          include-hidden-files: true
+          path: .cache/ci

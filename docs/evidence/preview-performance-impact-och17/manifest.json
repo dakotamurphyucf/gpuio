@@ -1,0 +1,162 @@
+[
+  {
+    "path": "affected-build.log",
+    "bytes": 100240,
+    "sha256": "b7fbc632a304c99431d5138ba467466bb8a6fe02cb86a5bd7638ce8ac2446dc5"
+  },
+  {
+    "path": "streaming-smoke.log",
+    "bytes": 129,
+    "sha256": "3ad82776f5b7b869a22be8641b90d8033da415898d15a2b5e9b6ff27eac57699"
+  },
+  {
+    "path": "resource-smoke.log",
+    "bytes": 130,
+    "sha256": "776d96bf77d7bafca25ef18d19c3c955aeebd0ca477b0ef2905b1570d83e1131"
+  },
+  {
+    "path": "streaming-smoke/report.json",
+    "bytes": 132046,
+    "sha256": "e610841694abeedabc117600b5704d316f934c86b647ffd06a10164374499490"
+  },
+  {
+    "path": "streaming-smoke/input-source-recovery.json",
+    "bytes": 39,
+    "sha256": "cf830540401884cf983e6bd652acb1f8d0a2e07519da1454d949139844c1d47a"
+  },
+  {
+    "path": "streaming-smoke/application.log",
+    "bytes": 54366,
+    "sha256": "da02b5e2ed95c432342f944799b3cb105254cbe5a3c116252b02a615a73ecaea"
+  },
+  {
+    "path": "resource-smoke/report.json",
+    "bytes": 92623,
+    "sha256": "5077764dc1022bf6418e3cc1a7bad3f05eba4ef228b3e45b8c10d377e7d4857a"
+  },
+  {
+    "path": "resource-smoke/application.log",
+    "bytes": 6553,
+    "sha256": "94b0c271515e8a894f8ea46e17d250cf6c0d119ba08669d80df79d9db33b955a"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-001/vmmap.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-001/tools.json",
+    "bytes": 402,
+    "sha256": "d53b9d631685fc6a19a554f19e6c7901d851ca7d5d649cb619d7c476352a3422"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-001/vmmap.stdout",
+    "bytes": 7156,
+    "sha256": "6aa76e8689a3a8c9ec82c1cadbfdfa2ba413a37904c0e6fcb784526b2e6ea8ff"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-001/footprint.json",
+    "bytes": 7898,
+    "sha256": "2d3648bcc5ab400327d2cfe779dde970afb697739df59c4dfa8c9f11505e0337"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-001/footprint.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-001/footprint.stdout",
+    "bytes": 2592,
+    "sha256": "34e6199f79e7a2865ca358767d3edc1c9401973d5bd0a0756ae8c04785e6d367"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-003/vmmap.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-003/tools.json",
+    "bytes": 402,
+    "sha256": "feb57d90c144270681e99a87d4da9dbefb40f08c34e1b011bc19ddc5e7ff0a0b"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-003/vmmap.stdout",
+    "bytes": 7156,
+    "sha256": "a7800a3dc64ef4aec06e8c63a17a09cfa3fdbee10d55380e426c368340ee97ed"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-003/footprint.json",
+    "bytes": 8134,
+    "sha256": "8d2b4d8029ba7aebe3a9dd57dfb16ff4642e33f8f53517c14eb375bc764c22c4"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-003/footprint.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-003/footprint.stdout",
+    "bytes": 2674,
+    "sha256": "8b8ab03b3c1eca37ba34b67cd604f8e3fe2cbf56415fc19cdf9c0c969a930204"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-004/vmmap.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-004/tools.json",
+    "bytes": 402,
+    "sha256": "4ae4762305d2f5ce86f4332513b67147a8536bd70112b81c78cedd3f7eb11049"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-004/vmmap.stdout",
+    "bytes": 7156,
+    "sha256": "90882cac3990d0cbde60e7d5b8f15604546a95aad503c41277cf2fe8d32bb253"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-004/footprint.json",
+    "bytes": 7906,
+    "sha256": "c15577d62de860df9f82e400f1acc2bd1284ffb93614c14993df989056d02938"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-004/footprint.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-004/footprint.stdout",
+    "bytes": 2592,
+    "sha256": "2db8120363e61c104af80e78e4d8264782f4afc736d12769061d830462f697fe"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-002/vmmap.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-002/tools.json",
+    "bytes": 402,
+    "sha256": "62d0411482ec915b8ecd1c95bd36265339911b293358db8f6f3b011315b7644e"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-002/vmmap.stdout",
+    "bytes": 7156,
+    "sha256": "be6849e5ae4852d06f3f241268b742dadab67ef111dd4f5173a825c1e5e4baeb"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-002/footprint.json",
+    "bytes": 7894,
+    "sha256": "cc430b73107021682ed59caf7a1b973af27b4d30fcf3037cd5b1c28aee23f5cc"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-002/footprint.stderr",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "resource-smoke/physical-memory/cycle-002/footprint.stdout",
+    "bytes": 2592,
+    "sha256": "750492b952218ea63c9259bd581a9ff0808b6ec4ac199d53f3cd4aa90045f5b5"
+  }
+]

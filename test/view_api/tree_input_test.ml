@@ -241,5 +241,5 @@ let%expect_test "managed trees have a distinct capability from retained view tre
   let bytes = Wire.Message.encode (Hello (Wire.version, capability)) |> ok in
   String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
   print_endline "";
-  [%expect {| 0001fc0000000080000000 |}]
+  [%expect {| 0003fc0000000080000000 |}]
 ;;

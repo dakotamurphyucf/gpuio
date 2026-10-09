@@ -1,0 +1,9 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "5507cfe19262eff8b47523bc102826f0282a337bb390c679f632fd3c9961810b",
+  "base_revision": "724222e9ae8b66bd736f34dc4dbed7cd5b934561",
+  "source_patch": "gallery-avatar-groups-005/source.patch",
+  "upstream_revision": "45a56299d366ddb383e593a1f0372158d00e8530",
+  "upstream_archive_sha256": "b83c7e5e6a7ac03d838941595efdc9171d1895694110609541b2577c49d585f2",
+  "scope": "Taffy fixed-child intrinsic sizing, production host regression, real macOS public avatar gallery; no VoiceOver or Linux GUI"
+}

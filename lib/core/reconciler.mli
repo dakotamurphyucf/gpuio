@@ -7,7 +7,8 @@ type 'action t
 type 'action update
 
 val create
-  :  ?asset_owner:Asset.Expert.Owner.t
+  :  ?document_defaults:'action Document.Defaults.t
+  -> ?asset_owner:Asset.Expert.Owner.t
   -> ?document_owner:Text_source.Expert.Owner.t
   -> ?canvas_owner:Canvas_scene.Expert.Owner.t
   -> ?chart_owner:Chart_resource.Expert.Owner.t

@@ -1,0 +1,127 @@
+{
+  "archive": "area-baselines-och41-logs.tar.gz",
+  "sha256": "f60c36464205b10a66bdd1be0107e9e5baafce6ad79951962297e87e3bbc5cb7",
+  "members": [
+    {
+      "path": "baseline-native-initial.log",
+      "bytes": 658244,
+      "sha256": "3122903417336d7d93cb43173f560127d1ae68134536ce7574a3e63b14b78177"
+    },
+    {
+      "path": "baseline-protocol.log",
+      "bytes": 13891,
+      "sha256": "adbe84fbe614469fc01100b1a22681c3091fbb764eb25d631a1f7036d0fe59fb"
+    },
+    {
+      "path": "baseline-protocol-final.log",
+      "bytes": 22355,
+      "sha256": "eb1a8d3357b3fb3ac85a83fadafd24d95caff2d4a840f5a4bb1b8d7388add2c1"
+    },
+    {
+      "path": "baseline-dune.log",
+      "bytes": 708638,
+      "sha256": "b50e65dbea685578e64ba6c0c35cd7b5d26a8278ffe0a6e9be8d3ac844a00839"
+    },
+    {
+      "path": "baseline-protocol-third.log",
+      "bytes": 59037,
+      "sha256": "a51511e5f50ea059276588bfe0ea1c8f0e605c1479cb442095224b197a04cf3e"
+    },
+    {
+      "path": "baseline-native-final.log",
+      "bytes": 700688,
+      "sha256": "80e406bd420caa828b3ad633dbcd0917a74daa6181c4993e9ed4ca05cab95004"
+    },
+    {
+      "path": "baseline-gpu.log",
+      "bytes": 624325,
+      "sha256": "7dea579faecbc745fa8a11ddf3ac575d758c57533760f033aa61ce242303c588"
+    },
+    {
+      "path": "baseline-clippy.log",
+      "bytes": 588425,
+      "sha256": "9ec95681ca53459bbc98491835d5d513a07cc195857cfec65455a12fd020cf38"
+    },
+    {
+      "path": "baseline-dune-final.log",
+      "bytes": 705793,
+      "sha256": "9ccf720f4903bd652f0664b337ea1cb9ce543c3cad549d9deca2b3897abc9a34"
+    },
+    {
+      "path": "baseline-rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "baseline-gallery-rebuild.log",
+      "bytes": 71,
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+    },
+    {
+      "path": "baseline-gallery.log",
+      "bytes": 33085,
+      "sha256": "1c48a6e6f432a4e303feca88ccee57a42a5954083c37fdfb8906c490cac7a2a9"
+    },
+    {
+      "path": "baseline-consumer-build.log",
+      "bytes": 100857,
+      "sha256": "98ad1fe7d719564e9606d5fda7d15ff4033c2dc367a53bacb8943e0c66e7c1f1"
+    },
+    {
+      "path": "baseline-consumer-native.log",
+      "bytes": 33044,
+      "sha256": "b79bb5685ef5466861897557bd4cc07dc9998949f11a7dacfff98a342aa1030a"
+    },
+    {
+      "path": "baseline-validation-commands.json",
+      "bytes": 1535,
+      "sha256": "e33f8c4f8e7663b3aa1bd23d0520b2f892583514479ec29a74f3307653613b79"
+    },
+    {
+      "path": "baseline-source-record.json",
+      "bytes": 5156,
+      "sha256": "815e30d3ce774bef10441cce3b12b0761f9670fbf5cc48cc5c3d79485744b13a"
+    },
+    {
+      "path": "baseline-gallery-images/gallery-marks-stacked-areas-area-baseline-20.png",
+      "bytes": 435772,
+      "sha256": "516c96f9a69cda162b7879eaaa93e0577c472a7860cce342c2990f7116fbaa60"
+    },
+    {
+      "path": "baseline-gallery-images/gallery-marks-categorical-area-baseline-20.png",
+      "bytes": 413415,
+      "sha256": "0b28550f8e494d547d4094678f87f39cf482b87049b44365a062cf9095d56c8f"
+    },
+    {
+      "path": "baseline-gallery-images/gallery-pattern-theme-light-area-area-baseline-20.png",
+      "bytes": 395954,
+      "sha256": "2e92128a58c4f596d2a79cae20444c8dffb92f33d15ac6c9bc22029c11fcffe6"
+    },
+    {
+      "path": "baseline-gallery-images/gallery-pattern-theme-dark-area-area-baseline-20.png",
+      "bytes": 399762,
+      "sha256": "921555b826d56fcc3c07c243afecfa1ad63a2d066d4fc4192b300ae2f288ac9d"
+    },
+    {
+      "path": "baseline-consumer-images/gallery-marks-stacked-areas-area-baseline-20.png",
+      "bytes": 435772,
+      "sha256": "516c96f9a69cda162b7879eaaa93e0577c472a7860cce342c2990f7116fbaa60"
+    },
+    {
+      "path": "baseline-consumer-images/gallery-marks-categorical-area-baseline-20.png",
+      "bytes": 413415,
+      "sha256": "0b28550f8e494d547d4094678f87f39cf482b87049b44365a062cf9095d56c8f"
+    },
+    {
+      "path": "baseline-consumer-images/gallery-pattern-theme-light-area-area-baseline-20.png",
+      "bytes": 395954,
+      "sha256": "2e92128a58c4f596d2a79cae20444c8dffb92f33d15ac6c9bc22029c11fcffe6"
+    },
+    {
+      "path": "baseline-consumer-images/gallery-pattern-theme-dark-area-area-baseline-20.png",
+      "bytes": 399762,
+      "sha256": "921555b826d56fcc3c07c243afecfa1ad63a2d066d4fc4192b300ae2f288ac9d"
+    }
+  ],
+  "total_bytes": 7544950
+}

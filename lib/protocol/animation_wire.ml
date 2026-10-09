@@ -13,6 +13,7 @@ module Property = struct
     | Top_right_radius
     | Bottom_left_radius
     | Bottom_right_radius
+    | Opacity_factor
   [@@deriving bin_io, compare, equal, sexp_of]
 end
 
@@ -24,6 +25,15 @@ module Target = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Step_position = struct
+  type t =
+    | Jump_start
+    | Jump_end
+    | Jump_none
+    | Jump_both
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Easing = struct
   type t =
     | Linear
@@ -32,7 +42,26 @@ module Easing = struct
     | Ease_out
     | Ease_in_out
     | Cubic_bezier of float * float * float * float
+    | Ease_in_out_cubic
+    | Steps of int64 * Step_position.t
+    | Linear_stops of (float * float) list
   [@@deriving bin_io, equal, sexp_of]
+
+  let valid_linear_stops stops =
+    let length = List.length stops in
+    length >= 2
+    && length <= 256
+    && List.for_all stops ~f:(fun (input, output) ->
+      Float.is_finite input
+      && Float.(input >= 0. && input <= 1.)
+      && Float.is_finite output)
+    && List.is_sorted stops ~compare:(fun (a, _) (b, _) -> Float.compare a b)
+  ;;
+
+  let valid_steps ~count ~position =
+    Int64.(count >= 1L && count <= 4_294_967_295L)
+    && ((not (Step_position.equal position Jump_none)) || Int64.(count >= 2L))
+  ;;
 end
 
 module Spring = struct
@@ -46,11 +75,30 @@ module Spring = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Iteration_count = struct
+  type t =
+    { high : int64
+    ; low : int64
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Direction = struct
+  type t =
+    | Normal
+    | Reverse
+    | Alternate
+    | Alternate_reverse
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Repeat = struct
   type t =
     | Once
     | Loop
     | Alternate
+    | Finite of Iteration_count.t * Direction.t
+    | Infinite of Direction.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

@@ -100,6 +100,69 @@ fn table(nodes: &[Node]) -> &Node {
         .find(|node| node.role == "AXTable" && node.label == "Native table host")
         .unwrap_or_else(|| panic!("missing table: {nodes:?}"))
 }
+fn header_relationships(nodes: &[Node]) {
+    unsafe {
+        let root = &*table(nodes).object;
+        let headers: *mut AnyObject = msg_send![root, accessibilityColumnHeaderUIElements];
+        assert!(!headers.is_null(), "missing column header relationship");
+        let count: usize = msg_send![headers, count];
+        assert_eq!(count, 2, "only the two painted column headers");
+        let group: *mut AnyObject = msg_send![root, accessibilityHeader];
+        assert!(!group.is_null(), "missing header container");
+        let role: *mut NSString = msg_send![group, accessibilityRole];
+        assert_eq!((*role).to_string(), "AXGroup");
+        for column in 0..count {
+            let header: *mut AnyObject = msg_send![headers, objectAtIndex:column];
+            let painted = nodes
+                .iter()
+                .find(|node| {
+                    node.role == "AXCell" && node.row.is_none() && node.column == Some(column)
+                })
+                .unwrap();
+            let same: Bool = msg_send![header, isEqual:&*painted.object];
+            assert!(
+                same.as_bool(),
+                "header must reuse its painted cell identity"
+            );
+            let mut parent: *mut AnyObject = msg_send![header, accessibilityParent];
+            let mut found = false;
+            for _ in 0..40 {
+                if parent.is_null() {
+                    break;
+                }
+                let same: Bool = msg_send![parent, isEqual:group];
+                if same.as_bool() {
+                    found = true;
+                    break;
+                }
+                parent = msg_send![parent, accessibilityParent];
+            }
+            assert!(found, "header group must contain every returned header");
+        }
+        let row_headers: *mut AnyObject = msg_send![root, accessibilityRowHeaderUIElements];
+        assert!(!row_headers.is_null());
+        let count: usize = msg_send![row_headers, count];
+        assert_eq!(
+            count, 0,
+            "row selection controls are not semantic row headers"
+        );
+    }
+}
+
+fn retired_headers(node: &Node) {
+    unsafe {
+        let headers: *mut AnyObject = msg_send![&*node.object, accessibilityColumnHeaderUIElements];
+        if !headers.is_null() {
+            let count: usize = msg_send![headers, count];
+            assert_eq!(count, 0, "retired table exposes old headers");
+        }
+        let header: *mut AnyObject = msg_send![&*node.object, accessibilityHeader];
+        assert!(
+            header.is_null(),
+            "retired table exposes an old header group"
+        );
+    }
+}
 fn press(node: &Node) {
     unsafe {
         let accepted: Bool = msg_send![&*node.object, accessibilityPerformPress];
@@ -147,6 +210,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle
     let _ = nodes(cx, window);
     settle(cx, window).await;
     let initial = nodes(cx, window);
+    header_relationships(&initial);
     assert!(
         initial.len() < 70,
         "bounded mounted semantics: {}",
@@ -325,6 +389,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle
         .unwrap();
     settle(cx, window).await;
     let middle = nodes(cx, window);
+    header_relationships(&middle);
     assert!(middle.len() < 70);
     assert!(
         middle
@@ -397,6 +462,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle
     settle(cx, window).await;
     assert!(requests(cx, window).is_empty());
     assert!(nodes(cx, window).iter().all(|n| n.role != "AXTable"));
+    retired_headers(table(&current));
     apply(
         cx,
         window,
@@ -462,5 +528,23 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle
     frame(cx, window).await;
     eprintln!(
         "GPUIO_TABLE_AX_OK: logical counts/indexes, bounded rows/cells, desired selection, idempotent press and stale-frame gating"
+    );
+}
+
+pub(super) fn assert_compact_value(
+    cx: &mut gpui::AsyncApp,
+    window: gpui::WindowHandle<View>,
+    expected: &str,
+) {
+    let cells = nodes(cx, window);
+    assert!(
+        cells
+            .iter()
+            .any(|cell| cell.role == "AXCell" && cell.value.as_deref() == Some(expected))
+    );
+    assert!(
+        cells
+            .iter()
+            .any(|cell| cell.role == "AXCell" && cell.value.as_deref() == Some("42"))
     );
 }

@@ -4,14 +4,32 @@
  (inline_tests
   (deps
    (sandbox preserve_file_kind)
+   chart-v3-data.hex
    chart-v1-data.hex
-   chart-v1-view.hex
+   chart-v2-data.hex
+   chart-v3-baselines.hex
+   chart-v3-backgrounds.hex
+   chart-view-v2-labels.hex
+   chart-view-v2-rich-labels.hex
+   chart-view-v2-inspection.hex
    chart-v1-selection.hex))
  (preprocess
   (pps ppx_jane)))
 
-(copy_files ../fixtures/chart-v1-data.hex)
+(copy_files ../fixtures/chart-v3-data.hex)
 
-(copy_files ../fixtures/chart-v1-view.hex)
+(copy_files ../fixtures/chart-view-v2-labels.hex)
+
+(copy_files ../fixtures/chart-view-v2-rich-labels.hex)
 
 (copy_files ../fixtures/chart-v1-selection.hex)
+
+(copy_files ../fixtures/chart-view-v2-inspection.hex)
+
+(copy_files ../fixtures/chart-v1-data.hex)
+
+(copy_files ../fixtures/chart-v3-backgrounds.hex)
+
+(copy_files ../fixtures/chart-v2-data.hex)
+
+(copy_files ../fixtures/chart-v3-baselines.hex)

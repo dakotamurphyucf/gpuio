@@ -113,6 +113,9 @@ pub use link::{Link, LinkStyles};
 pub use list_settings::ListSettings;
 #[cfg(all(target_os = "macos", not(test)))]
 #[doc(hidden)]
+pub use macos_accessibility::install_window_focus_forwarder;
+#[cfg(all(target_os = "macos", not(test)))]
+#[doc(hidden)]
 pub use macos_accessibility::install_window_hit_test_forwarder;
 #[doc(hidden)]
 pub use measure::measurement_enabled;
@@ -168,10 +171,11 @@ pub use text::{
     TextViewState, TextViewStyle, html, markdown, markdown_ast,
 };
 pub use text_selection::{
-    TextSelection, TextSelectionContentKey, TextSelectionCoverage, TextSelectionEndpoint,
-    TextSelectionEvent, TextSelectionHandle, TextSelectionLayer, TextSelectionProjection,
-    TextSelectionRegistration, TextSelectionRun, TextSelectionScopeId, TextSelectionSnapshot,
-    TextSelectionWindowPoints,
+    TextSelection, TextSelectionContentKey, TextSelectionContentPosition,
+    TextSelectionContentRevision, TextSelectionCopyLimitExceeded, TextSelectionCoverage,
+    TextSelectionEndpoint, TextSelectionEvent, TextSelectionHandle, TextSelectionLayer,
+    TextSelectionProjection, TextSelectionRegistration, TextSelectionRun, TextSelectionScopeId,
+    TextSelectionSnapshot, TextSelectionWindowPoints, text_selection_scope,
 };
 pub use theme::{ResizableTheme, ScrollbarTheme, Theme, ThemeAppearance};
 pub use theme_tokens::{

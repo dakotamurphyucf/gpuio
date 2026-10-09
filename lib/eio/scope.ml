@@ -102,16 +102,31 @@ let rec cancel t =
   if t.active
   then (
     t.active <- false;
-    Map.iter t.children ~f:cancel;
+    let children = t.children in
     t.children <- Int.Map.empty;
-    Map.iter t.tasks ~f:Task.cancel;
+    t.shared.scopes <- t.shared.scopes - 1;
+    Option.iter t.parent ~f:(fun parent ->
+      parent.children <- Map.remove parent.children t.id);
+    (* Detach/account first so reentrant cancellation cannot repeat cleanup.
+       A faulty callback must not strand independent descendants or producers. *)
+    let failure = ref None in
+    let attempt f =
+      try f () with
+      | exn ->
+        let backtrace = Stdlib.Printexc.get_raw_backtrace () in
+        if Option.is_none !failure then failure := Some (exn, backtrace)
+    in
+    Map.iter children ~f:(fun child -> attempt (fun () -> cancel child));
+    Map.iter t.tasks ~f:(fun task -> attempt (fun () -> Task.cancel task));
+    (* Children may unregister pending ancestor resources as they close. Claim
+       this scope's remaining callbacks only after descendant/task cancellation. *)
     let cleanups = t.cleanups in
     t.cleanups <- Int.Map.empty;
     t.shared.cleanups <- t.shared.cleanups - Map.length cleanups;
-    Map.iter cleanups ~f:(fun cleanup -> cleanup ());
-    t.shared.scopes <- t.shared.scopes - 1;
-    Option.iter t.parent ~f:(fun parent ->
-      parent.children <- Map.remove parent.children t.id))
+    Map.iter cleanups ~f:attempt;
+    match !failure with
+    | None -> ()
+    | Some (exn, backtrace) -> Stdlib.Printexc.raise_with_backtrace exn backtrace)
 ;;
 
 let enqueue t job =

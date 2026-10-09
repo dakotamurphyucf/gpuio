@@ -1,0 +1,9 @@
+(library
+ (name gpuio_textarea_layout_tests)
+ (libraries core gpuio gpuio.protocol eio_main)
+ (inline_tests
+  (deps textarea-layout-operation.hex))
+ (preprocess
+  (pps ppx_jane)))
+
+(copy_files ../fixtures/textarea-layout-operation.hex)

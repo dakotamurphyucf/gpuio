@@ -16,6 +16,7 @@ module Property = struct
     | Top_right_radius
     | Bottom_left_radius
     | Bottom_right_radius
+    | Opacity_factor
   [@@deriving equal, sexp_of]
 end
 
@@ -36,13 +37,14 @@ module Target = struct
     | Top_right_radius -> [ Top_right_radius ]
     | Bottom_left_radius -> [ Bottom_left_radius ]
     | Bottom_right_radius -> [ Bottom_right_radius ]
+    | Opacity_factor -> [ Opacity_factor ]
   ;;
 
   let valid ({ property; value } : W.Target.t) =
     Float.is_finite value
     &&
     match property with
-    | Opacity -> Float.(value >= 0. && value <= 1.)
+    | Opacity | Opacity_factor -> Float.(value >= 0. && value <= 1.)
     | Top | Right | Bottom | Left -> Float.(value >= -1_000_000. && value <= 1_000_000.)
     | Width
     | Height
@@ -66,6 +68,10 @@ module Target = struct
       Or_error.error_string
         "animation targets must be nonempty, finite and within property bounds"
     else if
+      List.exists fields ~f:(fun t -> W.Property.equal t.property Opacity)
+      && List.exists fields ~f:(fun t -> W.Property.equal t.property Opacity_factor)
+    then Or_error.error_string "opacity and opacity factor cannot share a target"
+    else if
       Option.is_some
         (List.find_consecutive_duplicate fields ~equal:(fun a b ->
            W.Property.equal a.property b.property))
@@ -76,6 +82,32 @@ module Target = struct
 end
 
 module Easing = struct
+  module Linear_stop = struct
+    type t =
+      { input : float option
+      ; output : float
+      }
+    [@@deriving equal, sexp_of]
+
+    let create ?input ~output () =
+      if
+        Float.is_finite output
+        && Option.for_all input ~f:(fun value ->
+          Float.is_finite value && Float.(value >= 0. && value <= 1.))
+      then Ok { input; output }
+      else Or_error.error_string "linear stop requires a finite output and input in [0,1]"
+    ;;
+  end
+
+  module Step_position = struct
+    type t = W.Step_position.t =
+      | Jump_start
+      | Jump_end
+      | Jump_none
+      | Jump_both
+    [@@deriving equal, sexp_of]
+  end
+
   type t = W.Easing.t [@@deriving equal, sexp_of]
 
   let linear = W.Easing.Linear
@@ -83,6 +115,58 @@ module Easing = struct
   let ease_in = W.Easing.Ease_in
   let ease_out = W.Easing.Ease_out
   let ease_in_out = W.Easing.Ease_in_out
+  let ease_in_cubic = W.Easing.Cubic_bezier (1. /. 3., 0., 2. /. 3., 0.)
+  let ease_out_cubic = W.Easing.Cubic_bezier (1. /. 3., 1., 2. /. 3., 1.)
+  let ease_in_out_cubic = W.Easing.Ease_in_out_cubic
+
+  let steps ~count ~position =
+    let count = Int64.of_int count in
+    if W.Easing.valid_steps ~count ~position
+    then Ok (W.Easing.Steps (count, position))
+    else
+      Or_error.error_string
+        "step count must be in [1,4294967295]; Jump_none requires at least 2"
+  ;;
+
+  let linear_stops stops =
+    let length = List.length stops in
+    if length < 2 || length > 256
+    then Or_error.error_string "linear easing requires 2..256 stops"
+    else (
+      let stops = Array.of_list stops in
+      let set_input index input =
+        stops.(index) <- { (stops.(index)) with Linear_stop.input = Some input }
+      in
+      if Option.is_none stops.(0).input then set_input 0 0.;
+      if Option.is_none stops.(length - 1).input then set_input (length - 1) 1.;
+      let rec resolve anchor =
+        if anchor = length - 1
+        then Ok ()
+        else (
+          let next = ref (anchor + 1) in
+          while Option.is_none stops.(!next).input do
+            Int.incr next
+          done;
+          let from = Option.value_exn stops.(anchor).input in
+          let until = Option.value_exn stops.(!next).input in
+          if Float.(until < from)
+          then Or_error.error_string "linear easing positions must be nondecreasing"
+          else (
+            for index = anchor + 1 to !next - 1 do
+              set_input
+                index
+                (from
+                 +. ((until -. from)
+                     *. Float.of_int (index - anchor)
+                     /. Float.of_int (!next - anchor)))
+            done;
+            resolve !next))
+      in
+      Or_error.map (resolve 0) ~f:(fun () ->
+        W.Easing.Linear_stops
+          (Array.to_list stops
+           |> List.map ~f:(fun stop -> Option.value_exn stop.input, stop.output))))
+  ;;
 
   let cubic_bezier ~x1 ~y1 ~x2 ~y2 =
     if
@@ -129,12 +213,78 @@ module Spring = struct
   ;;
 end
 
+module Iteration_count = struct
+  type t = W.Iteration_count.t [@@deriving equal, sexp_of]
+
+  let base = 4_294_967_296L
+  let zero : t = { high = 0L; low = 0L }
+  let one : t = { high = 0L; low = 1L }
+
+  let of_int64 value =
+    if Int64.(value < 0L)
+    then Or_error.error_string "animation iteration count must be unsigned"
+    else Ok W.Iteration_count.{ high = Int64.(value / base); low = Int64.(value % base) }
+  ;;
+
+  let of_int value = of_int64 (Int64.of_int value)
+
+  let of_string text =
+    let digits = String.lstrip text ~drop:(Char.equal '0') in
+    if
+      String.is_empty text
+      || (not (String.for_all text ~f:Char.is_digit))
+      || String.length digits > 20
+      || (String.length digits = 20 && String.compare digits "18446744073709551615" > 0)
+    then Or_error.error_string "animation iteration count must be decimal in [0, 2^64-1]"
+    else
+      Ok
+        (String.fold digits ~init:zero ~f:(fun { W.Iteration_count.high; low } digit ->
+           let digit = Int64.of_int (Char.to_int digit - Char.to_int '0') in
+           let low = Int64.((low * 10L) + digit) in
+           { W.Iteration_count.high = Int64.((high * 10L) + (low / base))
+           ; low = Int64.(low % base)
+           }))
+  ;;
+
+  let to_string t =
+    let rec loop { W.Iteration_count.high; low } digits =
+      if Int64.equal high 0L && Int64.equal low 0L
+      then digits
+      else (
+        let combined = Int64.((high % 10L * base) + low) in
+        let digit =
+          Char.of_int_exn (Char.to_int '0' + Int64.to_int_exn Int64.(combined % 10L))
+        in
+        loop
+          { W.Iteration_count.high = Int64.(high / 10L); low = Int64.(combined / 10L) }
+          (digit :: digits))
+    in
+    if equal t zero then "0" else String.of_char_list (loop t [])
+  ;;
+end
+
+module Direction = struct
+  type t = W.Direction.t =
+    | Normal
+    | Reverse
+    | Alternate
+    | Alternate_reverse
+  [@@deriving equal, sexp_of]
+end
+
 module Repeat = struct
   type t = W.Repeat.t =
     | Once
     | Loop
     | Alternate
+    | Finite of Iteration_count.t * Direction.t
+    | Infinite of Direction.t
   [@@deriving equal, sexp_of]
+
+  let is_infinite = function
+    | Loop | Alternate | Infinite _ -> true
+    | Once | Finite _ -> false
+  ;;
 end
 
 let milliseconds span =
@@ -142,6 +292,16 @@ let milliseconds span =
   if Float.(value < 0. || value > 86_400_000.)
   then Or_error.error_string "animation time must be between zero and one day"
   else Ok (Float.iround_up_exn value |> Int64.of_int)
+;;
+
+let initial_delay_milliseconds span =
+  let value = Time_ns.Span.to_ms span in
+  let magnitude = Float.abs value in
+  if Float.(magnitude > 86_400_000.)
+  then Or_error.error_string "animation initial delay magnitude must be at most one day"
+  else (
+    let magnitude = Float.iround_up_exn magnitude |> Int64.of_int in
+    Ok (if Float.(value < 0.) then Int64.neg magnitude else magnitude))
 ;;
 
 module Timing = struct
@@ -249,7 +409,7 @@ module Program = struct
         stages
     =
     let open Or_error.Let_syntax in
-    let%bind delay_ms = milliseconds delay in
+    let%bind delay_ms = initial_delay_milliseconds delay in
     let matches a b =
       List.equal
         W.Property.equal
@@ -278,11 +438,11 @@ module Program = struct
       then Or_error.error_string "sequences and repeats require initial values"
       else if Int64.(period > 86_400_000L)
       then Or_error.error_string "animation cycle exceeds one day"
-      else if (not (Repeat.equal repeat Once)) && Int64.(period <= 0L)
+      else if Repeat.is_infinite repeat && Int64.(period <= 0L)
       then Or_error.error_string "repeating animation needs a positive cycle duration"
       else if
         shared
-        && (Repeat.equal repeat Once
+        && ((not (Repeat.is_infinite repeat))
             || (not (Int64.equal delay_ms 0L))
             || List.exists stages ~f:(fun (stage : Stage.t) ->
               match stage.timing with
@@ -291,15 +451,41 @@ module Program = struct
       then
         Or_error.error_string
           "shared clocks require timed repetition without initial delay"
-      else
-        Ok
-          { program = { initial; stages; delay_ms; repeat; clock }
-          ; playback = Running
-          ; restart = 0L
-          }
+      else (
+        let program : P.Program.t = { initial; stages; delay_ms; repeat; clock } in
+        (* Reserve the maximum generation/restart encoding and playback tag. *)
+        if P.Program.bin_size_t program + 19 > 16_384
+        then Or_error.error_string "animation program exceeds 16384 encoded bytes"
+        else Ok { program; playback = Running; restart = 0L })
   ;;
 
   let with_playback t playback = { t with playback }
+
+  let with_repeat t repeat =
+    let open Or_error.Let_syntax in
+    let%map next =
+      create
+        ?initial:t.program.initial
+        ~delay:(Time_ns.Span.of_ms (Int64.to_float t.program.delay_ms))
+        ~repeat
+        ~clock:t.program.clock
+        t.program.stages
+    in
+    { next with playback = t.playback; restart = t.restart }
+  ;;
+
+  let with_initial_delay t delay =
+    let open Or_error.Let_syntax in
+    let%bind delay_ms = initial_delay_milliseconds delay in
+    if (not (P.Clock.equal t.program.clock Independent)) && not (Int64.equal delay_ms 0L)
+    then
+      Or_error.error_string "shared clocks require timed repetition without initial delay"
+    else (
+      let program = { t.program with delay_ms } in
+      if P.Program.bin_size_t program + 19 > 16_384
+      then Or_error.error_string "animation program exceeds 16384 encoded bytes"
+      else Ok { t with program })
+  ;;
 
   let restart t =
     if Int64.equal t.restart Int64.max_value
@@ -359,7 +545,7 @@ module Config = struct
     =
     let open Or_error.Let_syntax in
     let%bind duration_ms = milliseconds duration in
-    let%bind delay_ms = milliseconds delay in
+    let%bind delay_ms = initial_delay_milliseconds delay in
     if
       Option.exists initial ~f:(fun initial ->
         not
@@ -370,7 +556,8 @@ module Config = struct
     then Or_error.error_string "initial and target properties must match"
     else if
       (not (Repeat.equal repeat Once))
-      && (Option.is_none initial || Int64.equal duration_ms 0L)
+      && (Option.is_none initial
+          || (Repeat.is_infinite repeat && Int64.equal duration_ms 0L))
     then
       Or_error.error_string "repetition requires initial values and a positive duration"
     else Ok { targets = target; initial; duration_ms; delay_ms; easing; repeat }
@@ -401,6 +588,8 @@ module Event = struct
 end
 
 module Expert = struct
+  let easing_to_wire (easing : Easing.t) = easing
+
   let program_event_of_wire signals =
     if not (P.Signal.valid_batch signals)
     then Or_error.error_string "invalid animation observation batch"

@@ -1,5 +1,25 @@
 # Platform release policy
 
+## First delivery: developer preview — 2026-10-08
+
+The owner prioritizes getting a usable library into developers' hands for real
+feedback. Milestone 07 now targets a clearly labeled **macOS-first developer
+preview**, with [focused performance qualification](design/performance-qualification.md)
+and the [preview closeout checklist](milestone-07-closeout.md). Source/consumer
+builds, usable documented examples, honest catalog/API limits, reviewed notices,
+core performance and bounded resources remain required. Correctness failures that
+prevent ordinary use remain blockers.
+
+Broader accessibility/OS/permutation review, stable-release hosted Metal timing
+availability and actual signed/notarized reference-app distribution are tracked
+in [OCH-164](https://linear.app/ochat/issue/OCH-164). They are not prerequisites for
+the source library preview. Disclose missing qualification; do not advertise
+stable API, complete screen-reader support or signed app distribution. Historical
+failures remain failures under their original criteria. This supersedes the
+broader pre-preview gate assignment below, not the Linux scope split.
+
+## Earlier platform split — retained scope/history
+
 Owner decision, 2026-09-28: continue development and ship milestone 07 as a
 macOS-first v1 release. Linux remains an intended platform, with full desktop
 qualification deferred until a suitable remote environment is available. This

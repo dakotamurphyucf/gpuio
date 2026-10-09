@@ -74,8 +74,14 @@ impl ColorInput {
             .iter()
             .position(|f| *f == field)
             .expect("known color field");
-        if !self.field_enabled(index) {
+        if !self.field_available(index) {
             return Err(c::Error::FocusBlocked);
+        }
+        if self.capture.is_some() {
+            self.cancel(c::CancelReason::Interrupted, window, cx);
+        }
+        if index > 0 {
+            self.reveal_panel(Panel::Channels, window, cx);
         }
         // Complete the old field before acknowledging the new focus; its later
         // blur notification must be an idempotent no-op.
@@ -113,11 +119,14 @@ impl ColorInput {
             });
         }
     }
-    fn field_enabled(&self, index: usize) -> bool {
+    fn field_available(&self, index: usize) -> bool {
         self.access(false) == Access::Allowed
             && !self.model.config().disabled
             && !(FIELDS[index] == c::Field::Channel(c::Channel::Alpha)
                 && self.model.config().alpha_policy == AlphaPolicy::OpaqueOnly)
+    }
+    fn field_enabled(&self, index: usize) -> bool {
+        self.field_available(index) && (index == 0 || self.shows_panel(Panel::Channels))
     }
     fn editable_field(&self, index: usize) -> bool {
         self.field_enabled(index) && !self.model.config().read_only
@@ -423,6 +432,8 @@ fn configure_input(
             })
         });
         crate::semantics::State {
+            identity: None,
+            busy: false,
             element,
             metadata,
             live: None,
@@ -488,7 +499,11 @@ impl Instance {
                 }
             };
             if reset_editors || matches!(command, c::Command::Cancel) {
+                state.clear_palette_preview(cx);
                 state.release(window);
+            }
+            if matches!(command, c::Command::Focus(_)) {
+                state.clear_palette_preview(cx);
             }
             if reset_editors {
                 state.editors.preserved = None;

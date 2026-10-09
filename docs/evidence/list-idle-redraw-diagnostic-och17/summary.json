@@ -1,0 +1,71 @@
+[
+  {
+    "case": "idle-diagnostic-untouched-001",
+    "scope": "Diagnostic only: temporary bounded invalidation trace and 96-row smoke with 60-second idle; not performance acceptance",
+    "child_returncode": 2,
+    "error": "RuntimeError: GUI workload exited with 2",
+    "executable_sha256": "ce17251cf468aeb84de3d2b86f9cf618ecf09adbf44e261fcae7acc4ca4ddd55",
+    "pointer_moves": 0,
+    "trace_records": 258,
+    "idle_draws": 12,
+    "idle_counts": {
+      "attempted": 12,
+      "admitted": 12,
+      "saturated": 0,
+      "presented": 7,
+      "not_submitted": 0,
+      "missing": 0,
+      "zero": 5,
+      "invalid_clock": 0,
+      "duplicate_callbacks": 0,
+      "trace_truncated": 0,
+      "histogram_overflow": 0
+    }
+  },
+  {
+    "case": "idle-diagnostic-pointer-001",
+    "scope": "Diagnostic only: temporary bounded invalidation trace and 96-row smoke with 60-second idle; not performance acceptance",
+    "child_returncode": 2,
+    "error": "RuntimeError: GUI workload exited with 2",
+    "executable_sha256": "ce17251cf468aeb84de3d2b86f9cf618ecf09adbf44e261fcae7acc4ca4ddd55",
+    "pointer_moves": 14,
+    "trace_records": 329,
+    "idle_draws": 1,
+    "idle_counts": {
+      "attempted": 1,
+      "admitted": 1,
+      "saturated": 0,
+      "presented": 0,
+      "not_submitted": 0,
+      "missing": 0,
+      "zero": 1,
+      "invalid_clock": 0,
+      "duplicate_callbacks": 0,
+      "trace_truncated": 0,
+      "histogram_overflow": 0
+    }
+  },
+  {
+    "case": "idle-bounds-diagnostic-untouched-001",
+    "scope": "Diagnostic only: temporary bounded invalidation trace and 96-row smoke with 60-second idle; not performance acceptance",
+    "child_returncode": 0,
+    "error": null,
+    "executable_sha256": "47f60ec55e59f12d1d476d1aa2f6ecaa8c2da24aace9cd21df6225ae98d161ad",
+    "pointer_moves": 0,
+    "trace_records": 301,
+    "idle_draws": 0,
+    "idle_counts": {
+      "attempted": 0,
+      "admitted": 0,
+      "saturated": 0,
+      "presented": 0,
+      "not_submitted": 0,
+      "missing": 0,
+      "zero": 0,
+      "invalid_clock": 0,
+      "duplicate_callbacks": 0,
+      "trace_truncated": 0,
+      "histogram_overflow": 0
+    }
+  }
+]

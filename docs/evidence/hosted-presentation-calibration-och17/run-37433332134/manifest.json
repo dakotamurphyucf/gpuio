@@ -1,0 +1,164 @@
+{
+  "run_id": 37433332134,
+  "branch_head": "746b29b332630da574cac1538ea8a9377dcf95f9",
+  "tested_merge": "d439c3ae427aeeaf929cef6c782e0899450e3be8",
+  "tree": "55bdd665cab987eb7ce84a44d2f92417c86c5f35",
+  "archive_sha256": "bc2f9511ac9c66c9fcc9635026ccf63bb7f70c9b47abbb67c122a6a590ac2f30",
+  "files": [
+    {
+      "path": "ci-37433332134-jobs.json",
+      "bytes": 68579,
+      "sha256": "f8e98ab022ae94bec8d13a7a95e551ce014400dd2ee6fcf6fba9cea02f2d4878"
+    },
+    {
+      "path": "ci-37433332134-merge.json",
+      "bytes": 2646,
+      "sha256": "865278aa1b5add9967ae131736aefb86e33aa9885f39c0d74cd736ad037622f6"
+    },
+    {
+      "path": "ci-37433332134-run.json",
+      "bytes": 13116,
+      "sha256": "5b3ef7f91f427524c8364b23d259bb3a30592a3f762ff5fa7f485c94ba86e6bb"
+    },
+    {
+      "path": "macos/metal-counter-calibration.json",
+      "bytes": 415,
+      "sha256": "edfb8e56fee12eb0239977dd75b13e220441543a5cd75f3583913b25e4585a86"
+    },
+    {
+      "path": "macos/metal-presentation-calibration.json",
+      "bytes": 63557,
+      "sha256": "10b39b02db1489bbcc1a0e7bbad6200359ca08538c11b6951bfddac322ca37db"
+    },
+    {
+      "path": "macos/metal-presentation-display.json",
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "macos/metal-presentation-hook/native.log",
+      "bytes": 122,
+      "sha256": "c0b114dcec83a6744a1b14cf21a9af8597b2a09a9227847e74604c511b9f94ac"
+    },
+    {
+      "path": "macos/metal-presentation-hook/report.json",
+      "bytes": 76197,
+      "sha256": "4234b44189797da143ab7581c1fee84956156dbc038f420edcfe567157cc8fe6"
+    },
+    {
+      "path": "receiver/agent-chat.log",
+      "bytes": 766,
+      "sha256": "bef2249e8dc981b0491c7e3967864b748766c4c79186eec111650650142eb247"
+    },
+    {
+      "path": "receiver/agent-chat/application.log",
+      "bytes": 37,
+      "sha256": "975e582d0fc5be2a25302bb3b5f8ff7292d48cbce24ce14238db7da651453b25"
+    },
+    {
+      "path": "receiver/agent-chat/report.json",
+      "bytes": 1534,
+      "sha256": "7c4671c0609176d442c8c8d19d4885e3add88c9d62ee1c7e637eaa74c6ed8188"
+    },
+    {
+      "path": "receiver/agent-chat/runtime.sb",
+      "bytes": 399,
+      "sha256": "5c0e0497c9a7a5e3603b28fbbca07542d8544f080c7ec5f9fe7db8953366e5d1"
+    },
+    {
+      "path": "receiver/display.log",
+      "bytes": 909,
+      "sha256": "c31f2cb59335dc0cc17cd9452085b08e937c08f9d340741252cd9e0cd8a4e1eb"
+    },
+    {
+      "path": "receiver/gallery.log",
+      "bytes": 2329,
+      "sha256": "df2266893ae78aa4f191902d59512fadaea5671523aca62c80118fd72b9d20a6"
+    },
+    {
+      "path": "receiver/gallery/application.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "receiver/gallery/gallery-assets-light.png",
+      "bytes": 128324,
+      "sha256": "5198fb297a707d3f687a19c522dbd8e339612c467fd71e7f083c34a1692684ac"
+    },
+    {
+      "path": "receiver/gallery/gallery-assets.png",
+      "bytes": 140252,
+      "sha256": "c77b2612524906864c1ed8856954b466ca3a57b5c46b93a48ef07bfcd64b8781"
+    },
+    {
+      "path": "receiver/gallery/report.json",
+      "bytes": 3156,
+      "sha256": "b45b8c319723929714d8653144482835df2af1f61f362d570ffb66c4de02173e"
+    },
+    {
+      "path": "receiver/gallery/runtime.sb",
+      "bytes": 399,
+      "sha256": "5c0e0497c9a7a5e3603b28fbbca07542d8544f080c7ec5f9fe7db8953366e5d1"
+    },
+    {
+      "path": "receiver/notification-service.log",
+      "bytes": 73,
+      "sha256": "e2bf704a0dc713b0cbc4dc9b60497a2879f44e329adc5315b91ef189ccc6f8c6"
+    },
+    {
+      "path": "receiver/signal-studio.log",
+      "bytes": 1173,
+      "sha256": "4659bdc68cb3e6f092c1df0bb6ccaede8df07c4dad7081e21242cd5c3da75b85"
+    },
+    {
+      "path": "receiver/signal-studio/alerts-bundled.png",
+      "bytes": 145959,
+      "sha256": "d84f937a0d231c2b788748738cbbafa1c13788c1f9186abf5fd96b46b1cd83fc"
+    },
+    {
+      "path": "receiver/signal-studio/application.log",
+      "bytes": 1586,
+      "sha256": "36056f88cd6b96c0b1f652d04887412886c97b5deddf7422a092e2362b6988fa"
+    },
+    {
+      "path": "receiver/signal-studio/before-drag.png",
+      "bytes": 130444,
+      "sha256": "e040886a65c7936140b03c100d8bd6e3d5e1e31d6ea4094123c9a738fa98d5b3"
+    },
+    {
+      "path": "receiver/signal-studio/compact.png",
+      "bytes": 81194,
+      "sha256": "63ba3a2455bfc2fe7161a4252069f22a622bc2ddcd9b7f9f0378ecd9fa8322d0"
+    },
+    {
+      "path": "receiver/signal-studio/report.json",
+      "bytes": 1592,
+      "sha256": "46ac240260c75fb3197d8ee12591d94a1bec03f61d76d2959c68f21407b92191"
+    },
+    {
+      "path": "receiver/signal-studio/runtime.sb",
+      "bytes": 399,
+      "sha256": "5c0e0497c9a7a5e3603b28fbbca07542d8544f080c7ec5f9fe7db8953366e5d1"
+    },
+    {
+      "path": "receiver/signal-studio/streaming.png",
+      "bytes": 133701,
+      "sha256": "98a5244592f5060f8c48ee28696cc5fb9b0a8e6b54d322e23bc634a31081e2fc"
+    },
+    {
+      "path": "receiver/signal-studio/updated.png",
+      "bytes": 132899,
+      "sha256": "dd1ef6bc447ead3ca3dea4c4e84a435563b2417d1c80f26ee4f5cde0f2d31848"
+    },
+    {
+      "path": "receiver/signal-studio/wide.png",
+      "bytes": 129181,
+      "sha256": "748d82b11aea585368be85f80205d0c0bd45d3f624a32261ff2d915777febf2d"
+    },
+    {
+      "path": "receiver/transfer-verification.log",
+      "bytes": 1099,
+      "sha256": "e07fa3b065a68b514c1f9bc199d2604407545f3076be4b97426f9943472196b0"
+    }
+  ]
+}

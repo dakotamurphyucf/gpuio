@@ -31,6 +31,34 @@ pub(crate) fn inert(styles: &[Style]) -> bool {
         })
         .unwrap_or(false)
 }
+pub(crate) fn disabled(styles: &[Style]) -> bool {
+    styles
+        .iter()
+        .rev()
+        .find_map(|style| match style {
+            Style::Fields(fields) => fields.iter().rev().find_map(|field| match field {
+                Field::Disabled(value) => Some(*value),
+                _ => None,
+            }),
+            _ => None,
+        })
+        .unwrap_or(false)
+}
+/// Last base declaration wins on this element; pointer eligibility/inheritance
+/// remains separate. No color or position heuristic silently changes hit testing.
+pub(crate) fn pointer_occlusion(styles: &[Style]) -> i64 {
+    styles
+        .iter()
+        .rev()
+        .find_map(|style| match style {
+            Style::Fields(fields) => fields.iter().rev().find_map(|field| match field {
+                Field::PointerOcclusion(value) => Some(*value),
+                _ => None,
+            }),
+            _ => None,
+        })
+        .unwrap_or(0)
+}
 fn bounded(v: f64) -> bool {
     v.is_finite() && v.abs() <= 1_000_000.
 }
@@ -53,7 +81,29 @@ fn color(v: &Color) -> Result<(), ErrorCode> {
 fn fill(v: &Fill) -> Result<(), ErrorCode> {
     match v {
         Fill::Solid(c) => color(c),
-        Fill::LinearGradient(angle, from, start, to, end) => {
+        Fill::PatternSlash(c, width, interval) => {
+            color(c)?;
+            if [width, interval]
+                .into_iter()
+                .all(|n| n.is_finite() && (0.5..=64.).contains(n))
+            {
+                Ok(())
+            } else {
+                Err(ErrorCode::Malformed)
+            }
+        }
+        Fill::Checkerboard(c, size) => {
+            color(c)?;
+            if size.is_finite() && (0.5..=64.).contains(size) {
+                Ok(())
+            } else {
+                Err(ErrorCode::Malformed)
+            }
+        }
+
+        Fill::LinearGradientIn(space, ..) if !(0..=1).contains(space) => Err(ErrorCode::Malformed),
+        Fill::LinearGradient(angle, from, start, to, end)
+        | Fill::LinearGradientIn(_, angle, from, start, to, end) => {
             color(from)?;
             color(to)?;
             if angle.is_finite()
@@ -80,22 +130,26 @@ pub fn validate_fields(fields: &[Field]) -> Result<(), ErrorCode> {
             Field::Visibility(v)
             | Field::Position(v)
             | Field::WhiteSpace(v)
-            | Field::TextOverflow(v) => (0..=1).contains(v),
+            | Field::BorderStyle(v) => (0..=1).contains(v),
             Field::Direction(v)
             | Field::TextDecoration(v)
             | Field::OverflowX(v)
             | Field::OverflowY(v) => (0..=3).contains(v),
-            Field::Wrap(v)
+            Field::PointerOcclusion(v)
+            | Field::Wrap(v)
             | Field::GridColumnMinimum(v)
             | Field::GridRowMinimum(v)
-            | Field::TextAlign(v) => (0..=2).contains(v),
+            | Field::TextAlign(v)
+            | Field::TextOverflow(v) => (0..=2).contains(v),
             Field::AlignItems(v) | Field::AlignSelf(v) => (0..=6).contains(v),
             Field::AlignContent(v) | Field::JustifyContent(v) => (0..=8).contains(v),
-            Field::Cursor(v) => (0..=9).contains(v),
+            Field::Cursor(v) => (0..=21).contains(v),
             Field::GridColumns(v) | Field::GridRows(v) | Field::LineClamp(v) => {
                 (1..=1024).contains(v)
             }
             Field::FontWeight(v) => (1..=1000).contains(v),
+            Field::GridLocation(v) => v.valid(),
+            Field::AspectRatio(v) => v.is_finite() && (0.000001..=1_000_000.).contains(v),
             Field::Width(v)
             | Field::Height(v)
             | Field::MinWidth(v)
@@ -155,7 +209,10 @@ pub fn validate_fields(fields: &[Field]) -> Result<(), ErrorCode> {
                 }
                 true
             }
-            Field::PointerEvents(_) | Field::UserSelect(_) | Field::Inert(_) => true,
+            Field::PointerEvents(_)
+            | Field::UserSelect(_)
+            | Field::Inert(_)
+            | Field::Disabled(_) => true,
             Field::AccessibleName(v) => !v.is_empty() && v.len() <= 1024,
         };
         if !valid {
@@ -246,6 +303,14 @@ fn grid_minimum(value: i64) -> gpui::GridTemplateMinSize {
         _ => unreachable!(),
     }
 }
+fn grid_edge(value: gpuio_protocol::grid_location::Edge) -> gpui::GridPlacement {
+    use gpuio_protocol::grid_location::Edge;
+    match value {
+        Edge::Auto => gpui::GridPlacement::Auto,
+        Edge::Line(line) => gpui::GridPlacement::Line(line as i16),
+        Edge::Span(span) => gpui::GridPlacement::Span(span as u16),
+    }
+}
 fn grid(value: &mut Option<gpui::GridTemplate>) -> &mut gpui::GridTemplate {
     value.get_or_insert(gpui::GridTemplate {
         repeat: 1,
@@ -329,14 +394,40 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
             Field::Background(v) => {
                 style.background = Some(match v {
                     Fill::Solid(c) => gpui::Fill::from(gpui_color(c)),
+                    Fill::PatternSlash(c, width, interval) => {
+                        gpui::pattern_slash(gpui_color(c), *width as f32, *interval as f32).into()
+                    }
+                    Fill::Checkerboard(c, size) => {
+                        gpui::checkerboard(gpui_color(c), *size as f32).into()
+                    }
                     Fill::LinearGradient(angle, from, start, to, end) => gpui::linear_gradient(
                         *angle as f32,
                         gpui::linear_color_stop(gpui_color(from), *start as f32),
                         gpui::linear_color_stop(gpui_color(to), *end as f32),
                     )
                     .into(),
+                    Fill::LinearGradientIn(space, angle, from, start, to, end) => {
+                        gpui::linear_gradient(
+                            *angle as f32,
+                            gpui::linear_color_stop(gpui_color(from), *start as f32),
+                            gpui::linear_color_stop(gpui_color(to), *end as f32),
+                        )
+                        .color_space(match space {
+                            0 => gpui::ColorSpace::Srgb,
+                            1 => gpui::ColorSpace::Oklab,
+                            _ => unreachable!("validated interpolation space"),
+                        })
+                        .into()
+                    }
                 })
             }
+            Field::GridLocation(v) => {
+                style.grid_location = Some(gpui::GridLocation {
+                    column: grid_edge(v.column.start)..grid_edge(v.column.end),
+                    row: grid_edge(v.row.start)..grid_edge(v.row.end),
+                });
+            }
+            Field::AspectRatio(v) => style.aspect_ratio = Some(*v as f32),
             Field::Foreground(v) => style.text.color = Some(gpui_color(v)),
             Field::Opacity(v) => style.opacity = Some(*v as f32),
             Field::BorderTopWidth(v) => style.border_widths.top = Some(px(*v as f32).into()),
@@ -352,6 +443,13 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
                 style.corner_radii.bottom_right = Some(px(*v as f32).into())
             }
             Field::BorderColor(v) => style.border_color = Some(gpui_color(v)),
+            Field::BorderStyle(v) => {
+                style.border_style = Some(match v {
+                    0 => gpui::BorderStyle::Solid,
+                    1 => gpui::BorderStyle::Dashed,
+                    _ => unreachable!("validated border style"),
+                });
+            }
             Field::Shadows(shadows) => {
                 style.box_shadow = Some(
                     shadows
@@ -388,11 +486,11 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
                 })
             }
             Field::TextOverflow(v) => {
-                style.text.text_overflow = Some(gpui::TextOverflow::Truncate(if *v == 0 {
-                    "".into()
-                } else {
-                    "…".into()
-                }))
+                style.text.text_overflow = Some(match v {
+                    0 => gpui::TextOverflow::Truncate("".into()),
+                    1 => gpui::TextOverflow::Truncate("…".into()),
+                    _ => gpui::TextOverflow::TruncateStart("…".into()),
+                })
             }
             Field::LineClamp(v) => style.text.line_clamp = Some(*v as usize),
             Field::TextDecoration(v) => {
@@ -415,14 +513,400 @@ pub fn refine(style: &mut gpui::StyleRefinement, fields: &[Field]) {
                     6 => gpui::CursorStyle::ResizeLeftRight,
                     7 => gpui::CursorStyle::ResizeUpDown,
                     8 => gpui::CursorStyle::OpenHand,
-                    _ => gpui::CursorStyle::ClosedHand,
+                    9 => gpui::CursorStyle::ClosedHand,
+                    10 => gpui::CursorStyle::IBeamCursorForVerticalLayout,
+                    11 => gpui::CursorStyle::ResizeColumn,
+                    12 => gpui::CursorStyle::ResizeRow,
+                    // Physical axes, not the swapped CSS comments in this GPUI pin.
+                    13 => gpui::CursorStyle::ResizeUpLeftDownRight,
+                    14 => gpui::CursorStyle::ResizeUpRightDownLeft,
+                    15 => gpui::CursorStyle::ResizeLeft,
+                    16 => gpui::CursorStyle::ResizeRight,
+                    17 => gpui::CursorStyle::ResizeUp,
+                    18 => gpui::CursorStyle::ResizeDown,
+                    19 => gpui::CursorStyle::DragLink,
+                    20 => gpui::CursorStyle::DragCopy,
+                    _ => gpui::CursorStyle::ContextualMenu,
                 })
             }
             Field::PointerEvents(_)
             | Field::UserSelect(_)
             | Field::SelectionColor(_)
             | Field::AccessibleName(_)
-            | Field::Inert(_) => (),
+            | Field::Inert(_)
+            | Field::Disabled(_)
+            | Field::PointerOcclusion(_) => (),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn percentage_points_above_one_hundred_are_not_clamped_to_full_size() {
+        let fields = [
+            Field::Width(Length::Percent(200.)),
+            Field::RowGap(Length::Percent(25.)),
+        ];
+        validate_fields(&fields).unwrap();
+        let mut style = gpui::StyleRefinement::default();
+        refine(&mut style, &fields);
+        assert_eq!(style.size.width, Some(gpui::relative(2.).into()));
+        assert_eq!(style.gap.height, Some(gpui::relative(0.25)));
+    }
+
+    #[test]
+    fn alignment_aliases_match_the_pinned_gpui_helpers() {
+        use gpui::Styled;
+        // GPUIX calls different helpers for items/content versus justification.
+        // In particular, justify_start is Start, not FlexStart.
+        for (field, expected) in [
+            (
+                Field::AlignItems(2),
+                gpui::StyleRefinement::default().items_start(),
+            ),
+            (
+                Field::AlignItems(3),
+                gpui::StyleRefinement::default().items_end(),
+            ),
+            (
+                Field::AlignSelf(2),
+                gpui::StyleRefinement::default().self_flex_start(),
+            ),
+            (
+                Field::AlignSelf(3),
+                gpui::StyleRefinement::default().self_flex_end(),
+            ),
+            (
+                Field::AlignContent(2),
+                gpui::StyleRefinement::default().content_start(),
+            ),
+            (
+                Field::AlignContent(3),
+                gpui::StyleRefinement::default().content_end(),
+            ),
+            (
+                Field::JustifyContent(0),
+                gpui::StyleRefinement::default().justify_start(),
+            ),
+            (
+                Field::JustifyContent(1),
+                gpui::StyleRefinement::default().justify_end(),
+            ),
+        ] {
+            validate_fields(std::slice::from_ref(&field)).unwrap();
+            let mut actual = gpui::StyleRefinement::default();
+            refine(&mut actual, &[field]);
+            assert_eq!(actual.align_items, expected.align_items);
+            assert_eq!(actual.align_self, expected.align_self);
+            assert_eq!(actual.align_content, expected.align_content);
+            assert_eq!(actual.justify_content, expected.justify_content);
+        }
+        assert_ne!(gpui::AlignItems::Start, gpui::AlignItems::FlexStart);
+        assert_ne!(gpui::JustifyContent::Start, gpui::JustifyContent::FlexStart);
+    }
+
+    #[test]
+    fn empty_state_refinement_preserves_base_alignment() {
+        use gpui::{Refineable, Styled};
+        let base = crate::appearance::refinement(&[Style::Fields(vec![Field::AlignContent(4)])], 0);
+        let hover = crate::appearance::refinement(&[Style::State(2, vec![])], 2);
+        let mut resolved = gpui::Style::default();
+        resolved.refine(&base);
+        resolved.refine(&hover);
+        assert_eq!(resolved.align_content, Some(gpui::AlignContent::Center));
+
+        // This is exactly the effect of GPUIX applying content_normal to the
+        // hover refinement: absence leaves the base declaration authoritative.
+        let normal = gpui::StyleRefinement::default()
+            .content_end()
+            .content_normal();
+        assert!(normal.align_content.is_none());
+        resolved.refine(&normal);
+        assert_eq!(resolved.align_content, Some(gpui::AlignContent::Center));
+    }
+
+    #[test]
+    fn grid_minimum_replacement_preserves_track_counts_and_other_axis() {
+        use gpui::GridTemplateMinSize::{MaxContent, MinContent, Zero};
+        let mut style = gpui::StyleRefinement::default();
+        refine(&mut style, &[Field::GridColumns(3), Field::GridRows(5)]);
+        for (column, expected_column) in [(0, Zero), (1, MinContent), (2, MaxContent)] {
+            for (row, expected_row) in [(0, Zero), (1, MinContent), (2, MaxContent)] {
+                refine(&mut style, &[Field::GridColumnMinimum(column)]);
+                refine(&mut style, &[Field::GridRowMinimum(row)]);
+                assert_eq!(style.grid_cols.as_ref().unwrap().repeat, 3);
+                assert_eq!(style.grid_rows.as_ref().unwrap().repeat, 5);
+                assert_eq!(style.grid_cols.as_ref().unwrap().min_size, expected_column);
+                assert_eq!(style.grid_rows.as_ref().unwrap().min_size, expected_row);
+            }
+        }
+        // A minimum alone creates one track; supplying a later count retains it.
+        let mut style = gpui::StyleRefinement::default();
+        refine(&mut style, &[Field::GridColumnMinimum(1)]);
+        assert_eq!(style.grid_cols.as_ref().unwrap().repeat, 1);
+        assert!(style.grid_rows.is_none());
+        refine(&mut style, &[Field::GridColumns(7)]);
+        assert_eq!(style.grid_cols.as_ref().unwrap().repeat, 7);
+        assert_eq!(style.grid_cols.as_ref().unwrap().min_size, MinContent);
+    }
+
+    #[test]
+    fn text_decoration_replaces_both_lines_and_white_space_can_be_restored() {
+        use gpui::Styled;
+        for (value, underline, strike) in [(0, 0., 0.), (1, 1., 0.), (2, 0., 1.), (3, 1., 1.)] {
+            let mut style = gpui::StyleRefinement::default().underline().line_through();
+            refine(&mut style, &[Field::TextDecoration(value)]);
+            // Explicit zero thickness suppresses inherited or component defaults.
+            assert_eq!(style.text.underline.unwrap().thickness, gpui::px(underline));
+            assert_eq!(
+                style.text.strikethrough.unwrap().thickness,
+                gpui::px(strike)
+            );
+        }
+        let mut style = gpui::StyleRefinement::default();
+        for (value, expected) in [(1, gpui::WhiteSpace::Nowrap), (0, gpui::WhiteSpace::Normal)] {
+            refine(&mut style, &[Field::WhiteSpace(value)]);
+            assert_eq!(style.text.white_space, Some(expected));
+        }
+    }
+
+    #[test]
+    fn explicit_gradient_spaces_validate_before_native_refinement() {
+        for space in [0, 1] {
+            for (angle, start, end) in [(0., 0., 1.), (360., 0.5, 0.5)] {
+                let fields = [Field::Background(Fill::LinearGradientIn(
+                    space,
+                    angle,
+                    Color::Rgba(0xff0000ff),
+                    start,
+                    Color::Rgba(0xffff),
+                    end,
+                ))];
+                validate_fields(&fields).unwrap();
+                let mut style = gpui::StyleRefinement::default();
+                refine(&mut style, &fields);
+                let expected = gpui::linear_gradient(
+                    angle as f32,
+                    gpui::linear_color_stop(gpui::rgb(0xff0000), start as f32),
+                    gpui::linear_color_stop(gpui::rgb(0xff), end as f32),
+                )
+                .color_space(if space == 0 {
+                    gpui::ColorSpace::Srgb
+                } else {
+                    gpui::ColorSpace::Oklab
+                });
+                assert_eq!(style.background, Some(expected.into()));
+            }
+        }
+        for (space, angle, start, end) in [
+            (-1, 90., 0., 1.),
+            (2, 90., 0., 1.),
+            (1, f64::NAN, 0., 1.),
+            (1, f64::INFINITY, 0., 1.),
+            (1, 361., 0., 1.),
+            (1, 90., f64::NAN, 1.),
+            (1, 90., 0., f64::INFINITY),
+            (1, 90., 0.8, 0.2),
+        ] {
+            assert_eq!(
+                validate_fields(&[Field::Background(Fill::LinearGradientIn(
+                    space,
+                    angle,
+                    Color::Rgba(0),
+                    start,
+                    Color::Rgba(0),
+                    end
+                ))]),
+                Err(ErrorCode::Malformed)
+            );
+        }
+        assert_eq!(
+            validate_fields(&[Field::Background(Fill::LinearGradientIn(
+                1,
+                90.,
+                Color::Rgba(-1),
+                0.,
+                Color::Rgba(0),
+                1.
+            ))]),
+            Err(ErrorCode::Malformed)
+        );
+    }
+
+    #[test]
+    fn aspect_ratio_reaches_native_layout_and_survives_other_refinements() {
+        let mut style = gpui::StyleRefinement::default();
+        assert_eq!(style.aspect_ratio, None);
+        for value in [0.000001, 0.5, 1., 2., 1_000_000.] {
+            let fields = [Field::AspectRatio(value)];
+            validate_fields(&fields).unwrap();
+            refine(&mut style, &fields);
+            refine(&mut style, &[Field::Width(Length::Px(120.))]);
+            assert_eq!(style.aspect_ratio, Some(value as f32));
+        }
+        assert_eq!(gpui::Style::default().aspect_ratio, None);
+    }
+
+    #[test]
+    fn grid_location_refines_both_axes_as_one_value() {
+        use gpuio_protocol::grid_location::{Axis, Edge, Location};
+        let first = Location {
+            column: Axis {
+                start: Edge::Line(1),
+                end: Edge::Line(-1),
+            },
+            row: Axis {
+                start: Edge::Span(3),
+                end: Edge::Span(3),
+            },
+        };
+        let second = Location {
+            column: Axis {
+                start: Edge::Span(2),
+                end: Edge::Span(2),
+            },
+            row: Axis {
+                start: Edge::Auto,
+                end: Edge::Auto,
+            },
+        };
+        let mut style = gpui::StyleRefinement::default();
+        refine(
+            &mut style,
+            &[Field::GridColumns(4), Field::GridLocation(first)],
+        );
+        assert_eq!(
+            style.grid_location.as_ref().unwrap().column,
+            gpui::GridPlacement::Line(1)..gpui::GridPlacement::Line(-1)
+        );
+        assert_eq!(
+            style.grid_location.as_ref().unwrap().row,
+            gpui::GridPlacement::Span(3)..gpui::GridPlacement::Span(3)
+        );
+        refine(&mut style, &[Field::GridLocation(second)]);
+        assert_eq!(
+            style.grid_location.as_ref().unwrap().column,
+            gpui::GridPlacement::Span(2)..gpui::GridPlacement::Span(2)
+        );
+        assert_eq!(
+            style.grid_location.as_ref().unwrap().row,
+            gpui::GridPlacement::Auto..gpui::GridPlacement::Auto
+        );
+        assert_eq!(style.grid_cols.unwrap().repeat, 4);
+    }
+
+    #[test]
+    fn public_cursor_values_reach_the_corresponding_gpui_refinement() {
+        use gpui::CursorStyle::*;
+        let expected = [
+            Arrow,
+            IBeam,
+            PointingHand,
+            Crosshair,
+            ClosedHand,
+            OperationNotAllowed,
+            ResizeLeftRight,
+            ResizeUpDown,
+            OpenHand,
+            ClosedHand,
+            IBeamCursorForVerticalLayout,
+            ResizeColumn,
+            ResizeRow,
+            ResizeUpLeftDownRight,
+            ResizeUpRightDownLeft,
+            ResizeLeft,
+            ResizeRight,
+            ResizeUp,
+            ResizeDown,
+            DragLink,
+            DragCopy,
+            ContextualMenu,
+        ];
+        for (value, expected) in expected.into_iter().enumerate() {
+            let fields = [Field::Cursor(value as i64)];
+            validate_fields(&fields).unwrap();
+            let mut style = gpui::StyleRefinement::default();
+            refine(&mut style, &fields);
+            assert_eq!(style.mouse_cursor, Some(expected), "cursor {value}");
+        }
+    }
+
+    #[test]
+    fn border_pattern_replacement_keeps_widths_and_color() {
+        let mut style = gpui::StyleRefinement::default();
+        assert_eq!(style.border_style, None);
+        refine(
+            &mut style,
+            &[
+                Field::BorderTopWidth(3.),
+                Field::BorderColor(Color::Rgba(0x00ff00ff)),
+            ],
+        );
+        let widths = style.border_widths.clone();
+        let color = style.border_color;
+        for (value, expected) in [
+            (1, gpui::BorderStyle::Dashed),
+            (0, gpui::BorderStyle::Solid),
+            (1, gpui::BorderStyle::Dashed),
+        ] {
+            let fields = [Field::BorderStyle(value)];
+            validate_fields(&fields).unwrap();
+            refine(&mut style, &fields);
+            assert_eq!(style.border_style, Some(expected));
+            assert_eq!(style.border_widths, widths);
+            assert_eq!(style.border_color, color);
+        }
+        assert_eq!(
+            gpui::Style::default().border_style,
+            gpui::BorderStyle::Solid
+        );
+    }
+
+    #[test]
+    fn truncation_direction_survives_refinement_and_replacement() {
+        use gpui::TextOverflow::*;
+        let mut style = gpui::StyleRefinement::default();
+        for (value, expected) in [
+            (2, TruncateStart("…".into())),
+            (1, Truncate("…".into())),
+            (0, Truncate("".into())),
+        ] {
+            let fields = [Field::TextOverflow(value)];
+            validate_fields(&fields).unwrap();
+            refine(&mut style, &fields);
+            assert_eq!(style.text.text_overflow, Some(expected));
+        }
+    }
+}
+
+#[cfg(test)]
+mod pattern_validation_tests {
+    use super::*;
+    #[test]
+    fn pattern_dimensions_are_checked_before_native_brush_creation() {
+        for n in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, 0., 0.49, 64.01] {
+            for value in [
+                Fill::PatternSlash(Color::Rgba(0), n, 4.),
+                Fill::PatternSlash(Color::Rgba(0), 2., n),
+                Fill::Checkerboard(Color::Rgba(0), n),
+            ] {
+                assert!(validate_fields(&[Field::Background(value)]).is_err());
+            }
+        }
+        for n in [0.5, 64.] {
+            for value in [
+                Fill::PatternSlash(Color::Rgba(0), n, n),
+                Fill::Checkerboard(Color::Rgba(0), n),
+            ] {
+                let fields = [Field::Background(value)];
+                assert!(validate_fields(&fields).is_ok());
+                let mut style = gpui::StyleRefinement::default();
+                refine(&mut style, &fields);
+                assert!(style.background.is_some());
+            }
         }
     }
 }

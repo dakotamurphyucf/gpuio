@@ -78,8 +78,11 @@ let create window ~config ~initial ~initial_month ?on_event graph =
   }
 ;;
 
-let view ?style t =
+let view ?style ?appearance ?content ?on_viewport_change t =
   Gpuio.View.calendar
+    ?on_viewport_change
+    ?content
+    ?appearance
     ?style
     ~controller:t.controller
     ~config:t.config

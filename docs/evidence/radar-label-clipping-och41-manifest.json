@@ -1,0 +1,62 @@
+{
+  "source_base": "48cb2ca",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "f2cfe0c841c3162b5159f97dc945c17737de824cc565dc277d93ef590b5de625",
+  "files": [
+    {
+      "path": "radar-clip-baseline.log",
+      "bytes": 588740,
+      "sha256": "2f81e974285e8efcfae45ae28fa7426319d3dc6922ba752bd060e25ab1595182"
+    },
+    {
+      "path": "radar-clip-bounds.log",
+      "bytes": 588653,
+      "sha256": "52a1b7a4cfdc0ed302b110351e08aaa49f4c7123b12439a4b5583b788e417b34"
+    },
+    {
+      "path": "radar-clip-carousel-fixed.log",
+      "bytes": 590729,
+      "sha256": "74210559c2b0ec62584cc9642b0f033c6815d873457085167e307fe818720225"
+    },
+    {
+      "path": "radar-clip-clippy.log",
+      "bytes": 588275,
+      "sha256": "4084a86353a512344e7dd4fcbaae12779a8beaa33099ffd5fdb63355c5d8ef0f"
+    },
+    {
+      "path": "radar-clip-final-suite.log",
+      "bytes": 703805,
+      "sha256": "4823baabc94be763971e0ecec991496cc20e7b276a4c047b362ddbee99513c4f"
+    },
+    {
+      "path": "radar-clip-fixed.log",
+      "bytes": 589499,
+      "sha256": "357253db01f1fbae0ad6c640e14afd6ab95d10fabca971a64377cd0470ddbec6"
+    },
+    {
+      "path": "radar-clip-focus-fixed.log",
+      "bytes": 589525,
+      "sha256": "5a05895a17d8ec6e7e8490c53ddea6dd6464d7a6b51f07849053ce1660c35595"
+    },
+    {
+      "path": "radar-clip-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-clip-gallery-build.log",
+      "bytes": 100161,
+      "sha256": "3ae8df65f7f21f0aec670dacb36d6c8f2b8b0329110ec584ebf5d8b696143467"
+    },
+    {
+      "path": "radar-clip-gallery.log",
+      "bytes": 3217,
+      "sha256": "4f61a607fd662ee532f01b4cc3c96e976e30ad0644fd0464a6a3a8f4bf8138f3"
+    },
+    {
+      "path": "radar-clip-suite.log",
+      "bytes": 698927,
+      "sha256": "536b77e29d19e018222a5990c1aaa80e325c962c11badec7ebac501c7e321034"
+    }
+  ]
+}

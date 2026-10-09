@@ -45,6 +45,7 @@ smallvec = "1"
 sum-tree = { package = "sum_tree", git = "https://github.com/zed-industries/zed.git", rev = "a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b" }
 tracing = "0.1.41"
 unicode-segmentation = "1.12.0"
+unicode-bidi = "0.3.18"
 web-time = "1"
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]

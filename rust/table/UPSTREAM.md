@@ -92,3 +92,70 @@ semantics are now emitted only while the table container owns focus, preventing
 an invalid node from reporting itself as its own active descendant. The actual
 host AX regression draws the intermediate held-down frame, checks direct row
 focus, then releases and restores ordinary cell focus.
+
+The optional `DataTable::scrollbar_presentation` hook now supplies native-only
+per-axis elements while retaining TableState's original scroll handles. It is
+scoped to one table, leaves the default Base renderer intact when absent, and
+keeps visibility flags, header exclusion and pinned-column positioning in the
+adapter. The GPUIO Host injects weak presentation owners; this hook never calls
+OCaml. Shared geometry reserves an overflowing sibling's corner without changing
+semantic viewport lengths or offsets. See
+`docs/evidence/scrollbar-table-och41.md` for TestPlatform coverage; physical
+qualification of the custom presentation remains separate.
+
+OCH-41 managed table behavior now exposes row headers, Stop/Wrap and per-header
+selection. Adapted left/right and Home/End navigation skip nonselectable headers;
+the user column-selection setter also checks global/per-header eligibility.
+Search is bounded by retained column count, including an empty eligible set.
+Cell navigation remains independent. This fixes an extracted path that could
+select a forbidden header even though pointer and accessibility entry points
+rejected it. See `docs/evidence/table-behavior-och41.md` for a reproduced Host
+regression and the follow-up tests; physical desktop qualification is separate.
+
+OCH-41 presentation uses retained per-table colors, stripe mode and native column
+padding. The header surface now paints once: pinned/scrolling header containers
+and the header's row-gutter cell no longer repaint its background. This preserves
+opaque results while avoiding repeated alpha compositing. Body row-header gutters
+retain their own background. Host delegate styling overrides explicit header
+foreground without disabling root font inheritance. These changes do not add a
+synchronous OCaml renderer callback or a dependency on the styled upstream crate.
+
+`TableState::column_viewport` now measures horizontal column bands independently
+of buffered rendering ranges. It uses laid-out pinned/scrolling header panes,
+current native widths/order/offset and table/ancestor/window clipping, including
+empty data, single columns and all-pinned schemas. Layout invalidation retires
+the snapshot. The root measurement canvas now has explicit top/left positioning
+within a relative root; its former static position was below the table content.
+The Host publishes asynchronously after painting; no delegate crosses into OCaml.
+See `docs/design/table-column-viewport.md` and its local validation evidence.
+
+The retained Host can now override `TableDelegate::render_group_header` with the
+zero-based group level and absolute leaf-column range. The default method calls
+`render_group_th`, preserving existing delegates. Pinned and scrolling header
+panes supply the same coordinates. GPUIO resolves exact canonical member IDs
+against its retained schema and renders already-submitted header Views; repeated
+labels are never identities and no layout callback enters OCaml. This extension
+leaves native header sizes, sort affordances and column gesture ownership intact.
+
+Scoped row presentation adds `RowPresentation` and default `finish_row` after
+native selection decoration. Native hover is carried as a refinement into that
+hook and installed once; hosts can compose state styles without registering a
+second GPUI hover handler. The default preserves normal native hover. Pointer
+policy gates hover registration. The Host applies checked base paint/font fields
+through `render_tr`, with explicit selected/focused/hover/pressed/disabled layers
+in the final hook; native row geometry, outlines and accessibility stay owned by
+the table. Filler rows do not receive application row presentation.
+
+The optional test observation wrapper is applied after `finish_row`, then receives
+the final row accessibility decoration. Delegates keep the same concrete
+`Stateful<Div>` input/output contract with or without `gpui-base/test-support`;
+turning on observation must not change the delegate's row type.
+
+The horizontal column-visibility observer now converts its child-canvas bounds
+back to the unscrolled header-pane origin before applying the column offset.
+`ElementExt::on_prepaint` observes a child that moves with the pane's contents;
+using that translated rectangle as the viewport applied scrolling twice and
+reported columns as clipped/off-window on longer horizontal traversals. A real
+Host/TestPlatform regression covers all 64 column commands at the reference
+viewport width, including the previous column-17 failure, and drains the bounded
+observation queue as an actual client does.

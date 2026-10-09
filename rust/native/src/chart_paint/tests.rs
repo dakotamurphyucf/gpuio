@@ -3,7 +3,9 @@ use gpuio_protocol::chart_data as data;
 fn render(contents: data::Contents) -> Result<Prepared, Error> {
     prepare(
         &Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents,
         },
         Policy::default(),
@@ -12,6 +14,123 @@ fn render(contents: data::Contents) -> Result<Prepared, Error> {
         Layout::new(800., 400., 2.).unwrap(),
         &AtomicBool::new(false),
     )
+}
+
+#[test]
+fn custom_axis_strokes_have_independent_brushes_positions_and_visibility() {
+    let source = Data {
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
+        contents: data::Contents::Cartesian(vec![]),
+    };
+    let mut options = Options::default();
+    options.axes.grid = false;
+    let mut style = Style::default();
+    style.x_axis.position = Some(0.25);
+    style.x_axis.line_width = 4.;
+    style.x_axis.line_color = Some(7);
+    style.y_axis.position = Some(0.75);
+    style.y_axis.line_width = 2.;
+    style.y_axis.line_color = Some(8);
+    let make = |options: &Options, style: &Style| {
+        prepare(
+            &source,
+            Policy::default(),
+            options,
+            style,
+            Layout::new(200., 160., 1.).unwrap(),
+            &AtomicBool::new(false),
+        )
+        .unwrap()
+    };
+    let plan = make(&options, &style);
+    assert_eq!(plan.mesh_count(), 2);
+    assert_eq!(
+        (
+            brush_color(plan.meshes[0].brush),
+            brush_color(plan.meshes[1].brush)
+        ),
+        (7, 8)
+    );
+    let x = plan.meshes[0].mesh.bounds().unwrap();
+    let y = plan.meshes[1].mesh.bounds().unwrap();
+    assert_eq!((x.top, x.bottom), (38., 42.));
+    assert_eq!((y.left, y.right), (149., 151.));
+    style.x_axis.line = false;
+    let plan = make(&options, &style);
+    assert_eq!(plan.mesh_count(), 1);
+    assert!(plan.geometry.labels.iter().any(|l| matches!(l.kind,
+        geometry::LabelKind::Axis(a) if a.horizontal)));
+    options.axes.x = false;
+    let plan = make(&options, &style);
+    assert!(!plan.geometry.labels.iter().any(|l| matches!(l.kind,
+        geometry::LabelKind::Axis(a) if a.horizontal)));
+    style.y_axis.line = false;
+    assert_eq!(make(&options, &style).mesh_count(), 0);
+}
+
+#[test]
+fn categorical_axis_strokes_do_not_require_a_numeric_x_domain() {
+    use gpuio_protocol::chart_options::Orientation;
+    let source = Data {
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
+        contents: data::Contents::Categorical(
+            vec![data::Category {
+                id: 42,
+                label: "Alpha".into(),
+            }],
+            vec![],
+        ),
+    };
+    for orientation in [
+        Orientation::Vertical,
+        Orientation::Horizontal,
+        Orientation::VerticalReversed,
+        Orientation::HorizontalReversed,
+    ] {
+        for (x, y) in [(true, false), (false, true), (true, true), (false, false)] {
+            let mut options = Options::default();
+            options.cartesian.orientation = orientation;
+            options.axes.x = x;
+            options.axes.y = y;
+            options.axes.grid = false;
+            let plan = prepare(
+                &source,
+                Policy::default(),
+                &options,
+                &Style::default(),
+                Layout::new(200., 160., 1.).unwrap(),
+                &AtomicBool::new(false),
+            )
+            .unwrap();
+            assert!(
+                plan.geometry.x_domain.is_none(),
+                "categories must not invent a numeric domain"
+            );
+            assert!(plan.geometry.grid.is_empty());
+            assert!(plan.geometry.marks.is_empty());
+            assert_eq!(
+                plan.mesh_count(),
+                usize::from(x || y),
+                "{orientation:?} x={x} y={y}"
+            );
+            if x || y {
+                assert_eq!(
+                    brush_color(plan.meshes[0].brush),
+                    Style::default().axis_color as u32
+                );
+                let bounds = plan.meshes[0].mesh.bounds().unwrap();
+                let vertical = if orientation.is_horizontal() { x } else { y };
+                let horizontal = if orientation.is_horizontal() { y } else { x };
+                assert_eq!(bounds.top, if vertical { 0. } else { 159. });
+                assert_eq!(bounds.right, if horizontal { 200. } else { 1. });
+                assert!(bounds.left >= 0. && bounds.bottom <= 160.);
+            }
+        }
+    }
 }
 #[test]
 fn sampled_streams_prepare_bounded_reusable_meshes_and_preserve_gaps() {
@@ -87,7 +206,7 @@ fn wedges_ribbons_and_candle_noncolor_geometry_prepare() {
     }]))
     .unwrap();
     assert_eq!(p.quad_count(), 3);
-    assert_eq!(p.quads[2].color, 0);
+    assert_eq!(brush_color(p.quads[2].brush), 0);
     assert!(p.quads[2].border.is_some());
     assert!(p.quads[0].rect.bottom <= p.quads[2].rect.top);
     assert!(p.quads[1].rect.top >= p.quads[2].rect.bottom);
@@ -95,7 +214,9 @@ fn wedges_ribbons_and_candle_noncolor_geometry_prepare() {
 #[test]
 fn invalid_style_cancel_and_unbounded_exact_paths_fail_atomically() {
     let data = Data {
-        version: 1,
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
         contents: data::Contents::Pie(vec![]),
     };
     let style = Style {
@@ -136,7 +257,9 @@ fn invalid_style_cancel_and_unbounded_exact_paths_fail_atomically() {
         })
         .collect();
     let data = Data {
-        version: 1,
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
         contents: data::Contents::Cartesian(vec![data::Layer::Line(data::Series {
             id: 1,
             name: "exact".into(),
@@ -198,7 +321,9 @@ fn large_exact_line_and_all_sampled_curve_modes_have_real_meshes() {
     let layout = Layout::new(800., 400., 2.).unwrap();
     let p = prepare(
         &Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: contents(true),
         },
         Policy {
@@ -223,7 +348,9 @@ fn large_exact_line_and_all_sampled_curve_modes_have_real_meshes() {
         options.cartesian.curve = curve;
         let p = prepare(
             &Data {
-                version: 1,
+                version: 3,
+                bar_baselines: vec![],
+                bar_backgrounds: vec![],
                 contents: contents(false),
             },
             Policy::default(),
@@ -256,4 +383,98 @@ fn chart_allowance_does_not_relax_the_canvas_wire_or_mesh_contract() {
         Err(mesh::Error::InvalidGeometry)
     ));
     assert!(mesh::prepare_chart(&path, mesh::Style::Stroke(1.), 0.25, &cancel).is_ok());
+}
+
+#[test]
+fn radar_projection_prepares_meshes_and_preserves_off_plot_selection() {
+    use gpuio_protocol::{
+        chart_options::{RadarRadius, RadarScale},
+        chart_selection::Selection,
+    };
+    let source = Data {
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
+        contents: data::Contents::Radar(
+            (1..=3)
+                .map(|id| data::RadarAxis {
+                    id,
+                    label: format!("Axis {id}"),
+                    maximum: 100.,
+                })
+                .collect(),
+            vec![data::RadarSeries {
+                id: 1,
+                name: "Series".into(),
+                values: vec![(1, 100.), (2, 50.), (3, 25.)],
+            }],
+        ),
+    };
+    for scale in [0.5, 1., 2., 8.] {
+        let mut options = Options::default();
+        options.radar.radius = RadarRadius::Pixels(80.);
+        options.radar.scale = RadarScale::Maximum(25.);
+        let plan = prepare(
+            &source,
+            Policy::default(),
+            &options,
+            &Style::default(),
+            Layout::new(400., 400., scale).unwrap(),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert!(plan.mesh_count() > 0 && plan.vertices() > 0);
+        assert!(plan.retained_bytes() < MAX_BYTES);
+        // First vertex is above the plot; original-data selection remains valid.
+        assert_eq!(
+            plan.selection_index(Selection::Radar { series: 1, axis: 1 }),
+            Some(0)
+        );
+        assert!(matches!(plan.geometry().marks[0].shape,
+            geometry::Shape::Dot { center, .. } if center.y < 0.));
+        options.radar.scale = RadarScale::Maximum(f64::from_bits(1));
+        assert!(matches!(
+            prepare(
+                &source,
+                Policy::default(),
+                &options,
+                &Style::default(),
+                Layout::new(400., 400., scale).unwrap(),
+                &AtomicBool::new(false)
+            ),
+            Err(Error::RenderLimit)
+        ));
+    }
+}
+
+#[test]
+fn maximum_pie_radius_prepares_bounded_meshes_without_changing_raw_data() {
+    let data = Data {
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
+        contents: data::Contents::Pie(vec![data::Slice {
+            id: 7,
+            label: "Original value".into(),
+            value: 3.,
+        }]),
+    };
+    let mut options = Options::default();
+    options.pie.radius = gpuio_protocol::chart_options::PieRadius::Pixels(32768.);
+    options.pie.labels = false;
+    for scale in [0.5, 1., 2., 8.] {
+        let p = prepare(
+            &data,
+            Policy::default(),
+            &options,
+            &Style::default(),
+            Layout::new(200., 160., scale).unwrap(),
+            &AtomicBool::new(false),
+        )
+        .unwrap();
+        assert_eq!(p.geometry().source_values, 1);
+        assert_eq!(p.geometry().marks[0].source, geometry::Source::Slice(0));
+        assert!(p.mesh_count() > 0 && p.vertices() <= MAX_VERTICES);
+        assert!(p.retained_bytes() < MAX_BYTES);
+    }
 }

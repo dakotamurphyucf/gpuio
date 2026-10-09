@@ -2,6 +2,7 @@
 """Public Signal Studio AppKit input, responsive layout and composed component."""
 import argparse
 import ctypes as C
+import re
 from pathlib import Path
 import signal
 import subprocess
@@ -68,6 +69,23 @@ class Studio(Outline):
         node = self.wait_find(TITLE, label, role)
         try:
             self.set(node, 'AXFocused', self.true)
+            # AX setters enqueue native actions. Sending Home/Enter immediately
+            # can still target the previously focused canvas on a busy desktop.
+            # Observe completion; do not repeat the focus action or the keys.
+            boolean = self.cf.CFBooleanGetValue
+            boolean.restype, boolean.argtypes = C.c_bool, [C.c_void_p]
+            deadline = time.monotonic() + 5
+            while True:
+                value = self.attr(node, 'AXFocused')
+                try:
+                    if value and boolean(value):
+                        break
+                finally:
+                    if value:
+                        self.release(value)
+                if self.child.poll() is not None or time.monotonic() >= deadline:
+                    raise RuntimeError(f'Native focus was not accepted: {label}')
+                time.sleep(.01)
         finally:
             self.release(node)
 
@@ -137,7 +155,7 @@ class Studio(Outline):
         assert abs(canvas[2] - (490 if compact else 700)) < 1, canvas
         print(f'SIGNAL_ACTIVE_LAYOUT_ONLY compact={compact} labels=5 canvas_width={canvas[2]}', flush=True)
 
-    def exercise(self, output):
+    def exercise(self, output, *, bundled=False):
         # Canvas/chart readiness needs the first active container-layout frame.
         # Activate our child before waiting; an occluded macOS window may defer it.
         deadline = time.monotonic() + 15
@@ -151,8 +169,26 @@ class Studio(Outline):
         self.active_layout_only(compact=False)
         self.capture(output / 'wide.png')
         self.press(TITLE, 'Alerts')
-        self.wait_text(TITLE, 'Desktop alerts are unavailable; run results stay in this window.')
-        self.capture(output / 'alerts-unavailable.png')
+        self.notification_authorization = None
+        if bundled:
+            # A real .app has a notification identity. Observe its existing OS
+            # authorization without requesting permission or opting into alerts.
+            self.wait_log('alert authorization ')
+            match = re.search(r'alert authorization \(Ok (\w+)\)', self.log_path.read_text())
+            assert match, 'Packaged app did not obtain notification authorization status'
+            self.notification_authorization = match[1]
+            messages = {
+                'Authorized': 'Desktop alerts are available. Enable them to opt in.',
+                'Provisional': 'Desktop alerts are available. Enable them to opt in.',
+                'Not_required': 'Desktop alerts are available. Enable them to opt in.',
+                'Not_determined': 'Enable alerts to request notification permission.',
+                'Denied': 'Notifications are denied. Run results stay in this window.',
+            }
+            self.wait_text(TITLE, messages[self.notification_authorization])
+            self.capture(output / 'alerts-bundled.png')
+        else:
+            self.wait_text(TITLE, 'Desktop alerts are unavailable; run results stay in this window.')
+            self.capture(output / 'alerts-unavailable.png')
         self.press(TITLE, 'Close alerts')
         self.press(TITLE, 'Increment counter, current value 0')
         self.wait_log('SIGNAL_STUDIO: run 1')
@@ -243,6 +279,9 @@ class Studio(Outline):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=Path('.cache/signal-studio'))
+    parser.add_argument('--executable', type=Path,
+                        default=Path('_build/default/examples/signal_studio/main.exe'),
+                        help='Signal Studio executable, including an installed-library consumer')
     args = parser.parse_args()
     def timeout(_signal, _frame):
         raise TimeoutError("Signal Studio walkthrough exceeded 120 seconds")
@@ -250,7 +289,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     path = args.output / 'application.log'
     with path.open('w') as log:
-        child = subprocess.Popen(['_build/default/examples/signal_studio/main.exe', '--exit-on-close'], stdout=log, stderr=subprocess.STDOUT)
+        child = subprocess.Popen([str(args.executable.resolve()), '--exit-on-close'], stdout=log, stderr=subprocess.STDOUT)
         mac = None
         try:
             signal.alarm(120)

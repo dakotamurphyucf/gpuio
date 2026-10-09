@@ -3,7 +3,129 @@
  (libraries core gpuio gpuio.protocol eio_main)
  (inline_tests
   (deps
+   icon-transform.hex
+   icon-transform-clear.hex
+   platform-context-menu-operation.hex
+   menu-content-public.hex
+   calendar-content-public.hex
+   table-header-style.hex
+   table-header-style-clear.hex
+   table-row-style.hex
+   table-row-style-clear.hex
+   table-header-targets.hex
+   table-header-operation.hex
+   table-header-clear.hex
+   accessibility-structural-table.hex
+   table-columns-event.hex
+   table-appearance-operation.hex
+   table-appearance-clear.hex
+   table-behavior-operation.hex
+   table-behavior-clear.hex
+   list-input-public-0.hex
+   list-input-public-1.hex
+   list-input-public-2.hex
+   list-input-public-3.hex
+   list-input-public-4.hex
+   list-input-public-5.hex
+   list-input-requests.hex
+   list-input-transaction.hex
+   list-input-event.hex
+   accessibility-listbox.hex
+   accessibility-option.hex
+   scrollbar-default.hex
+   scrollbar-custom.hex
+   scrollbar-operation.hex
+   accessibility-log.hex
+   toast-motion.hex
+   toast-layering.hex
+   toast-placement.hex
+   split-group-config.hex
+   split-group-appearance.hex
+   split-group-operation.hex
+   split-group-event.hex
+   split-group-public.hex
+   split-group-snapshot.hex
+   tab-menu-transactions.hex
+   tab-menu-icons-transactions.hex
+   tab-frame-transactions.hex
+   tab-content-transactions.hex
+   carousel-track-motion.hex
+   carousel-track-operation.hex
+   carousel-track-events.hex
+   carousel-track-config.hex
+   carousel-track-layout.hex
+   carousel-track-unavailable.hex
+   carousel-track-auto.hex
+   sidebar-labels-0.hex
+   sidebar-labels-1.hex
+   sidebar-labels-2.hex
+   sidebar-labels-3.hex
+   sidebar-labels-4.hex
+   sidebar-labels-5.hex
+   placement-geometry.hex
+   sheet-insets.hex
+   calendar-viewport-operation.hex
+   calendar-viewport-events.hex
+   tooltip-motion.hex
+   overlay-motion.hex
+   overlay-backdrop.hex
+   calendar-content.hex
+   calendar-content-operation.hex
+   popover-operation.hex
+   reveal-operation.hex
+   disclosure-rich-0.hex
+   disclosure-rich-1.hex
+   disclosure-rich-2.hex
+   number-step-mode.hex
+   number-step-request.hex
+   number-step-apply.hex
+   number-step-decline.hex
+   number-presentation.hex
+   slider-presentation.hex
+   calendar-presentation.hex
+   color-presentation.hex
+   otp-presentation.hex
+   stepper-public-view.hex
+   input-format-operation.hex
+   input-format-values.tsv
+   input-content-hint-request.hex
+   input-content-hint-events.hex
+   input-content-hint-operation.hex
+   editor-frame-operation.hex
+   editor-privacy-operation.hex
+   editor-menu-operation.hex
+   choice-picker-public-view.hex
+   choice-picker-grouped.hex
+   choice-picker-empty.hex
+   choice-picker-events.hex
+   choice-picker-query-events.hex
+   choice-picker-presentation.hex
+   choice-picker-operation.hex
+   choice-picker-envelope.hex
+   hover-operation.hex
+   hover-event.hex
+   split-button-paint.hex
+   split-button-operation.hex
+   menu-observation.hex
+   button-default.hex
+   button-loading.hex
+   button-preserve.hex
+   button-operation.hex
+   checkable-tab-order.hex
+   checkable-position.hex
+   checkable-transaction.hex
+   checkable-radio-group.hex
+   control-labels-hello.hex
+   progress-presentation-operation.hex
+   progress-presentation-linear.hex
+   progress-presentation-circle.hex
+   spinner-default.hex
+   spinner-custom.hex
+   spinner-operation.hex
+   rating-appearance.hex
    (sandbox preserve_file_kind)
+   command-binding-config.hex
+   command-binding-observation.hex
    table-transaction.hex
    table-event.hex
    table-intents.hex
@@ -12,6 +134,7 @@
    table-command.hex
    table-request.hex
    inert-request.hex
+   disabled-request.hex
    carousel-transaction.hex
    carousel-event.hex
    carousel-config.hex
@@ -38,6 +161,15 @@
    calendar-selected.hex
    calendar-replace.hex
    animation-v1-config.hex
+   animation-cubic-easing.tsv
+   animation-steps.tsv
+   animation-linear-stops.tsv
+   animation-repeat.tsv
+   animation-negative-delay.tsv
+   control-appearance-operation.hex
+   control-appearance-default.hex
+   control-appearance-states.hex
+   accessibility-toolbar.hex
    accessibility-current.hex
    tree-input-requests.hex
    tree-input-transaction.hex
@@ -89,6 +221,11 @@
    images-v1-events.hex
    assets-v1-requests.hex
    assets-v1-events.hex
+   input-request.hex
+   input-events.hex
+   input-policies.hex
+   input-values.hex
+   style-values-v1.hex
    style-v1.hex
    controls-v1.hex
    choice-v1-request.hex
@@ -142,6 +279,10 @@
 (copy_files ../fixtures/choice-v1-events.hex)
 
 (copy_files ../fixtures/editor-v1-requests.hex)
+
+(copy_files ../fixtures/editor-privacy-operation.hex)
+
+(copy_files ../fixtures/editor-menu-operation.hex)
 
 (copy_files ../fixtures/editor-v1-events.hex)
 
@@ -227,6 +368,8 @@
 
 (copy_files ../fixtures/rating-request.hex)
 
+(copy_files ../fixtures/rating-appearance.hex)
+
 (copy_files ../fixtures/rating-events.hex)
 
 (copy_files ../fixtures/numeric-domain.hex)
@@ -263,6 +406,8 @@
 
 (copy_files ../fixtures/inert-request.hex)
 
+(copy_files ../fixtures/disabled-request.hex)
+
 (copy_files ../fixtures/navigation-stack-config.hex)
 
 (copy_files ../fixtures/navigation-stack-request.hex)
@@ -296,3 +441,147 @@
 (copy_files ../fixtures/table-transaction.hex)
 
 (copy_files ../fixtures/table-event.hex)
+
+(copy_files ../fixtures/style-values-v1.hex)
+
+(copy_files ../fixtures/input-values.hex)
+
+(copy_files ../fixtures/input-policies.hex)
+
+(copy_files ../fixtures/input-request.hex)
+
+(copy_files ../fixtures/input-events.hex)
+
+(copy_files ../fixtures/command-binding-*.hex)
+
+(copy_files ../fixtures/spinner-*.hex)
+
+(copy_files ../fixtures/progress-presentation-*.hex)
+
+(copy_files ../fixtures/accessibility-toolbar.hex)
+
+(copy_files ../fixtures/control-appearance-*.hex)
+
+(copy_files ../fixtures/control-labels-hello.hex)
+
+(copy_files ../fixtures/checkable-*.hex)
+
+(copy_files ../fixtures/button-*.hex)
+
+(copy_files ../fixtures/menu-observation.hex)
+
+(copy_files ../fixtures/split-button-*.hex)
+
+(copy_files ../fixtures/hover-operation.hex)
+
+(copy_files ../fixtures/hover-event.hex)
+
+(copy_files ../fixtures/choice-picker-*.hex)
+
+(copy_files ../fixtures/editor-frame-operation.hex)
+
+(copy_files ../fixtures/input-content-hint-*.hex)
+
+(copy_files ../fixtures/input-format-values.tsv)
+
+(copy_files ../fixtures/input-format-operation.hex)
+
+(copy_files ../fixtures/otp-presentation.hex)
+
+(copy_files ../fixtures/number-presentation.hex)
+
+(copy_files ../fixtures/number-step-*.hex)
+
+(copy_files ../fixtures/slider-presentation.hex)
+
+(copy_files ../fixtures/disclosure-rich-*.hex)
+
+(copy_files ../fixtures/reveal-operation.hex)
+
+(copy_files ../fixtures/popover-operation.hex)
+
+(copy_files ../fixtures/overlay-backdrop.hex)
+
+(copy_files ../fixtures/overlay-motion.hex)
+
+(copy_files ../fixtures/tooltip-motion.hex)
+
+(copy_files ../fixtures/placement-geometry.hex)
+
+(copy_files ../fixtures/sheet-insets.hex)
+
+(copy_files ../fixtures/sidebar-labels-*.hex)
+
+(copy_files ../fixtures/tab-content-transactions.hex)
+
+(copy_files ../fixtures/tab-frame-transactions.hex)
+
+(copy_files ../fixtures/tab-menu-transactions.hex)
+
+(copy_files ../fixtures/tab-menu-icons-transactions.hex)
+
+(copy_files ../fixtures/split-group-config.hex)
+
+(copy_files ../fixtures/split-group-snapshot.hex)
+
+(copy_files ../fixtures/split-group-appearance.hex)
+
+(copy_files ../fixtures/split-group-operation.hex)
+
+(copy_files ../fixtures/split-group-event.hex)
+
+(copy_files ../fixtures/split-group-public.hex)
+
+(copy_files ../fixtures/toast-placement.hex)
+
+(copy_files ../fixtures/toast-layering.hex)
+
+(copy_files ../fixtures/toast-motion.hex)
+
+(copy_files ../fixtures/accessibility-log.hex)
+
+(copy_files ../fixtures/scrollbar-*.hex)
+
+(copy_files ../fixtures/list-input-*.hex)
+
+(copy_files ../fixtures/accessibility-listbox.hex)
+
+(copy_files ../fixtures/accessibility-option.hex)
+
+(copy_files ../fixtures/table-behavior-*.hex)
+
+(copy_files ../fixtures/table-appearance-*.hex)
+
+(copy_files ../fixtures/table-columns-event.hex)
+
+(copy_files ../fixtures/accessibility-structural-table.hex)
+
+(copy_files ../fixtures/table-header-targets.hex)
+
+(copy_files ../fixtures/table-header-operation.hex)
+
+(copy_files ../fixtures/table-header-clear.hex)
+
+(copy_files ../fixtures/table-header-style.hex)
+
+(copy_files ../fixtures/table-header-style-clear.hex)
+
+(copy_files ../fixtures/table-row-style.hex)
+
+(copy_files ../fixtures/table-row-style-clear.hex)
+
+(copy_files ../fixtures/animation-cubic-easing.tsv)
+
+(copy_files ../fixtures/animation-steps.tsv)
+
+(copy_files ../fixtures/animation-linear-stops.tsv)
+
+(copy_files ../fixtures/animation-negative-delay.tsv)
+
+(copy_files ../fixtures/animation-repeat.tsv)
+
+(copy_files ../fixtures/menu-content-public.hex)
+
+(copy_files ../fixtures/platform-context-menu-operation.hex)
+
+(copy_files ../fixtures/icon-transform*.hex)

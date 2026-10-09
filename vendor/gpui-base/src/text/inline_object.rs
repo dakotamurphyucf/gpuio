@@ -45,6 +45,7 @@ pub(super) struct MeasuredInlineObject {
     text: SharedString,
     font_size: Pixels,
     text_style: TextStyle,
+    hide_accessibility_when_linked: bool,
 }
 
 impl MeasuredInlineObject {
@@ -78,6 +79,7 @@ impl MeasuredInlineObject {
             text,
             font_size,
             text_style: style.clone(),
+            hide_accessibility_when_linked: false,
         };
         if let Some(presentation) = presentation {
             // The wrapper carries inherited marks into both layout and painting.
@@ -98,6 +100,7 @@ impl MeasuredInlineObject {
             };
             if metrics.is_valid() {
                 result.metrics = metrics;
+                result.hide_accessibility_when_linked = presentation.hide_accessibility_when_linked;
                 result.content = Some(Rc::new(RefCell::new(Some(element))));
             }
         }
@@ -150,6 +153,7 @@ impl MeasuredInlineObject {
 
 /// Atomic selection wrapper that leaves child styling and interaction to GPUI.
 pub(super) struct InlineObject {
+    accessible_text: Option<super::accessible_runs::Snapshot>,
     id: ElementId,
     text: SharedString,
     accessibility_label: SharedString,
@@ -164,6 +168,10 @@ pub(super) struct InlineObject {
 }
 
 impl InlineObject {
+    pub fn accessible_text(mut self, text: Option<super::accessible_runs::Snapshot>) -> Self {
+        self.accessible_text = text;
+        self
+    }
     pub fn link(
         mut self,
         link: Option<super::node::LinkMark>,
@@ -194,6 +202,7 @@ impl InlineObject {
             line_bounds,
             content,
             content_measured,
+            accessible_text: None,
             link: None,
             link_click_handler: None,
         }
@@ -225,6 +234,19 @@ impl Element for InlineObject {
         node.set_role(Role::GenericContainer);
         node.set_label(self.accessibility_label.as_ref());
         node.set_read_only();
+        // Plain fallbacks and explicitly passive alternatives are represented by
+        // the logical link. Custom interactive children retain their semantics.
+        if self.link.is_some()
+            && (!self.content_measured || self.object.hide_accessibility_when_linked)
+        {
+            node.set_hidden();
+        }
+    }
+
+    fn a11y_synthetic_children(&mut self, _: &mut Hitbox, builder: &mut gpui::A11ySubtreeBuilder) {
+        if let Some(snapshot) = &self.accessible_text {
+            snapshot.publish(0, builder);
+        }
     }
 
     fn request_layout(
@@ -270,6 +292,11 @@ impl Element for InlineObject {
                 window,
                 cx,
             );
+        }
+        if let Some(view) = GlobalState::global(cx).text_view_state().cloned() {
+            view.update(cx, |state, _| {
+                state.reveal_selection_object(&self.selected, bounds, window)
+            });
         }
         if let Some(view) = GlobalState::global(cx).text_view_state() {
             let state = view.read(cx);
@@ -326,10 +353,8 @@ impl Element for InlineObject {
         if let Ok(mut value) = self.selected.lock() {
             *value = selected;
         }
-        if selected {
-            let color = view.as_ref().unwrap().read(cx).text_view_style.selection();
-            window.paint_quad(gpui::fill(bounds, color));
-        }
+        let selection_color =
+            selected.then(|| view.as_ref().unwrap().read(cx).text_view_style.selection());
         if let Some(link) = self.link.clone() {
             window.set_cursor_style(CursorStyle::PointingHand, hitbox);
             let link_hitbox = hitbox.clone();
@@ -367,6 +392,12 @@ impl Element for InlineObject {
             if visible.size.width > Pixels::ZERO && visible.size.height > Pixels::ZERO {
                 view.as_ref().unwrap().update(cx, |state, _| {
                     state.selection_adapter.register_inline(vec![visible]);
+                    if let Some(text) = state.rendered_text() {
+                        let fragment = text.object_fragment(&self.selected);
+                        state
+                            .selection_adapter
+                            .register_object_endpoint(bounds, fragment);
+                    }
                 });
             }
             let hitbox = hitbox.clone();
@@ -374,12 +405,25 @@ impl Element for InlineObject {
             let text = self.text.to_string();
             let current_view = window.current_view();
             let line_bounds = self.line_bounds;
+            let selection_revision = view
+                .as_ref()
+                .and_then(|view| view.read(cx).rendered_text_revision());
             window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {
                 if !phase.bubble()
                     || !hitbox.is_hovered(window)
                     || event.button != MouseButton::Left
-                    || !(2..=3).contains(&event.click_count)
+                    || GlobalState::is_text_selection_suppressed(cx)
                 {
+                    return;
+                }
+                if view
+                    .as_ref()
+                    .is_some_and(|view| !view.read(cx).accepts_selection_frame(selection_revision))
+                {
+                    GlobalState::suppress_text_selection(cx);
+                    return;
+                }
+                if !(2..=3).contains(&event.click_count) {
                     return;
                 }
                 GlobalState::suppress_text_selection(cx);
@@ -404,6 +448,11 @@ impl Element for InlineObject {
             });
         }
         self.content.paint(window, cx);
+        // The atomic object owns this layer; text/image/native child backgrounds
+        // must not cover selection or let prepared search washes take precedence.
+        if let Some(color) = selection_color {
+            window.paint_quad(gpui::fill(bounds, color));
+        }
     }
 }
 

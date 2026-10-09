@@ -1,6 +1,6 @@
 //! Bounded advanced motion configuration; legacy animation wire data stays intact.
 use crate::animation::{
-    self as legacy, Easing, MAX_TIME_MS, PROPERTY_COUNT, Repeat, Spring, Target,
+    self as legacy, Easing, MAX_TIME_MS, Repeat, Spring, Target, valid_targets,
 };
 use binprot::macros::BinProtWrite;
 
@@ -11,23 +11,23 @@ pub const MAX_GROUPS: usize = 128;
 pub const MAX_MEMBERS: usize = 1024;
 pub const TERMINAL_INDEX: i64 = MAX_STAGES as i64 + 1;
 
-#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Timing {
     Tween(i64, Easing),
     Spring(Spring),
 }
 impl Timing {
-    pub fn is_valid(self) -> bool {
+    pub fn is_valid(&self) -> bool {
         match self {
             Self::Tween(duration, easing) => {
-                (0..=MAX_TIME_MS).contains(&duration) && easing.is_valid()
+                (0..=MAX_TIME_MS).contains(duration) && easing.is_valid()
             }
             Self::Spring(parameters) => parameters.is_valid(),
         }
     }
-    pub fn maximum_duration_ms(self) -> i64 {
+    pub fn maximum_duration_ms(&self) -> i64 {
         match self {
-            Self::Tween(duration, _) => duration,
+            Self::Tween(duration, _) => *duration,
             Self::Spring(parameters) => parameters.max_duration_ms,
         }
     }
@@ -71,12 +71,6 @@ pub struct Program {
     pub repeat: Repeat,
     pub clock: Clock,
 }
-fn valid_targets(targets: &[Target]) -> bool {
-    !targets.is_empty()
-        && targets.len() <= PROPERTY_COUNT
-        && targets.iter().all(|t| t.property.accepts(t.value))
-        && targets.windows(2).all(|w| w[0].property < w[1].property)
-}
 fn same_properties(a: &[Target], b: &[Target]) -> bool {
     a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.property == b.property)
 }
@@ -86,8 +80,9 @@ impl Program {
             return false;
         };
         if self.stages.len() > MAX_STAGES
-            || !(0..=MAX_TIME_MS).contains(&self.delay_ms)
+            || !(-MAX_TIME_MS..=MAX_TIME_MS).contains(&self.delay_ms)
             || !self.clock.is_valid()
+            || !self.repeat.is_valid()
             || !self.stages.iter().all(|stage| {
                 valid_targets(&stage.targets)
                     && same_properties(&first.targets, &stage.targets)
@@ -107,10 +102,11 @@ impl Program {
             .iter()
             .map(|s| s.delay_ms + s.timing.maximum_duration_ms())
             .sum();
-        period <= MAX_TIME_MS
-            && (self.repeat == Repeat::Once || period > 0)
+        binprot::BinProtSize::binprot_size(self) + 19 <= MAX_CONFIG_BYTES
+            && period <= MAX_TIME_MS
+            && (!self.repeat.is_infinite() || period > 0)
             && (!self.clock.is_shared()
-                || (self.repeat != Repeat::Once
+                || (self.repeat.is_infinite()
                     && self.delay_ms == 0
                     && self
                         .stages
@@ -124,7 +120,7 @@ impl Program {
             initial: config.initial.clone(),
             stages: vec![Stage {
                 targets: config.targets.clone(),
-                timing: Timing::Tween(config.duration_ms, config.easing),
+                timing: Timing::Tween(config.duration_ms, config.easing.clone()),
                 delay_ms: 0,
             }],
             delay_ms: config.delay_ms,
@@ -138,7 +134,13 @@ impl Program {
             + self
                 .stages
                 .iter()
-                .map(|s| s.targets.capacity() * std::mem::size_of::<Target>())
+                .map(|s| {
+                    s.targets.capacity() * std::mem::size_of::<Target>()
+                        + match &s.timing {
+                            Timing::Tween(_, easing) => easing.heap_bytes(),
+                            Timing::Spring(_) => 0,
+                        }
+                })
                 .sum::<usize>()
             + self
                 .initial
@@ -156,7 +158,7 @@ impl Program {
             && self.stages.len() == other.stages.len()
             && self.stages.iter().zip(&other.stages).all(|(a, b)| {
                 a.delay_ms == b.delay_ms
-                    && match (a.timing, b.timing) {
+                    && match (&a.timing, &b.timing) {
                         (Timing::Tween(a, _), Timing::Tween(b, _)) => a == b,
                         _ => false,
                     }

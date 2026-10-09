@@ -1,0 +1,10 @@
+GPUIO qualification probe v3
+properties: one zero byte
+command: begin=0, finish=1, buckets=2 followed by metric byte 0..4 and ASCII decimal offset 0..4294967295, document_preparation=3
+begin: capture after a cancellable two-second native settle; emit Begun(capture_ns)
+finish: capture interval before the command redraw; emit Finished(elapsed_ns,capture_ns,dropped_inputs, five histogram counts)
+buckets: emit at most128 ascending inclusive-upper-bound/count pairs and total bucket count
+events: bounded16384-byte OCaml sexp; no source text or application values
+metrics: draw, dirty_to_submission, animation_submission_interval, input_to_frame, inputs_per_frame
+document_preparation: application-wide cumulative queue_us, configure_us, parse_us, highlight_us, search_us, source_bytes, completed, discarded, peak_workers, peak_reserved_bytes; worker elapsed microseconds, not CPU time; snapshots include discarded work and absolute peaks
+begin_idle=4: begin semantics plus cancellable read-only native active/visible observations at begin and every second, capped128; Finish additionally emits Idle_observations(list of elapsed_ns,active,visible option); unavailable visibility is None, no redraw/OCaml callback during sampling

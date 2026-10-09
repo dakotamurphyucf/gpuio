@@ -1,0 +1,205 @@
+{
+  "base_revision": "c2ac956238d8950bcdbb46359321a42e40ff9658",
+  "platform": {
+    "system": "Darwin",
+    "version": "14.5",
+    "machine": "arm64"
+  },
+  "binary_sha256": {
+    "repository": "25fdc902de621a8b058c1734aebab4e2ad7a5114a7a99e46a0b370aeaab0e5ef",
+    "installed": "a3189ece9c55a277551fe7052fb9ff3eececc8c16ed51ed5069d6ac929674c8a"
+  },
+  "files": [
+    {
+      "path": "scrollbar-input-native-001.log",
+      "sha256": "6297ea1ab87544386793844e925f8d6c046d8703ada2256aa167fa74267d0918",
+      "bytes": 16152
+    },
+    {
+      "path": "scrollbar-input-native-001/gallery-failure.png",
+      "sha256": "d7a2fac306d72e29cc65b10659a3f005b8fe1230f1b11c46dbfa400f7edc6976",
+      "bytes": 448966
+    },
+    {
+      "path": "scrollbar-input-native-001/scrollbars-report.json",
+      "sha256": "6e0566e8fb5c8698c6d021049cd3b67eb84276b3e6c489f64f39e6d893deb5d3",
+      "bytes": 241
+    },
+    {
+      "path": "scrollbar-input-native-002.log",
+      "sha256": "e865582f0fdeffc0e8e0dff586b58487610ca3d4e0d0ac35f10e79f4e16af1e7",
+      "bytes": 17993
+    },
+    {
+      "path": "scrollbar-input-native-002/gallery-failure.png",
+      "sha256": "fda5aa003b7482da3deb2f48b75a353583279be6963735fabc2e96746efc89de",
+      "bytes": 505992
+    },
+    {
+      "path": "scrollbar-input-native-002/scrollbar-Light-Comfortable.png",
+      "sha256": "08ffa273b48e0ccbcab41173a04689511dbf212a4fa7c54470976c66fb2f2e62",
+      "bytes": 480546
+    },
+    {
+      "path": "scrollbar-input-native-002/scrollbars-report.json",
+      "sha256": "d959cb9bf4ba3a386d2c2b7e486201a5a011dea5429a97c917d93f805d9aee27",
+      "bytes": 3318
+    },
+    {
+      "path": "scrollbar-input-native-003.log",
+      "sha256": "7913552d44244a886f0329afdd3580d80d8db46c3ab464a714740376704bdf3a",
+      "bytes": 17993
+    },
+    {
+      "path": "scrollbar-input-native-003/gallery-failure.png",
+      "sha256": "fda5aa003b7482da3deb2f48b75a353583279be6963735fabc2e96746efc89de",
+      "bytes": 505992
+    },
+    {
+      "path": "scrollbar-input-native-003/scrollbar-Light-Comfortable.png",
+      "sha256": "08ffa273b48e0ccbcab41173a04689511dbf212a4fa7c54470976c66fb2f2e62",
+      "bytes": 480546
+    },
+    {
+      "path": "scrollbar-input-native-003/scrollbars-report.json",
+      "sha256": "3320f7635172f25744bb7330ebfb61e43023431208cf3136e93b69a5b1c7aa7f",
+      "bytes": 3413
+    },
+    {
+      "path": "scrollbar-input-native-004.log",
+      "sha256": "66817ce5ebd000edfb3ade88de9fc331b57ac31a4078701d952168b31dc0293c",
+      "bytes": 16915
+    },
+    {
+      "path": "scrollbar-input-native-004/failure.png",
+      "sha256": "25cd18d02a3dc7936674607f1fd40679b1d2967f4b8c7b6a31ded01dc4843e4b",
+      "bytes": 469967
+    },
+    {
+      "path": "scrollbar-input-native-004/gallery-failure.png",
+      "sha256": "25cd18d02a3dc7936674607f1fd40679b1d2967f4b8c7b6a31ded01dc4843e4b",
+      "bytes": 469967
+    },
+    {
+      "path": "scrollbar-input-native-004/scrollbars-report.json",
+      "sha256": "64152da0f7773dea9e0345d6839308adebabd026e8aa59bd9ac878a3e88d35a7",
+      "bytes": 1646
+    },
+    {
+      "path": "scrollbar-input-native-005.log",
+      "sha256": "43cab3eca476c785065ca1d48be3e85a9a269fd10b763ebf432dca5031a27927",
+      "bytes": 7616
+    },
+    {
+      "path": "scrollbar-input-native-005/scrollbar-Dark-Comfortable.png",
+      "sha256": "79c508a2cf049cfae44f300e45fcdec60bfe247df596238dc1927026e9ea105e",
+      "bytes": 488424
+    },
+    {
+      "path": "scrollbar-input-native-005/scrollbar-Dark-Compact.png",
+      "sha256": "1e6b709c6620090cba0be64c5b1d2ad0f91eeb453a6f390abb39f2ddde97e33a",
+      "bytes": 468797
+    },
+    {
+      "path": "scrollbar-input-native-005/scrollbar-Dark-Large.png",
+      "sha256": "e323455059bfc2cc70267cfe8ed607b0618a5f725e93d0526b07ed09d30c8f55",
+      "bytes": 517385
+    },
+    {
+      "path": "scrollbar-input-native-005/scrollbar-Light-Comfortable.png",
+      "sha256": "08ffa273b48e0ccbcab41173a04689511dbf212a4fa7c54470976c66fb2f2e62",
+      "bytes": 480546
+    },
+    {
+      "path": "scrollbar-input-native-005/scrollbar-Light-Compact.png",
+      "sha256": "7780e2322cdd6b3e6e25b25803602171fe7f7f6ed8a934b0762af4c37d3752b5",
+      "bytes": 458586
+    },
+    {
+      "path": "scrollbar-input-native-005/scrollbar-Light-Large.png",
+      "sha256": "8f98758bf429327adfe4304c15a24d5c79e0ed81a28b1d055a3ab907f9a68c33",
+      "bytes": 514197
+    },
+    {
+      "path": "scrollbar-input-native-005/scrollbars-report.json",
+      "sha256": "dffb9628c59fcbddb90a5f0db752894e309f4811df33f3764ed132936267a496",
+      "bytes": 11927
+    },
+    {
+      "path": "scrollbar-input-installed-001.log",
+      "sha256": "a8af77d20105d8c3d8a1cdc3acad0d7d15f280e09563379cb1e942b2811d4a8f",
+      "bytes": 7675
+    },
+    {
+      "path": "scrollbar-input-installed-001/scrollbar-Dark-Comfortable.png",
+      "sha256": "79c508a2cf049cfae44f300e45fcdec60bfe247df596238dc1927026e9ea105e",
+      "bytes": 488424
+    },
+    {
+      "path": "scrollbar-input-installed-001/scrollbar-Dark-Compact.png",
+      "sha256": "1e6b709c6620090cba0be64c5b1d2ad0f91eeb453a6f390abb39f2ddde97e33a",
+      "bytes": 468797
+    },
+    {
+      "path": "scrollbar-input-installed-001/scrollbar-Dark-Large.png",
+      "sha256": "e323455059bfc2cc70267cfe8ed607b0618a5f725e93d0526b07ed09d30c8f55",
+      "bytes": 517385
+    },
+    {
+      "path": "scrollbar-input-installed-001/scrollbar-Light-Comfortable.png",
+      "sha256": "08ffa273b48e0ccbcab41173a04689511dbf212a4fa7c54470976c66fb2f2e62",
+      "bytes": 480546
+    },
+    {
+      "path": "scrollbar-input-installed-001/scrollbar-Light-Compact.png",
+      "sha256": "7780e2322cdd6b3e6e25b25803602171fe7f7f6ed8a934b0762af4c37d3752b5",
+      "bytes": 458586
+    },
+    {
+      "path": "scrollbar-input-installed-001/scrollbar-Light-Large.png",
+      "sha256": "8f98758bf429327adfe4304c15a24d5c79e0ed81a28b1d055a3ab907f9a68c33",
+      "bytes": 514197
+    },
+    {
+      "path": "scrollbar-input-installed-001/scrollbars-report.json",
+      "sha256": "dffb9628c59fcbddb90a5f0db752894e309f4811df33f3764ed132936267a496",
+      "bytes": 11927
+    },
+    {
+      "path": "scrollbar-narrow-before.log",
+      "sha256": "e0676c93839d3e1c4992f571032d8ce027f33f9b2a9f384c5c28196f842b1dac",
+      "bytes": 592116
+    },
+    {
+      "path": "scrollbar-narrow-before-002.log",
+      "sha256": "07994fc0c974d629c65e4ecbd6c4d87074de006aa28cf86f200e163a03b39077",
+      "bytes": 592337
+    },
+    {
+      "path": "scrollbar-narrow-before-003.log",
+      "sha256": "6aa0768952bd5adccb014a89e227412cc97e7389b5e046da6e4b3ac0f370ffbb",
+      "bytes": 592777
+    },
+    {
+      "path": "scrollbar-narrow-after.log",
+      "sha256": "6b1ae9712ac47669e02baba7f291e688e91f56b841b9ecf172bf7781f87b3560",
+      "bytes": 721189
+    },
+    {
+      "path": "scrollbar-narrow-gallery-build.log",
+      "sha256": "7bade1ee42a8d3ba2ceb85ca5d5abfcc7005f5ceec764fd115544acd2f743526",
+      "bytes": 100138
+    },
+    {
+      "path": "scrollbar-width-consumer-build.log",
+      "sha256": "789d82d7ec0f0e8c7b9a82642cddd8b00ebd6954631cb90a863413f5b289e574",
+      "bytes": 200831
+    },
+    {
+      "path": "scrollbar-width-clippy.log",
+      "sha256": "2e96876d701adaa7ee276e7875d74b73fda9c6081aa3828c6e6f9d992e454984",
+      "bytes": 591866
+    }
+  ],
+  "archive_sha256": "c2f67c7ddd63c5b1a82d1edfda244ba82f51eda32a899109ab28a63dedf20e0b"
+}

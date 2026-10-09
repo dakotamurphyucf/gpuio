@@ -1,9 +1,22 @@
-//! Real background window rendering through the production declarative View.
+//! Real window rendering through the production declarative View. Static checks
+//! stay in the background; animated-avatar playback explicitly activates it.
 use super::*;
 #[path = "avatar_test.rs"]
 mod avatars;
 #[path = "button_icon_test.rs"]
 mod buttons;
+#[path = "control_appearance_native_test.rs"]
+mod control_appearance;
+#[path = "gradient_test.rs"]
+mod gradients;
+#[path = "icon_transform_view_test.rs"]
+mod icon_transforms;
+#[path = "progress_native_test.rs"]
+mod progress_pixels;
+#[path = "avatar_rich_test.rs"]
+mod rich_avatars;
+#[path = "spinner_native_test.rs"]
+mod spinners;
 #[path = "image_svg_view_test.rs"]
 mod svg;
 use crate::{session::Session, transport::Transport};
@@ -132,10 +145,12 @@ pub(crate) fn run() {
         session.borrow_mut().hello(VERSION, CAPABILITIES).unwrap();
         session.borrow_mut().open(1, window_id(), "Image view test", 96., 96.).unwrap();
         let red = source(&mut session.borrow_mut(), [250, 10, 20]);
+        eprintln!("GPUIO_NATIVE_IMAGE_PHASE: opening background window");
         let window = cx.open_window(WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(Bounds::centered(None, size(px(96.),px(96.)),cx))),
             focus: false, ..Default::default()
         }, |_, cx| cx.new(|_| View::new(window_id(), session.clone(), transport.clone()))).unwrap();
+        eprintln!("GPUIO_NATIVE_IMAGE_PHASE: background window opened");
         cx.spawn(async move |cx| {
             let result = crate::host::native_test::protect(async {
                 apply(cx, window, vec![
@@ -144,12 +159,14 @@ pub(crate) fn run() {
                     Op::SetStyle(node(), vec![Style::Fields(vec![Field::Width(Length::Px(96.)), Field::Height(Length::Px(96.))])]),
                     Op::SetRoot(Some(node())),
                 ]);
+                eprintln!("GPUIO_NATIVE_IMAGE_PHASE: initial image tree applied; waiting for decode/render");
                 // Accepted mounts acquire before any later release, even when
                 // the first frame/decode has not happened yet.
                 session.borrow_mut().assets().unwrap().release(red).unwrap();
                 let ready = ImageState::Ready(ImageMetadata { width_px: 4, height_px: 4, frames: 1 });
                 observed(cx, window, ready).await;
                 pixels(cx, window, [250,10,20,255]);
+                eprintln!("GPUIO_NATIVE_IMAGE_PHASE: initial GPU pixels verified; checking semantics");
                 #[cfg(target_os = "macos")]
                 {
                     let _ = crate::host::control_test::accessible_role(cx, window, "Preview");
@@ -202,8 +219,14 @@ pub(crate) fn run() {
                 window.update(cx, |view, _, _| assert!(view.images.is_empty())).unwrap();
                 assert_eq!(session.borrow_mut().assets().unwrap().stats().retired, 0);
                 svg::exercise(cx, window, &session).await;
+                icon_transforms::exercise(cx, window, &session).await;
                 buttons::exercise(cx, window, &session, &transport).await;
                 avatars::exercise(cx, window, &session, &transport).await;
+                gradients::exercise(cx, window).await;
+                rich_avatars::exercise(cx, window, &session, &transport).await;
+                spinners::exercise(cx, &session, &transport).await;
+                progress_pixels::exercise(cx, &session, &transport).await;
+                control_appearance::exercise(cx, &session, &transport).await;
                 image_host::shutdown(cx).await;
                 window.update(cx, |_, window, _| window.remove_window()).unwrap();
                 eprintln!("GPUIO_NATIVE_IMAGE_VIEWS_OK: actual pixels, accepted mount retirement, restyle, replacement, local errors, state events and disposal");

@@ -1,0 +1,199 @@
+# Measured carousel-track walkthrough
+
+Read [carousel_track_preview.ml](carousel_track_preview.ml) and its
+[interface](carousel_track_preview.mli). [journeys_page.ml](journeys_page.ml) mounts it on
+**Carousels & journeys**. `B` aliases `Bonsai.Cont`, `V` `Gpuio_bonsai.View`, `C` Carousel_track
+and `Editor` Gpuio_eio.Text_input. `graph` hosts reactive state/controller computations;
+`let%arr` derives the current view rather than running an animation loop.
+
+`Card.t` has Capture/Explore/Refine/Publish with stable IDs and extents 280/240/220/260.
+`Action.t` separates controlled requests from axis/loop/auto/disabled/order changes. Pure
+`apply` evolves [`Carousel_track`](../../lib/core/carousel_track.mli) through validated
+operations. `B.state_machine0` returns current model and dispatch effect constructor, reducing
+against the latest model. Initial selection is first, horizontal, enabled, without looping/auto
+advancement; compact starts false and animated true.
+
+A native Next/track interaction sends a `C.Request`; its effect dispatches Request, updates the
+latest measured model and makes `let%arr` derive selection/view changes for native movement.
+Merely constructing dispatch does not run it. Layout requests supply native measurements rather
+than a second selection owner. Stale lineages/geometry/proposals are rejected; model updates
+preserve revision/lineage, while fresh create belongs with a fresh view key.
+
+`V.carousel_track` mounts measured-idea-track with bounded viewport and variable-sized cards.
+Capture contains one retained native editor; other cards contain explicit `Select` effects.
+Reversing stable IDs or changing axis retains surviving content and invalidates old
+measurements. Native motion is 200ms by default, or immediate; reduced motion/inactive
+windows/unavailable geometry settle. Toggle Auto supplies a four-second interval: advancement is
+proposed natively and pauses during interaction, not an OCaml timer. Short tracks can use
+immediate loop-boundary jumps rather than seamless wrapping.
+
+`Toggle_auto` changes the model's optional `Auto_advance` value. Once enabled,
+Rust schedules one deadline after eligible settled paint. Focus or hover within
+the track/control group, disabled navigation, inactive windows, reduced motion
+and captured gestures cancel that deadline. Resuming starts a fresh interval;
+there is no accumulated catch-up count. At expiry Rust sends one `Auto_next`
+proposal carrying the current model revision, geometry epoch and source/target.
+`C.apply_request` checks that proposal against the latest model before selecting
+the next card. The ensuing model update permits the next native interval. Neither
+the four-second deadline nor each animation frame runs a Bonsai clock callback.
+
+Page removal retires the native timer and its event owner. The example's Bonsai
+model can retain selection/options while that page is inactive, but a retired
+native proposal cannot keep moving its selection. This differs from the native
+draft controller's page-scoped lifetime described below.
+
+For example, type into Capture, focus **Measured idea cards**, then press End.
+Rust translates the viewport key into `Request.Last`; `on_request` constructs the
+Bonsai dispatch effect and the reducer chooses the last measured stop. The next
+view update moves the retained cards natively. Capture's fully clipped editor is
+removed from the exposed accessibility tree but its draft remains owned by the
+mounted editor controller. Home selects the first stop and exposes that same
+draft again. Keys sent to the editor itself retain their editing meaning.
+
+`Reverse` calls `with_items` with reversed stable IDs, preserving the selected
+card and invalidating obsolete geometry. It does not allocate a new model with
+`create`. The Compact viewport toggle changes styles and triggers fresh native
+measurement without replacing the editor. Leaving the entire gallery page ends
+that controller's lifetime: returning starts a new editor with `initial_text`.
+This is distinct from retaining a card while the track remains mounted; persist
+drafts in an application model if they must survive page destruction.
+
+Type Capture’s draft, reverse cards/change axis, select neighbors and enable automatic movement.
+Selection readout is controlled model state; the draft is independent. GPUIO owns
+measurement/input/motion, Bonsai owns the evolving model/options and the adapter owns editor
+lease. No asset scope/background worker exists. The public contract still leaves full
+focus/accessibility qualification unfinished. Adapt with stable IDs, latest-model request
+handling and bounded geometry; do not claim acceptance from rendering or treat auto advancement
+as application work.
+
+## Run and review
+
+From the repository root:
+
+```sh
+./scripts/gpuio build examples/gallery/main.exe
+./_build/default/examples/gallery/main.exe
+```
+
+These repository-wrapper commands are instructions, not validation performed for this
+documentation change. There is no standalone executable or self-test for this component.
+Compilation does not establish native focus, keyboard, animation or platform acceptance. See
+[gallery instructions](README.md) and [development](../../docs/development.md).
+
+Run the scoped native walkthrough with
+`python3 scripts/test_gallery.py --section carousel-track --images scratch/carousel-track`.
+It checks actual keyboard editing/navigation, both axes/themes, partial-neighbor
+pointer input, reorder/resize retention, looping, disabled controls and remount.
+The [recorded desktop evidence](../../docs/evidence/carousel-track-macos-och41.md)
+keeps automatic advancement, drag/wheel cancellation, VoiceOver and frame timing
+separate from this subset of the full qualification plan.
+
+For the automatic policy walkthrough, use
+`python3 scripts/test_gallery.py --section carousel-automatic --images scratch/carousel-automatic`.
+It samples the selected-card readout while focus, hover, disabled state, an
+inactive original window and application reduced motion prevent advancement,
+then checks fresh intervals and retirement after leaving the page. It temporarily
+selects the app's Full/Reduced motion policies and restores System on success;
+it does not change macOS preferences. Its interval observations include native
+dispatch, Bonsai delivery and AX sampling, not just timer precision.
+
+### Background dragging and child input
+
+`V.carousel_track` also installs native pointer handling around these retained
+cards. No OCaml drag callback is needed. A primary-button press in noninteractive
+card space starts a possible drag; moving at least eight pixels predominantly
+along the configured axis claims it. Rust previews the measured offset while
+the button is held. The Bonsai selection and caption still show the accepted
+card during that preview.
+
+Releasing a claimed drag chooses the nearest measured card and sends the same
+typed selection request used by the controls. The component's `Request` action
+passes it through `C.apply_request`, and the next reactive view supplies the
+accepted model. For example, dragging left from Capture toward Explore first
+moves the native track, then changes the caption after release and Bonsai
+delivery. Escape cancels the preview without submitting that selection.
+
+The wrapper respects native child controls: a drag in `Editor.view draft` belongs
+to the text input and selects text. Cross-axis movement, movement below the
+threshold and a disabled track do not select another card. Disabled viewports
+also reject focus; disabling navigation does not turn child editing into a
+background gesture.
+
+Use `python3 scripts/test_gallery.py --section carousel-drag --images scratch/carousel-drag`
+for the desktop pointer walkthrough. It checks both axes/themes, release,
+Escape, axis locking, small movements, disabled navigation and native text
+selection. Wheel/trackpad delivery and presentation timing require separate
+checks; this walkthrough does not establish those properties.
+
+### Line-wheel navigation and outer-page scrolling
+
+The same `V.carousel_track` wrapper routes wheel input natively. On a horizontal
+track, horizontal line-wheel input proposes a previous/next card. Vertical input
+passes to the enclosing page. Horizontal endpoint input remains pinned to the
+track. On a vertical track, a wheel toward an available neighbor proposes that
+neighbor; a new outward wheel at the first or last card passes to the outer page.
+The wrapper tests availability using measured geometry and current selection,
+so application code does not need to calculate these boundaries.
+
+For example, scrolling down from Capture in vertical mode emits `Next`. The
+existing `Request` action applies it through `C.apply_request`; Bonsai updates the
+model, caption and view, while the page stays in place. At Publish, a new downward
+wheel has no next card, so the page scrolls instead. Each line-wheel burst proposes
+one step; Rust owns burst tracking and its quiet deadline, with no per-delta
+callback to OCaml. Precise trackpad gestures additionally preview pixel movement
+and have separate completion/cancellation behavior.
+
+Run `python3 scripts/test_gallery.py --section carousel-wheel --images scratch/carousel-wheel`
+for actual macOS line-wheel delivery through AppKit in both themes and axes. The
+fixture uses immediate movement, checks selection and outer-page geometry, and
+separates individual wheel events beyond the burst deadline. It does not measure
+motion smoothness, test multi-event burst timing, or qualify hardware trackpads.
+
+### Interrupting a preview and retiring the page
+
+A drag preview belongs to the mounted native track. Losing window activation,
+changing viewport geometry or removing the track cancels that preview; a later
+mouse-up must not submit its proposed card. For example, begin dragging Capture
+toward Explore and open another window before releasing. The original window
+keeps Capture selected when it returns. The accepted `C.t` model changes only when
+its reducer receives a valid current request, so the native preview is not itself
+application selection state.
+
+`Editor.create window ... graph` gives the draft a different lifetime from the
+native drag. Window deactivation and viewport resizing preserve the mounted page's
+editor, so typed content remains. Switching to Presentation removes this page's
+native editor. Returning constructs an editor with `initial_text`; it does not
+recover the previous native text automatically. Applications that need that text
+to survive page retirement must keep it in application state or retain the editor
+in a longer-lived scope, as described by the editor ownership contract.
+
+`python3 scripts/test_gallery.py --section carousel-lifecycle --images scratch/carousel-lifecycle`
+checks these three interruptions on both axes and themes. It observes a revealed
+neighbor before interrupting, then checks that release cannot change Capture.
+For window deactivation it verifies that the second owned window becomes focused.
+It also distinguishes retained text from a fresh page editor. This is lifecycle
+behavior validation; it does not count GPU allocations or establish idle CPU use.
+
+### Keyboard traversal and clipped cards
+
+The viewport is a Tab stop and handles navigation keys itself. Its visible cards
+keep their native descendants in the Tab order: the Capture editor owns ordinary
+text input, and each visible neighboring button owns its own activation. A fully
+clipped card is excluded from keyboard traversal and the exposed accessibility
+tree. Navigating the viewport reveals its retained descendants again; clipping
+alone does not destroy `Editor.create`'s page-scoped draft.
+
+With this example's compact horizontal viewport at Capture, Tab visits Card draft,
+then the partially visible Explore card's button, then the track's Next control.
+At Publish, the visible Refine and Publish buttons precede Previous. In vertical
+compact mode, only Capture or Publish is visible at those respective ends. This
+order comes from the retained `~content` children and generated track controls,
+not from an OCaml key handler that manually moves focus. Shift-Tab traverses the
+same visible controls backward.
+
+`python3 scripts/test_gallery.py --section carousel-focus --images scratch/carousel-focus`
+checks those exact native focus identities on both axes, both themes and all three
+preview scales. It also expands the viewport and verifies retained draft/selection.
+The application-level macOS focus query must identify the actual control, not just
+its containing window. These checks establish keyboard and accessibility-query
+behavior; they do not establish VoiceOver speech or navigation.

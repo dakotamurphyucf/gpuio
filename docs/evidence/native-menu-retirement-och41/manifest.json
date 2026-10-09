@@ -1,0 +1,120 @@
+{
+  "metadata": {
+    "base_revision": "78a001f915f7fb38a279714485879cf6e24e494e",
+    "machine": "Darwin arm64",
+    "native_binary_sha256": "b8de57b7142844fd5f4f17fb7609a9ae4b88991a97a3c2e0c6ae565bfeaa6565",
+    "patch_sha256": "e824292eb3491a1eaf08c829a660633a82955025607d28449bbf1ed7dae1f955",
+    "native_child_exit": 0,
+    "regression_baseline_exit": 101,
+    "clipboard_preserved": false,
+    "gui_scope": "programmatic real AppKit delegate and existing native_menus fixture; not physical menu clicking"
+  },
+  "archive_sha256": "72c62cafcf18f8b5a8e4da86070ed2ed890dea52a286d2c086b314b7859beac7",
+  "files": [
+    {
+      "path": "menu-retention-before.log",
+      "sha256": "4ac95e8c613011fcbcea9ce79cd7c45c44a8b411cfe043a08cdb2f85c214a0a6",
+      "bytes": 589460
+    },
+    {
+      "path": "menu-retention-after.log",
+      "sha256": "6e9291bcf1a79757608bff06ba849ddf54a9a3797ed34795f200f86aa70bb0b1",
+      "bytes": 589287
+    },
+    {
+      "path": "menu-retention-after-002.log",
+      "sha256": "4b3d7bcc6e5e1f006a5fcb5a9a7769ce4748e147cd2f8e367cba3e72158aefa9",
+      "bytes": 589307
+    },
+    {
+      "path": "menu-actions-test.log",
+      "sha256": "4eb42a9eb666a4fa2d05a8fcb2b63bb545f56240e9921c098f22fbaf1c207298",
+      "bytes": 397
+    },
+    {
+      "path": "menu-retention-registry.log",
+      "sha256": "3ab9c7eba63e6427f2ed3fbbb5d9ecc5a15530eca50678b8d71e761100a67aac",
+      "bytes": 588570
+    },
+    {
+      "path": "menu-retention-native.log",
+      "sha256": "bb340088ae978ea919000f12bc58f8281d2284ae26403c953212c925483f000b",
+      "bytes": 716947
+    },
+    {
+      "path": "menu-retention-clippy.log",
+      "sha256": "cbc11ea5fe73ca70f9c8f7d2960127c7d44222d2e8912d47cf8cda34d2781d6d",
+      "bytes": 588440
+    },
+    {
+      "path": "menu-retention-validation.json",
+      "sha256": "3840ddbbb1a7bd00b368b736ba481ebb8059bffe863d9c65b9bd1b353630ceca",
+      "bytes": 991
+    },
+    {
+      "path": "menu-retention-metadata.json",
+      "sha256": "7f72a84795d02ee22e5b6a0a8955722016c5271c2dda1560c3a5a481ef3f1749",
+      "bytes": 482
+    },
+    {
+      "path": "menu-macos-reconstruction-final.log",
+      "sha256": "632f1d8b34ef6741c213df80af82391b3e3439e19677096e835672077bbe8a43",
+      "bytes": 193
+    },
+    {
+      "path": "menu-macos-reconstruction-final.json",
+      "sha256": "750a964d0135f4886640a2d2d1a0b0ec5971e93edf27ef1143f993bb052386ed",
+      "bytes": 1735
+    },
+    {
+      "path": "menu-platform-before.rs",
+      "sha256": "9202daf13af036e3ad0a7f3f8de54721a8bcebeb270b1f650cd0a6bf9f75aa04",
+      "bytes": 60156
+    },
+    {
+      "path": "menu-retention-source.patch",
+      "sha256": "64c99b03bc29678a193b63dd6961989cce92c67d1a94e4bb595104008d7c59ac",
+      "bytes": 6930
+    },
+    {
+      "path": "validate-menu-retention.py",
+      "sha256": "fe0fd70dcb71d2ecfc5c81ca961445f0c0c8276a989f674a5fe05bbb33c5e70d",
+      "bytes": 1254
+    },
+    {
+      "path": "source/vendor/gpui-macos/src/menu_actions.rs",
+      "sha256": "7a5145b00458e50abbec0e6e50c89d11336f19192052664a1a80280b3e5a36f0",
+      "bytes": 4285
+    },
+    {
+      "path": "source/vendor/gpui-macos/src/platform.rs",
+      "sha256": "2a68474057a8c66780ad927ba592e5f0f8d4894894c226ce81ae3f3fa525011b",
+      "bytes": 60764
+    },
+    {
+      "path": "source/vendor/gpui-macos/src/gpui_macos.rs",
+      "sha256": "ed340fee83d635fb419d603d2cd406cd84adcbd94bd31d69fb3bfa8e3b731486",
+      "bytes": 3159
+    },
+    {
+      "path": "source/rust/native/src/menu_retention_test.rs",
+      "sha256": "b28d24baa8344b52cb8da83d0c3eed97d2bc708d4beae6fb9d4687b9aaa561bb",
+      "bytes": 4437
+    },
+    {
+      "path": "source/rust/native/src/menu_test.rs",
+      "sha256": "6deca3e361af40e743f5466f1cc562cc201be05ab655b596724cc1ef5b66ffd9",
+      "bytes": 35636
+    },
+    {
+      "path": "source/rust/native/tests/menu_action_registry.rs",
+      "sha256": "d3d828ca856552a3a04c6e9978971833adf29576420378834af4a4683754d2bd",
+      "bytes": 276
+    },
+    {
+      "path": "source/third_party/patches/gpui-macos.patch",
+      "sha256": "e824292eb3491a1eaf08c829a660633a82955025607d28449bbf1ed7dae1f955",
+      "bytes": 10545
+    }
+  ]
+}

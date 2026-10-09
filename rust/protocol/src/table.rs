@@ -8,6 +8,172 @@ pub const MAX_SCHEMA_TEXT_BYTES: usize = 262_144;
 pub const MAX_ACTIVE_CELLS: usize = 16_384;
 pub const MAX_COPY_BYTES: usize = 65_536;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum Boundary {
+    Stop,
+    Wrap,
+}
+
+/// Optional table behavior extension; the original Config and Column wire
+/// layouts remain unchanged. Eligibility gates column headers, never cells.
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct Behavior {
+    pub row_header: bool,
+    pub boundary: Boundary,
+    pub selectable_headers: Option<Vec<String>>,
+}
+impl Default for Behavior {
+    fn default() -> Self {
+        Self {
+            row_header: true,
+            boundary: Boundary::Wrap,
+            selectable_headers: None,
+        }
+    }
+}
+impl Behavior {
+    pub fn is_valid(&self) -> bool {
+        self.selectable_headers.as_ref().is_none_or(|ids| {
+            ids.len() <= MAX_COLUMNS
+                && ids.iter().all(|id| valid_id(id))
+                && ids.iter().collect::<BTreeSet<_>>().len() == ids.len()
+        })
+    }
+    pub fn valid_schema(&self, config: &Config) -> bool {
+        self.selectable_headers
+            .as_ref()
+            .is_none_or(|ids| ids.iter().all(|id| config.has_column(id)))
+    }
+    pub fn header_selectable(&self, id: &str) -> bool {
+        self.selectable_headers
+            .as_ref()
+            .is_none_or(|ids| ids.iter().any(|v| v == id))
+    }
+    pub fn allows_selection(&self, selection: &Selection) -> bool {
+        match selection {
+            Selection::Column(id) => self.header_selectable(id),
+            _ => true,
+        }
+    }
+    pub fn allows_request(&self, request: &Request) -> bool {
+        match request {
+            Request::Select(s) | Request::Context(s) | Request::Copy(s) => self.allows_selection(s),
+            _ => true,
+        }
+    }
+    pub fn allows_target(&self, target: &Target) -> bool {
+        match target {
+            Target::SetSelection(s) => self.allows_selection(s),
+            _ => true,
+        }
+    }
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.selectable_headers.as_ref().map_or(0, |ids| {
+                ids.iter()
+                    .map(|id| std::mem::size_of::<String>() + id.len())
+                    .sum::<usize>()
+            })
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, BinProtWrite)]
+pub enum Part {
+    HeaderBackground,
+    HeaderForeground,
+    StripeBackground,
+    HoverBackground,
+    SelectedBackground,
+    SelectedBorder,
+    RowBorder,
+    ColumnBorder,
+    SortHoverBackground,
+    SortPressedBackground,
+    SortForeground,
+    DragBorder,
+    ContextBorder,
+}
+#[derive(Clone, Copy, Debug, PartialEq, BinProtWrite)]
+pub struct Padding {
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
+    pub left: f64,
+}
+impl Padding {
+    pub fn is_valid(&self) -> bool {
+        [self.top, self.right, self.bottom, self.left]
+            .into_iter()
+            .all(|n| n.is_finite() && (0. ..=4096.).contains(&n))
+    }
+}
+#[derive(Clone, Debug, Default, PartialEq, BinProtWrite)]
+pub struct Appearance {
+    pub striped: bool,
+    pub colors: Vec<(Part, i64)>,
+    pub padding: Option<Padding>,
+    pub column_padding: Vec<(String, Padding)>,
+}
+impl Appearance {
+    pub fn is_valid(&self) -> bool {
+        self.colors.len() <= 13
+            && self
+                .colors
+                .iter()
+                .map(|(p, _)| p)
+                .collect::<BTreeSet<_>>()
+                .len()
+                == self.colors.len()
+            && self
+                .colors
+                .iter()
+                .all(|(_, c)| (0..=0xffff_ffff).contains(c))
+            && self.padding.is_none_or(|p| p.is_valid())
+            && self.column_padding.len() <= MAX_COLUMNS
+            && self
+                .column_padding
+                .iter()
+                .map(|(id, _)| id)
+                .collect::<BTreeSet<_>>()
+                .len()
+                == self.column_padding.len()
+            && self
+                .column_padding
+                .iter()
+                .all(|(id, p)| valid_id(id) && p.is_valid())
+    }
+    pub fn valid_schema(&self, config: &Config) -> bool {
+        self.column_padding
+            .iter()
+            .all(|(id, _)| config.has_column(id))
+    }
+    pub fn color(&self, part: Part) -> Option<i64> {
+        self.colors
+            .iter()
+            .find_map(|(p, c)| (*p == part).then_some(*c))
+    }
+    pub fn column_padding(&self, id: &str) -> Option<Padding> {
+        self.column_padding
+            .iter()
+            .find_map(|(key, p)| (key == id).then_some(*p))
+            .or(self.padding)
+    }
+    pub fn geometry_equal(a: Option<&Self>, b: Option<&Self>) -> bool {
+        a.and_then(|v| v.padding) == b.and_then(|v| v.padding)
+            && a.map_or(&[][..], |v| v.column_padding.as_slice())
+                == b.map_or(&[][..], |v| v.column_padding.as_slice())
+    }
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.colors.len() * std::mem::size_of::<(Part, i64)>()
+            + self
+                .column_padding
+                .iter()
+                .map(|(id, _)| std::mem::size_of::<(String, Padding)>() + id.len())
+                .sum::<usize>()
+    }
+}
+
 pub fn valid_text(text: &str, empty: bool, limit: usize) -> bool {
     (empty || !text.is_empty()) && text.len() <= limit && !text.contains('\0')
 }
@@ -459,6 +625,43 @@ pub struct Input {
     pub schema_revision: i64,
     pub query_generation: i64,
     pub request: Request,
+}
+
+/// Stable column bands in display order, independent of row-data availability.
+#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+pub struct ColumnViewport {
+    pub schema_revision: i64,
+    pub query_generation: i64,
+    pub columns: Vec<(String, Pin, bool)>,
+}
+impl ColumnViewport {
+    pub fn is_valid(&self) -> bool {
+        let mut ids = BTreeSet::new();
+        let mut scrolling = false;
+        self.schema_revision > 0
+            && self.query_generation >= 0
+            && self.columns.len() <= MAX_COLUMNS
+            && self.columns.iter().all(|(id, pin, _)| {
+                let pin_order = !scrolling || *pin == Pin::Unpinned;
+                scrolling |= *pin == Pin::Unpinned;
+                valid_id(id) && ids.insert(id) && pin_order
+            })
+    }
+    pub fn matches_schema(&self, config: &Config) -> bool {
+        self.is_valid()
+            && self.schema_revision == config.schema_revision
+            && self.query_generation == config.query_generation
+            && self.columns.iter().all(|(id, pin, _)| {
+                config
+                    .schema
+                    .columns
+                    .iter()
+                    .any(|c| c.id == *id && c.pin == *pin)
+            })
+    }
+    pub fn payload_bytes(&self) -> usize {
+        self.columns.iter().map(|(id, _, _)| id.len() + 11).sum()
+    }
 }
 impl Input {
     pub fn is_valid(&self) -> bool {

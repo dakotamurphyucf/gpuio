@@ -21,6 +21,7 @@ module Config : sig
       Spinner cycles twelve radial strokes. Styles set size and foreground color.
       Defaults are 160x16 logical pixels (placeholder) or 20x20 (spinner).
       Visibility, unmount and window lifetime bound native frame requests.
+      Inert subtrees retain a static indicator; hidden subtrees do not paint.
       No completion or progress fraction is invented. *)
   val create
     :  kind:Kind.t

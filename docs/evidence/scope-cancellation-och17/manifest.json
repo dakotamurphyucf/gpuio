@@ -1,0 +1,51 @@
+{
+  "base_revision": "929ef037935862dffe33fe19c7f4e7db786318bd",
+  "platform": {
+    "system": "Darwin",
+    "version": "14.5",
+    "machine": "arm64"
+  },
+  "files": [
+    {
+      "path": "scope-cancel-before.log",
+      "sha256": "dd52de522aec96d7827f8675e00653690129e820b41a4810e873dcedef70ef54",
+      "bytes": 965
+    },
+    {
+      "path": "scope-cancel-after.log",
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866",
+      "bytes": 71
+    },
+    {
+      "path": "scope-cancel-full.log",
+      "sha256": "b1d339053ad495f6a603c62a5ee556a5ce72052d642826b100eac7b6b9827503",
+      "bytes": 284
+    },
+    {
+      "path": "scope-cancel-unregister-before.log",
+      "sha256": "1e30371f77622b91c6d79f381cf2c65a78e3427538ca32f9189f21c7c39cf6b6",
+      "bytes": 865
+    },
+    {
+      "path": "scope-cancel-final.log",
+      "sha256": "b1d339053ad495f6a603c62a5ee556a5ce72052d642826b100eac7b6b9827503",
+      "bytes": 284
+    },
+    {
+      "path": "lib/eio/scope.ml",
+      "sha256": "9d6d06b0632b0b6a3046bf50e497058a58823b643a7a0c232eda356b5ab71a75",
+      "bytes": 6122
+    },
+    {
+      "path": "lib/eio/scope.mli",
+      "sha256": "e5270c02136660fd638ebc0298844c633310b334c80b07a035d001c5d3b9f3d4",
+      "bytes": 3148
+    },
+    {
+      "path": "test/runtime/scope_test.ml",
+      "sha256": "c52bfcbcca0c506e99d772d638b1458d8d332d6f30ccdf7553603bb9d974d04d",
+      "bytes": 12520
+    }
+  ],
+  "archive_sha256": "3a8f2bd0204ccbdda87657d8840973edf591dcff09e08fd37b6f2a289e465a41"
+}

@@ -39,6 +39,7 @@ module Config = struct
 
   let value t = t.W.Config.value
   let maximum t = t.W.Config.maximum
+  let star_size t = t.W.Config.star_size
   let is_disabled t = t.W.Config.disabled
   let is_read_only t = t.W.Config.read_only
 
@@ -57,8 +58,34 @@ module Config = struct
   ;;
 end
 
+module Appearance = struct
+  type t =
+    { active : Color.t option
+    ; inactive : Color.t option
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ?active ?inactive () = { active; inactive }
+  let default = create ()
+end
+
 module Expert = struct
   let to_wire t = t
   let request_of_wire request = Option.some_if (W.Request.valid request) request
   let can_apply = W.Config.can_apply
+
+  let appearance_to_wire (t : Appearance.t) ~theme =
+    let open Or_error.Let_syntax in
+    let resolve = function
+      | None -> return None
+      | Some color ->
+        let%map color = Theme.resolve theme color in
+        Some color
+    in
+    let%bind active = resolve t.active in
+    let%map inactive = resolve t.inactive in
+    if Option.is_none active && Option.is_none inactive
+    then None
+    else Some { W.Appearance.active; inactive }
+  ;;
 end

@@ -1,0 +1,212 @@
+{
+  "run_id": 37629820030,
+  "revision": "e463099626484b27ccb7a420a2a5da91dee2218c",
+  "archive_sha256": "4aa156e4200b1a726ca3b0a07c7309ba22bf7708dd98425dac42d05c888fd5db",
+  "files": [
+    {
+      "path": "apps/agent-chat/report.json",
+      "bytes": 1534,
+      "sha256": "e8b4ce29501bc7f9e7d3377efb8590cadf169e82b8aea16e4338d370fa0912dd"
+    },
+    {
+      "path": "apps/gallery/report.json",
+      "bytes": 3156,
+      "sha256": "9678a7bd63ec8c768533c4591365f6398db45bed8170cba48a9c24e01b5ea540"
+    },
+    {
+      "path": "apps/signal-studio/report.json",
+      "bytes": 1592,
+      "sha256": "421e6349d59c3a8a2ef58d9418cf1eb3404e8bc28ee47e33a76c3d909dd45bd5"
+    },
+    {
+      "path": "hosted-37629820030-failed.log",
+      "bytes": 3810,
+      "sha256": "2a732ebb2b2f8d18332f35141c9d79cee9d52026cdc2928e51f5e274035e6dac"
+    },
+    {
+      "path": "hosted-37629820030-status.json",
+      "bytes": 68219,
+      "sha256": "47ce98533a2dae3ba6db76cd26f29631696bb32f499f83eace877f4546855190"
+    },
+    {
+      "path": "linux/linux-gui-status.json",
+      "bytes": 103,
+      "sha256": "77647998edf755064398f4913bf6acdf6b1d61c393f238b38bdf6e6d474c2649"
+    },
+    {
+      "path": "linux/platform.txt",
+      "bytes": 113,
+      "sha256": "6ecb75ce9d770bd2cfb6898b267dd8f29398821b25cb233675e182e0323ba0d2"
+    },
+    {
+      "path": "linux/tests.log",
+      "bytes": 317007,
+      "sha256": "493ad885a5588fb1804457beb9ee0a6322121c9e291df572d2e55a1d73d2d478"
+    },
+    {
+      "path": "macos/chart-stream/report.json",
+      "bytes": 88875,
+      "sha256": "4ce3dc0c2c8978fbdca37c20099c0fc6b84d280cfe06aeb74af2fbe6fef7eef2"
+    },
+    {
+      "path": "macos/document-profile/report.json",
+      "bytes": 1626,
+      "sha256": "5431fd90d888fdc152bb749c8aa63d917ed299203640cbf947c01b5455a978e9"
+    },
+    {
+      "path": "macos/document-shutdown.json",
+      "bytes": 1916,
+      "sha256": "1f459ec9d27c600f54240d09947ac19910c18ca08b3ff68f422ad8f5146c436a"
+    },
+    {
+      "path": "macos/editor-range-geometry.json",
+      "bytes": 6169,
+      "sha256": "84fc16d3818c361fa3dff0c79aab4b8e3dd1c5d97a62f67160c10fdc02b0a5c0"
+    },
+    {
+      "path": "macos/external-file-drop/report.json",
+      "bytes": 1120,
+      "sha256": "7d57cabc125deece70e9e57629d04cceb6ce4d809b647e70ad802a8fd394eee0"
+    },
+    {
+      "path": "macos/focused-input/report.json",
+      "bytes": 646,
+      "sha256": "d8e3ca10605a4822902c40c7bd6c7aa5bcabe108cc6afa02328c9e14aecd3749"
+    },
+    {
+      "path": "macos/macos-documents-native.log",
+      "bytes": 589991,
+      "sha256": "7ef5a12b9c8ec0e9a66f35ee1cdf6041af6f2d7d5a4936519a8f413fe7b99d7c"
+    },
+    {
+      "path": "macos/metal-counter-calibration.json",
+      "bytes": 415,
+      "sha256": "edfb8e56fee12eb0239977dd75b13e220441543a5cd75f3583913b25e4585a86"
+    },
+    {
+      "path": "macos/metal-lifecycle/physical-memory/cycle-001/footprint.json",
+      "bytes": 7952,
+      "sha256": "7604c1a494e22f1436de18dc58420050d1e289ae8575a67db40b22473452fd44"
+    },
+    {
+      "path": "macos/metal-lifecycle/physical-memory/cycle-001/tools.json",
+      "bytes": 353,
+      "sha256": "a24e07d2924484bd6ad2ad1f8615adc4821b6f19d36fca07745ca13a2b481aa9"
+    },
+    {
+      "path": "macos/metal-lifecycle/physical-memory/cycle-002/footprint.json",
+      "bytes": 7954,
+      "sha256": "08bee8343cabb4c10ec2a7074f29180a19915b5e06ea7e95fb46e5326b6e8f7d"
+    },
+    {
+      "path": "macos/metal-lifecycle/physical-memory/cycle-002/tools.json",
+      "bytes": 353,
+      "sha256": "82452caed8715b72b21e1a6cba0aaad9a5f76b01305adbfc4e101d2e97f97b88"
+    },
+    {
+      "path": "macos/metal-lifecycle/physical-memory/cycle-003/footprint.json",
+      "bytes": 7959,
+      "sha256": "f1ce9834ae587ddf41009db6c65b8942614d6f391a6845beb45e9e010e3342f9"
+    },
+    {
+      "path": "macos/metal-lifecycle/physical-memory/cycle-003/tools.json",
+      "bytes": 353,
+      "sha256": "74ec2192b0f5ee5443040e9fc6107d866fe4e72bc2c9ece103aba7a6f2efba91"
+    },
+    {
+      "path": "macos/metal-lifecycle/physical-memory/cycle-004/footprint.json",
+      "bytes": 7959,
+      "sha256": "8b21a0a521c34b7888487057ca173f4891a94eda450e5de1ef4e0a70983dae07"
+    },
+    {
+      "path": "macos/metal-lifecycle/physical-memory/cycle-004/tools.json",
+      "bytes": 353,
+      "sha256": "ebec5bb60dfb4f370c18e3a894bfc4c23ad915f58329accdfd3c493230c11122"
+    },
+    {
+      "path": "macos/metal-lifecycle/report.json",
+      "bytes": 89950,
+      "sha256": "f72abbd881da632ccded6d40dd8fe799a710ecb717ff753e9a319a79f13acddc"
+    },
+    {
+      "path": "macos/metal-presentation-calibration.json",
+      "bytes": 63560,
+      "sha256": "e99e0e816405b28beb0cd0a68d52219781fe42ac4116599f75883a37bdce5bc5"
+    },
+    {
+      "path": "macos/metal-presentation-display.json",
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "macos/metal-presentation-hook/native.log",
+      "bytes": 122,
+      "sha256": "c0b114dcec83a6744a1b14cf21a9af8597b2a09a9227847e74604c511b9f94ac"
+    },
+    {
+      "path": "macos/metal-presentation-hook/report.json",
+      "bytes": 76211,
+      "sha256": "732537dc2e3fdee176456b82b55f7b5f1520aa96284ece33d4c88b0006ac6219"
+    },
+    {
+      "path": "macos/native-menu-icons/report.json",
+      "bytes": 1972,
+      "sha256": "2b0955d218753b076c7034df9e342afb9a4e91613db4abe54ffb57eb8f4f078e"
+    },
+    {
+      "path": "macos/platform.txt",
+      "bytes": 201,
+      "sha256": "777e75293b0f12491fb2f5aeeb1c27ee6245259e470213dd14274076bc1902dc"
+    },
+    {
+      "path": "macos/signal-motion/full/measurements.json",
+      "bytes": 1360,
+      "sha256": "8d2b7b345cf42f10e629cd9c6e0bd7795c327d3c5cb758f7ba4e233157e4b076"
+    },
+    {
+      "path": "macos/signal-motion/reduce/measurements.json",
+      "bytes": 1645,
+      "sha256": "5e1467773c185da007513e0f5cb0a1c921d26dd8174e250ac98672033f85cca4"
+    },
+    {
+      "path": "macos/signal-workload/report.json",
+      "bytes": 3729,
+      "sha256": "87bf9174e32801444b9e86c7ae7fe9e228638ac8deb293045c1ff3e84e688503"
+    },
+    {
+      "path": "macos/system-appearance/appearance-recovery.json",
+      "bytes": 101,
+      "sha256": "11b85df9512446aa314b8ef0af459ad39023078f8dd1b08a59b78ae91e6ca84f"
+    },
+    {
+      "path": "macos/system-appearance/report.json",
+      "bytes": 2407,
+      "sha256": "02340c5f47531992c5d12068b55b6a8ad1a24b4c10f83a2e611d060936f5c086"
+    },
+    {
+      "path": "macos/tests.log",
+      "bytes": 1539485,
+      "sha256": "eef4fdd397951f71420cd5b5bedf59e139cd77ea309ea2b720ae16033bce2d1b"
+    },
+    {
+      "path": "macos/theme-files/report.json",
+      "bytes": 1345,
+      "sha256": "7735c71ccf478e8eea98813d5987318a713496a96987e59330a9720476ee422f"
+    },
+    {
+      "path": "macos/window-custom/report.json",
+      "bytes": 2404,
+      "sha256": "71b6539badf8d3a00fc54cf6d4c894f5405e4607dc66ad14d51971d3b5b3d3b5"
+    },
+    {
+      "path": "macos/window-selection/report.json",
+      "bytes": 666,
+      "sha256": "37ab96a161532d8b21b0511bf5c7961a509fe22bfb20dc3cfc72d5438e5829d8"
+    },
+    {
+      "path": "macos/window-standard/report.json",
+      "bytes": 1053,
+      "sha256": "7691e9c965538ae5c9feecf754a7dcc4bed4d77b0a92d292908bc525ea587b38"
+    }
+  ]
+}

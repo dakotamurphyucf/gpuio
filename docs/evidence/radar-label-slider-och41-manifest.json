@@ -1,0 +1,57 @@
+{
+  "source_base": "7e3eaa8",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "9edc3ed454e0e94cf7ade7a2485f29a63e0e9a1f1d7760f0edb1c3f5e6f80329",
+  "files": [
+    {
+      "path": "radar-slider-baseline.log",
+      "bytes": 588994,
+      "sha256": "f720cbba680ae7d460e6e47ff2b9837dda0b0c099c2855116b321f745606c4f0"
+    },
+    {
+      "path": "radar-slider-clippy.log",
+      "bytes": 588275,
+      "sha256": "8959137de65a66b1742e9a11bd4a86944922598750712a2f7b3fbda39dd56903"
+    },
+    {
+      "path": "radar-slider-dispatch-baseline.log",
+      "bytes": 588967,
+      "sha256": "a3ca1bf1f91dbdc7e5e25dde13b14751cc858ed44d8cf702bd1f30874f780a87"
+    },
+    {
+      "path": "radar-slider-fixed.log",
+      "bytes": 589350,
+      "sha256": "8e9426aff86f726d06cbc001fda6f2a7c9e137bc2fa54e35c8722f6ea0dfe0fb"
+    },
+    {
+      "path": "radar-slider-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-slider-retirement-baseline.log",
+      "bytes": 588988,
+      "sha256": "d6141ab9b5a25ababcebf480961e9e9dadd3c267fe421adf54bc317a734bd24c"
+    },
+    {
+      "path": "radar-slider-routing-baseline.log",
+      "bytes": 588996,
+      "sha256": "f7735a6d67348aeced86cc945fdd4b8397329ccdfb14555709de4c70586286d3"
+    },
+    {
+      "path": "radar-slider-suite.log",
+      "bytes": 701314,
+      "sha256": "6a8b65bcd434427264ea566dc2d6169327fb7738b1456973ea437c5e0f9f10a2"
+    },
+    {
+      "path": "radar-slider-track-baseline.log",
+      "bytes": 588996,
+      "sha256": "a189a1c17a78fbe0b1a3a4875b42e0d2e54ab1bcd4450dddd26636bf6ed08f7d"
+    },
+    {
+      "path": "radar-slider-visible-baseline.log",
+      "bytes": 589050,
+      "sha256": "4471d56dcfd3b7a2217ed91fc4310fb88441cca850e4d68f46638ff6a3cee0d6"
+    }
+  ]
+}

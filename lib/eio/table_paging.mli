@@ -47,8 +47,10 @@ val retry : (_, _) t -> Direction.t -> unit Or_error.t
 val cancel : (_, _) t -> Direction.t -> unit
 
 (** Atomically validate and accept a new query/source, then cancel old producers.
-    Old results already waiting in the UI inbox are also ignored. Invalid reset
-    leaves current data, query and producers unchanged. *)
+    Old results already waiting in the UI inbox are also ignored, without
+    publishing a fresh [value] or invoking [on_change] merely because a retired
+    worker returns. New results and queued-worker admission failures still publish.
+    Invalid reset leaves current data, query and producers unchanged. *)
 val reset
   :  ('query, 'data) t
   -> query:'query

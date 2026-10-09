@@ -1,0 +1,142 @@
+{
+  "parent_revision": "e91d8486410b093cb481484871b457bd66f1cd27",
+  "platform": "ProductName:\t\tmacOS\nProductVersion:\t\t14.5\nBuildVersion:\t\t23F79",
+  "scope": "Local root pointer observer repair; initial later document-style count failure remains unexplained despite instrumented passing repeats. See evidence document for exact limits.",
+  "source_sha256": {
+    "rust/native/src/host.rs": "ea4a7ae78b2ec0b2d4a287a60a082412f26263fab75dc07446d2a2570a9944c7",
+    "rust/native/src/table_host_test/presentation.rs": "71fda844ea0ab4b4a785a3b401f6739cacbea809f4712793a1f0d8f7f08da786",
+    "rust/native/src/native_test.rs": "d618f1a1f8e036cbf31f22ae5798ed8d6794b55928335e7bfb102de0359c8925",
+    "rust/native/src/highlight_document_test.rs": "55bd12d06152b7d54dcc9282fa0f5802b272a321ebb0885a5b7402e6a12220bd",
+    "rust/native/src/highlight_document_style_test.rs": "9136e5d619e087f0a8d02c324a78d435730a1a1a93c164a7f06d845d3e158964",
+    "docs/design/composed-links.md": "89758a281c029d4b3a1dd1054f4493c636d9ac94233162fd60b5079c3574477d"
+  },
+  "binary_sha256": "e7ed8b9bdcc94abaef8c5d4345b1386f27c4672ce86c67e7e824f8be6b806645",
+  "archive_sha256": "2f40f4765872b3fa65bb4553ad7f93ec3b0590078f32c273178d30e8218da8a0",
+  "files": [
+    {
+      "path": "qualified-change.patch",
+      "bytes": 13374,
+      "sha256": "53c42d08637326aa720fdc3458ae8c17a81997ace484f9f67730f01963370147"
+    },
+    {
+      "path": "view-reentrancy-broad.json",
+      "bytes": 1249,
+      "sha256": "6125ceb89104d56f76ee5ce36ab3f9102019223d99a0e8fc0f552740c9654d85"
+    },
+    {
+      "path": "view-reentrancy-broad.py",
+      "bytes": 1357,
+      "sha256": "1ea13f6ce1f7969307fabcaa8e229c6830b38fde9fb7dd6551dbaa830b3679de"
+    },
+    {
+      "path": "view-reentrancy-checks.json",
+      "bytes": 881,
+      "sha256": "161312faa2d6cd16ba942bb68d12fb7153e0bb9f5496f64f874d9cb236612705"
+    },
+    {
+      "path": "view-reentrancy-checks.py",
+      "bytes": 1712,
+      "sha256": "22c2acd95f46ccd55debb6147d98f6b8d75171a9c37bf59301b38befa17505b8"
+    },
+    {
+      "path": "view-reentrancy-clippy-012.log",
+      "bytes": 588275,
+      "sha256": "f64ff413f721ede9e68501edf71104d89de8e23e2e61b76e14df75513172d14a"
+    },
+    {
+      "path": "view-reentrancy-document-after-006.log",
+      "bytes": 593431,
+      "sha256": "6d7c789b02750464a363651978e8f33b58942c1ab3c0244fe3403ea1499be1d6"
+    },
+    {
+      "path": "view-reentrancy-document-diagnostic-010.log",
+      "bytes": 590634,
+      "sha256": "e3e368f082bad4348512f25327b527a7e350efad68d661e739bd12038afeea5c"
+    },
+    {
+      "path": "view-reentrancy-document-final-016.log",
+      "bytes": 590634,
+      "sha256": "07cc2bfade3a5084961b39f87e527aa2ae2a7f6eef51eb426394efa925b93556"
+    },
+    {
+      "path": "view-reentrancy-dune-013.log",
+      "bytes": 705845,
+      "sha256": "1946bb59094d3ecae9a12e3db00aaac65755719081627c8c85316171c011e05e"
+    },
+    {
+      "path": "view-reentrancy-final.json",
+      "bytes": 1169,
+      "sha256": "ca4a8e465be9bede9378a612197702edbd9e62221003de1fc8ee8970c17388a1"
+    },
+    {
+      "path": "view-reentrancy-final.py",
+      "bytes": 1445,
+      "sha256": "c0af2a9cda9e011a874569aa9ed4a6af9b23dc02881e28519c0825f5b29356f8"
+    },
+    {
+      "path": "view-reentrancy-fmt-014.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "view-reentrancy-followup.json",
+      "bytes": 468,
+      "sha256": "d66e8f11ff89b25cb1b0f65eb5df5a2154b1042ad7aaaf81bad9f0b56b61d3e4"
+    },
+    {
+      "path": "view-reentrancy-followup.py",
+      "bytes": 1180,
+      "sha256": "6cca816660286ec44143d20a08700e498e675ab7a62c767cba907e26c0dad01b"
+    },
+    {
+      "path": "view-reentrancy-held-click-017.log",
+      "bytes": 534,
+      "sha256": "2a6049dab97eed41a874690631cc60773afeb0de5fd0f52233d66bc192edd950"
+    },
+    {
+      "path": "view-reentrancy-held-click.py",
+      "bytes": 1044,
+      "sha256": "d09286ec5c580b6b56ef21768140f64fc5b8349ce44b3dd520c8daaeda7b407e"
+    },
+    {
+      "path": "view-reentrancy-held-down.png",
+      "bytes": 343054,
+      "sha256": "1ffacf103dc2bc74b72376bb9706d8a8d83d137fea56c5eab7298c37a339ba13"
+    },
+    {
+      "path": "view-reentrancy-native-full-011.log",
+      "bytes": 702651,
+      "sha256": "256512c518c242fa1f276596027a88488c3a77c049f9f578d632f037734107c4"
+    },
+    {
+      "path": "view-reentrancy-ui-001.log",
+      "bytes": 598113,
+      "sha256": "04042794f38c9e0037775b575dc0817e71a734de94228eca0a71e02b7018e4d6"
+    },
+    {
+      "path": "view-reentrancy-ui-after-005.log",
+      "bytes": 589054,
+      "sha256": "d2a6b91fa3a0c91cd7927e108179905f08ce3f06260b3ab5e40b287cf665f66f"
+    },
+    {
+      "path": "view-reentrancy-ui-final-015.log",
+      "bytes": 589054,
+      "sha256": "96627e475c7649479ff17e0660c12d8e77eaedb1bd8ab3cec3f30472c5cceaa2"
+    },
+    {
+      "path": "view-reentrancy-unit-after-004.log",
+      "bytes": 588699,
+      "sha256": "0812934ab42826167d9fb5b26aae63e68cb416e2c6e899282d7315a306ca6bb5"
+    },
+    {
+      "path": "view-reentrancy-unit-before-002.log",
+      "bytes": 592261,
+      "sha256": "38fb839a49f3923080eaf44efb2f0ccd26cec95143c6a2d5f844cb0f728dc9fe"
+    },
+    {
+      "path": "view-reentrancy-unit-before-003.log",
+      "bytes": 589209,
+      "sha256": "f8239a8ccbf120e0b871b077c46d060e4c4479148beea4d1b006064338c4ecf5"
+    }
+  ]
+}

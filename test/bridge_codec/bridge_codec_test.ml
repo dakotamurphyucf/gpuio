@@ -1,3 +1,4 @@
+(* These epoch-1 byte fixtures test the retained encoding, not live negotiation. *)
 open Core
 open Gpuio_protocol
 
@@ -29,7 +30,7 @@ let request =
 ;;
 
 let events : Wire.Event.t list =
-  [ Welcome (Wire.version, 7L)
+  [ Welcome (1L, 7L)
   ; Opened (1L, window)
   ; Accepted (window, 128L)
   ; Rendered (window, 128L)

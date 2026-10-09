@@ -1,7 +1,7 @@
 //! Fixed-size semantic targets; source spans name one immutable publication.
 use binprot::macros::BinProtWrite;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, BinProtWrite)]
 pub struct Span {
     pub start_index: i64,
     pub length: i64,
@@ -18,13 +18,13 @@ impl Span {
             && (self.length == 1) == (self.first == self.last)
     }
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, BinProtWrite)]
 pub enum Aggregation {
     Exact,
     Sum,
     Mean,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, BinProtWrite)]
 pub enum Selection {
     Cartesian {
         series: i64,

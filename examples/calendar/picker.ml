@@ -63,6 +63,18 @@ let selection actual expected =
   E.of_thunk (fun () -> assert (C.Selection.equal actual expected))
 ;;
 
+let draft stage picker =
+  match P.draft picker with
+  | Some snapshot -> snapshot
+  | None ->
+    raise_s
+      [%message
+        "Picker draft is not ready"
+          (stage : string)
+          ~is_open:(P.is_open picker : bool)
+          ~error:(P.error picker : Policy.Error.t option)]
+;;
+
 let cancel_during_confirmation picker =
   E.Expert.of_fun ~f:(fun ~callback ->
     E.Expert.eval (P.confirm picker) ~f:callback;
@@ -92,12 +104,33 @@ let exercise
       ~completed
   =
   let current () = E.of_thunk (fun () -> Option.value_exn !latest) in
+  let rec ready stage remaining =
+    let open E.Let_syntax in
+    let%bind t = current () in
+    if P.is_open t && Option.is_some (P.draft t)
+    then E.return t
+    else if remaining = 0 || Option.is_some (P.error t)
+    then
+      E.of_thunk (fun () ->
+        raise_s
+          [%message
+            "Picker did not publish a native draft"
+              (stage : string)
+              ~is_open:(P.is_open t : bool)
+              ~error:(P.error t : Policy.Error.t option)])
+    else (
+      let%bind () = frame window in
+      ready stage (remaining - 1))
+  in
   let reopen () =
     let open E.Let_syntax in
     let%bind t = current () in
     let%bind () = P.open_popup t in
     let%bind () = settle window in
-    current ()
+    (* Window paint acknowledgments do not acknowledge the newly mounted
+       calendar's asynchronous initial snapshot. Wait for that public state,
+       with bounded frame requests and the existing outer test watchdog. *)
+    ready "open" 120
   in
   let replace t selection =
     E.bind (P.command t (Replace { selection; if_revision = None })) ~f:native
@@ -107,9 +140,7 @@ let exercise
   let%bind () = error closed Not_open in
   let%bind first = reopen () in
   let%bind () = E.of_thunk (fun () -> assert (P.is_open first)) in
-  let%bind () =
-    selection (C.Snapshot.selection (P.draft first |> Option.value_exn)) initial
-  in
+  let%bind () = selection (C.Snapshot.selection (draft "initial open" first)) initial in
   let%bind _ = replace first partial in
   let%bind rejected = P.confirm first in
   let%bind () = error rejected Incomplete_range in
@@ -131,7 +162,7 @@ let exercise
   let%bind () = settle window in
   let%bind third = reopen () in
   let%bind () =
-    selection (C.Snapshot.selection (P.draft third |> Option.value_exn)) replacement
+    selection (C.Snapshot.selection (draft "reopen after cancel" third)) replacement
   in
   let%bind () = P.cancel second in
   let%bind () = settle window in
@@ -148,12 +179,18 @@ let exercise
   let%bind () = settle window in
   let%bind () = set_placed true in
   let%bind () = settle window in
-  let%bind remounted = current () in
+  let%bind remounted = ready "placement remount" 120 in
   let%bind () =
-    selection (C.Snapshot.selection (P.draft remounted |> Option.value_exn)) replacement
+    selection (C.Snapshot.selection (draft "placement remount" remounted)) replacement
   in
-  let%bind obsolete = P.confirm third in
-  let%bind () = error obsolete (Native Stale_input) in
+  (* [confirm] resolves the current draft for this opening. A captured native
+     command, unlike confirmation, must reject the old calendar mount. *)
+  let%bind obsolete = P.command third Read_snapshot in
+  let%bind () =
+    E.of_thunk (fun () ->
+      assert (
+        Result.equal C.Snapshot.equal C.Command_error.equal obsolete (Error Stale_input)))
+  in
   let%bind cancelled = cancel_during_confirmation remounted in
   let%bind () = error cancelled Stale_session in
   let%bind () = settle window in
@@ -202,7 +239,7 @@ let exercise
   let%bind historical = reopen () in
   let%bind () =
     selection
-      (C.Snapshot.selection (P.draft historical |> Option.value_exn))
+      (C.Snapshot.selection (draft "restricted reopen" historical))
       C.Selection.empty
   in
   let%bind () = selection !application_value initial in
@@ -230,7 +267,7 @@ let exercise
   let%bind () = error stale Stale_session in
   let%bind single = reopen () in
   let%bind () =
-    selection (C.Snapshot.selection (P.draft single |> Option.value_exn)) single_initial
+    selection (C.Snapshot.selection (draft "single-mode open" single)) single_initial
   in
   let single_replacement = C.Selection.single (day "2024-03-01") |> ok in
   let%bind _ = replace single single_replacement in
@@ -246,7 +283,13 @@ let exercise
   let%bind final = reopen () in
   let%bind () = E.of_thunk (fun () -> App.Window.close window) in
   let%bind closed = P.confirm final in
-  let%bind () = error closed (Native Closed) in
+  let%bind () = error closed Not_open in
+  let%bind native_closed = P.command final Read_snapshot in
+  let%bind () =
+    E.of_thunk (fun () ->
+      assert (
+        Result.equal C.Snapshot.equal C.Command_error.equal native_closed (Error Closed)))
+  in
   E.of_thunk (fun () -> completed := true)
 ;;
 

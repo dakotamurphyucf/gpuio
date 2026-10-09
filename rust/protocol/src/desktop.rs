@@ -10,6 +10,11 @@ pub const MAX_SCHEMES: usize = 16;
 pub const MAX_LINK_BYTES: usize = 16_384;
 pub const MAX_LINKS: usize = 64;
 pub const MAX_LINK_BATCH_BYTES: usize = 262_144;
+pub const MAX_CLIPBOARD_TEXT_BYTES: usize = 262_144;
+
+pub fn valid_clipboard_text(text: &str) -> bool {
+    text.len() <= MAX_CLIPBOARD_TEXT_BYTES && !text.contains('\0')
+}
 
 pub fn valid_scheme(s: &str) -> bool {
     !s.is_empty()
@@ -69,6 +74,12 @@ pub struct Capabilities {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
+pub enum ScrollbarPreference {
+    AutoHide,
+    AlwaysVisible,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Error {
     InvalidRequest,
     NotReady,
@@ -90,13 +101,17 @@ pub enum Request {
     RevealFile(FilePath),
     OpenFile(FilePath),
     RegisterScheme(String),
+    ScrollbarPreference,
+    WriteClipboardText(String),
 }
 impl Request {
     pub fn is_valid(&self) -> bool {
         match self {
             Self::Configure(identity) => identity.is_valid(),
+            Self::WriteClipboardText(text) => valid_clipboard_text(text),
             Self::RegisterScheme(scheme) => valid_scheme(scheme),
             Self::Capabilities
+            | Self::ScrollbarPreference
             | Self::TakeLinks
             | Self::Activate(_)
             | Self::RevealFile(_)
@@ -129,6 +144,7 @@ pub enum Response {
     Requested,
     Registered,
     Failed(Error),
+    ScrollbarPreference(ScrollbarPreference),
 }
 impl Response {
     pub fn is_valid(&self) -> bool {

@@ -380,7 +380,8 @@ fn maximum_spring_program_compilation_has_measured_bounded_retention() {
         Property::BottomLeftRadius,
         Property::BottomRightRadius,
     ];
-    assert_eq!(properties.len(), PROPERTY_COUNT);
+    // Absolute and multiplicative opacity are mutually exclusive.
+    assert_eq!(properties.len(), PROPERTY_COUNT - 1);
     let values = |step: usize| {
         properties
             .iter()
@@ -498,4 +499,292 @@ fn later_paints_preserve_a_live_deadline_but_visibility_invalidates_it() {
     let current = sample(&mut state, 100);
     assert_eq!(current.wake, Wake::At(ms(125)));
     assert!(state.accepts_wake(&current));
+}
+
+#[test]
+fn negative_delay_skips_initial_stages_but_delivery_requires_paint() {
+    let mut cfg = config(1, &[100., 200., 300.], 100);
+    cfg.program.delay_ms = -250;
+    let mut state = make_state(cfg.clone());
+    let advanced = sample(&mut state, 0);
+    assert_eq!(value(&advanced), 250.);
+    assert_eq!(state.completed, 0);
+    assert_eq!(advanced.wake, Wake::Frame);
+    let events = state.painted(advanced);
+    assert_eq!(events.iter().map(|e| e.index).collect::<Vec<_>>(), [1, 2]);
+    assert!(events.iter().all(|e| matches!(
+        e.observation,
+        Observation::StageCompleted(_, StageResult::Played)
+    )));
+    let (value, wake, events) = paint(&mut state, 50);
+    assert_eq!((value, wake), (300., Wake::Idle));
+    assert_eq!(events.iter().map(|e| e.index).collect::<Vec<_>>(), [3, 33]);
+    assert!(paint(&mut state, 1000).2.is_empty());
+    cfg.program.delay_ms = -86_400_000;
+    let mut finished = make_state(cfg);
+    let terminal = sample(&mut finished, 0);
+    assert!(!finished.is_finished());
+    assert_eq!(terminal.wake, Wake::Idle);
+    assert_eq!(finished.painted(terminal).len(), 4);
+    assert!(finished.is_finished());
+
+    let mut delayed = config(2, &[100.], 100);
+    delayed.program.delay_ms = -50;
+    delayed.program.stages[0].delay_ms = 100;
+    let mut delayed = make_state(delayed);
+    assert_eq!(paint(&mut delayed, 0), (0., Wake::At(ms(50)), vec![]));
+    assert_eq!(paint(&mut delayed, 100).0, 50.);
+}
+
+#[test]
+fn negative_delay_repetition_phase_uses_integer_cycles_without_cycle_events() {
+    for (repeat, boundary) in [(Repeat::Loop, 0.), (Repeat::Alternate, 100.)] {
+        let mut cfg = config(1, &[100.], 100);
+        cfg.program.repeat = repeat;
+        cfg.program.delay_ms = -1250;
+        let mut state = make_state(cfg);
+        assert_eq!(paint(&mut state, 0), (50., Wake::Frame, vec![]));
+        assert_eq!(paint(&mut state, 50), (boundary, Wake::Frame, vec![]));
+        assert_eq!(paint(&mut state, 100).0, 50.);
+    }
+}
+
+#[test]
+fn negative_delay_is_applied_once_across_hidden_paused_and_restarted_runs() {
+    let mut cfg = config(1, &[1000.], 1000);
+    cfg.program.delay_ms = -250;
+    let mut state = make_state(cfg.clone());
+    assert_eq!(paint(&mut state, 0).0, 250.);
+    state.set_visible(false, ms(100));
+    assert_eq!(paint(&mut state, 1000).0, 250.);
+    state.set_visible(true, ms(1100));
+    assert_eq!(paint(&mut state, 1100).0, 350.);
+    cfg.generation = 2;
+    cfg.playback = Playback::Paused;
+    state.update(Arc::new(cfg.clone()), ms(1100)).unwrap();
+    assert_eq!(paint(&mut state, 2000), (350., Wake::Idle, vec![]));
+    cfg.generation = 3;
+    cfg.playback = Playback::Running;
+    state.update(Arc::new(cfg.clone()), ms(2100)).unwrap();
+    assert_eq!(paint(&mut state, 2100).0, 350.);
+    assert_eq!(paint(&mut state, 2200).0, 450.);
+    cfg.generation = 4;
+    cfg.restart = 1;
+    state.update(Arc::new(cfg.clone()), ms(2200)).unwrap();
+    assert_eq!(paint(&mut state, 2200).0, 250.);
+    let mut reduced = State::new(Arc::new(cfg), ms(0), true).unwrap();
+    let (value, wake, events) = paint(&mut reduced, 0);
+    assert_eq!((value, wake), (1000., Wake::Idle));
+    assert_eq!(
+        events[0].observation,
+        Observation::StageCompleted(0, StageResult::ReducedMotion)
+    );
+}
+
+#[test]
+fn negative_spring_delay_samples_the_existing_analytic_trajectory() {
+    let mut cfg = config(1, &[100.], 1000);
+    cfg.program.stages[0].timing = Timing::Spring(Spring {
+        stiffness: 100.,
+        damping: 4.,
+        mass: 1.,
+        epsilon: 0.001,
+        max_duration_ms: 10000,
+    });
+    let mut original = make_state(cfg.clone());
+    cfg.program.delay_ms = -123;
+    let mut advanced = make_state(cfg);
+    for elapsed in [0, 10, 100, 500, 10000] {
+        let actual = sample(&mut advanced, elapsed);
+        let expected = sample(&mut original, elapsed + 123);
+        assert_eq!(actual.frame, expected.frame);
+        assert_eq!(actual.finished, expected.finished);
+    }
+}
+
+#[test]
+fn explicit_finite_directions_use_timeline_time_and_one_painted_terminal() {
+    use gpuio_protocol::animation::{Direction, IterationCount};
+    for direction in [
+        Direction::Normal,
+        Direction::Reverse,
+        Direction::Alternate,
+        Direction::AlternateReverse,
+    ] {
+        for count in [0, 1, 2, 3] {
+            let mut cfg = config(1, &[100.], 100);
+            cfg.program.stages[0].timing = Timing::Tween(100, Easing::EaseIn);
+            cfg.program.repeat = Repeat::Finite(IterationCount::new(count), direction);
+            let mut state = make_state(cfg);
+            for time in (0..count * 100).step_by(25) {
+                let iteration = time / 100;
+                let phase = (time % 100) as f64 / 100.;
+                let phase = if direction.reverses(iteration as u128) {
+                    1. - phase
+                } else {
+                    phase
+                };
+                let sample = sample(&mut state, time);
+                assert!(
+                    (value(&sample) - Easing::EaseIn.sample(phase) * 100.).abs() < 1e-9,
+                    "{direction:?} {count} {time}"
+                );
+                assert!(state.painted(sample).is_empty());
+            }
+            let end = sample(&mut state, count * 100);
+            assert!(!state.is_finished());
+            let expected = if direction.reverses(count.saturating_sub(1) as u128) {
+                0.
+            } else {
+                100.
+            };
+            assert_eq!(value(&end), expected);
+            assert_eq!(end.wake, Wake::Idle);
+            let duplicate = end.clone();
+            let events = state.painted(end);
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].observation, Observation::Finished);
+            assert_eq!(events[0].index, TERMINAL_INDEX);
+            assert!(state.painted(duplicate).is_empty());
+        }
+    }
+}
+
+#[test]
+fn explicit_reverse_traverses_stage_pauses_without_frame_polling() {
+    use gpuio_protocol::animation::Direction;
+    let mut cfg = config(1, &[100., 200.], 100);
+    cfg.program.repeat = Repeat::Infinite(Direction::Reverse);
+    cfg.program.delay_ms = 50;
+    cfg.program.stages[1].delay_ms = 80;
+    let mut state = make_state(cfg);
+    assert_eq!(paint(&mut state, 0), (200., Wake::At(ms(50)), vec![]));
+    assert_eq!(paint(&mut state, 100).0, 150.);
+    assert_eq!(paint(&mut state, 150), (100., Wake::At(ms(230)), vec![]));
+    assert_eq!(paint(&mut state, 200), (100., Wake::At(ms(230)), vec![]));
+    assert_eq!(paint(&mut state, 280).0, 50.);
+    assert_eq!(paint(&mut state, 330).0, 200.);
+}
+
+#[test]
+fn huge_finite_counts_are_bounded_and_do_not_finish_at_a_saturated_clock() {
+    use gpuio_protocol::animation::{Direction, IterationCount};
+    let mut cfg = config(1, &[0.], 86_400_000);
+    cfg.program.repeat = Repeat::Finite(IterationCount::new(u64::MAX), Direction::Normal);
+    let mut state = make_state(cfg);
+    assert_eq!(paint(&mut state, 0), (0., Wake::At(ms(86_400_000)), vec![]));
+    assert!(
+        std::time::Instant::now()
+            .checked_add(ms(86_400_000))
+            .is_some()
+    );
+    assert!(paint(&mut state, 86_400_000).2.is_empty());
+    let sample = state.sample(Duration::MAX, None).unwrap();
+    assert!(!sample.finished);
+    assert!(state.painted(sample).is_empty());
+    assert!(!state.is_finished());
+    assert!(state.retained_bytes() < 20_000);
+}
+
+#[test]
+fn explicit_reverse_spring_uses_the_same_trajectory_with_reversed_velocity() {
+    use gpuio_protocol::animation::{Direction, IterationCount};
+    let mut cfg = config(1, &[100.], 100);
+    cfg.program.stages[0].timing = Timing::Spring(Spring {
+        stiffness: 100.,
+        damping: 10.,
+        mass: 1.,
+        epsilon: 0.001,
+        max_duration_ms: 10_000,
+    });
+    cfg.program.repeat = Repeat::Finite(IterationCount::new(1), Direction::Reverse);
+    let mut reverse = make_state(cfg.clone());
+    cfg.program.repeat = Repeat::Finite(IterationCount::new(1), Direction::Normal);
+    let forward = make_state(cfg);
+    let duration = forward.tracks.first.duration();
+    for fraction in [0.1, 0.3, 0.7] {
+        let at = duration.mul_f64(fraction);
+        let a = reverse.sample(at, None).unwrap().frame;
+        let b = forward.tracks.first.sample(duration - at).frame;
+        assert_eq!(a.values, b.values);
+        assert_eq!(
+            a.velocity.get(Property::Left),
+            b.velocity.get(Property::Left).map(|v| -v)
+        );
+    }
+}
+
+#[test]
+fn explicit_shared_direction_retargets_declared_ranges_at_current_group_phase() {
+    use gpuio_protocol::animation::Direction;
+    let mut cfg = config(1, &[1000.], 1000);
+    cfg.program.repeat = Repeat::Infinite(Direction::Reverse);
+    cfg.program.clock = Selection::Application;
+    let mut state = make_state(cfg.clone());
+    let mut clock = Clock::new(ms(0));
+    let at = state.sample(ms(250), Some(clock.sample(ms(250)))).unwrap();
+    assert_eq!(value(&at), 750.);
+    state.painted(at);
+    cfg.generation = 2;
+    cfg.program.stages[0].targets = targets(2000.);
+    state.update(Arc::new(cfg), ms(250)).unwrap();
+    let changed = state.sample(ms(250), Some(clock.sample(ms(250)))).unwrap();
+    assert_eq!(
+        value(&changed),
+        1500.,
+        "shared phase uses declared range, not retained retarget position"
+    );
+}
+
+#[test]
+fn reverse_active_endpoint_samples_linear_stops_before_forcing_finite_completion() {
+    use gpuio_protocol::animation::{Direction, IterationCount, LinearStops};
+    let mut cfg = config(1, &[100.], 100);
+    cfg.program.stages[0].timing = Timing::Tween(
+        100,
+        Easing::LinearStops(LinearStops::new(vec![(0., 0.25), (1., 0.5)]).unwrap()),
+    );
+    cfg.program.repeat = Repeat::Finite(IterationCount::new(1), Direction::Reverse);
+    let mut state = make_state(cfg);
+    assert_eq!(paint(&mut state, 0).0, 50.);
+    assert_eq!(paint(&mut state, 50).0, 37.5);
+    let end = paint(&mut state, 100);
+    assert_eq!(
+        end.0, 0.,
+        "finite completion keeps the exact directed endpoint contract"
+    );
+    assert_eq!(end.2.len(), 1);
+}
+
+#[test]
+fn explicit_finite_offsets_suspend_restart_and_reduce_without_cycle_events() {
+    use gpuio_protocol::animation::{Direction, IterationCount};
+    let mut cfg = config(1, &[100.], 100);
+    cfg.program.repeat = Repeat::Finite(IterationCount::new(3), Direction::AlternateReverse);
+    cfg.program.delay_ms = -125;
+    let mut state = make_state(cfg.clone());
+    assert_eq!(paint(&mut state, 0).0, 25.);
+    state.set_visible(false, ms(50));
+    assert_eq!(paint(&mut state, 400), (25., Wake::Idle, vec![]));
+    state.set_visible(true, ms(500));
+    assert!((paint(&mut state, 500).0 - 75.).abs() < 1e-9);
+    cfg.playback = Playback::Paused;
+    cfg.generation = 2;
+    state.update(Arc::new(cfg.clone()), ms(500)).unwrap();
+    let paused = paint(&mut state, 1500);
+    assert!((paused.0 - 75.).abs() < 1e-9);
+    assert_eq!((paused.1, paused.2), (Wake::Idle, vec![]));
+    cfg.playback = Playback::Running;
+    cfg.restart = 1;
+    cfg.generation = 3;
+    state.update(Arc::new(cfg), ms(1500)).unwrap();
+    assert_eq!(paint(&mut state, 1500).0, 25.);
+    let stale = sample(&mut state, 1525);
+    state.set_reduced(true, ms(1525));
+    assert!(!state.accepts_sample(&stale));
+    let end = paint(&mut state, 1525);
+    assert_eq!(end.0, 0.);
+    assert_eq!(end.1, Wake::Idle);
+    assert_eq!(end.2.len(), 1);
+    assert_eq!(end.2[0].observation, Observation::Finished);
 }

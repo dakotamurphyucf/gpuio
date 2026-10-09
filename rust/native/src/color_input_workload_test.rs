@@ -174,17 +174,37 @@ pub(super) async fn exercise(cx: &mut AsyncApp, handle: WindowHandle<View>, tran
         handle.update(cx, |_, w, cx| w.blur(cx)).unwrap();
         frame(cx, handle).await;
         drain(transport);
-        cx.background_executor()
-            .timer(Duration::from_millis(100))
-            .await;
+        // Blur and native editor observations can schedule follow-up frames.
+        // Establish bounded quiescence before measuring idle rather than assuming
+        // that a fixed 100ms delay drained a loaded desktop's pending frames.
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut quiet_since = Instant::now();
+        let mut renders = handle.update(cx, |v, _, _| v.render_count).unwrap();
+        loop {
+            cx.background_executor()
+                .timer(Duration::from_millis(25))
+                .await;
+            let current = handle.update(cx, |v, _, _| v.render_count).unwrap();
+            if current != renders {
+                renders = current;
+                quiet_since = Instant::now();
+            }
+            if quiet_since.elapsed() >= Duration::from_millis(250) {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "color editors did not settle after blur"
+            );
+        }
         drain(transport);
-        let renders = handle.update(cx, |v, _, _| v.render_count).unwrap();
         cx.background_executor()
-            .timer(Duration::from_millis(150))
+            .timer(Duration::from_millis(600))
             .await;
         assert_eq!(
             handle.update(cx, |v, _, _| v.render_count).unwrap(),
-            renders
+            renders,
+            "settled color editors redrew during 600ms idle"
         );
         assert!(drain(transport).is_empty());
         let mut remove = vec![Op::SetRoot(None), Op::Splice(root, 0, OWNERS, vec![])];

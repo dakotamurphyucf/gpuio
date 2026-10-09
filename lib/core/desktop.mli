@@ -57,9 +57,23 @@ module Error : sig
   [@@deriving equal, sexp_of]
 end
 
+module Scrollbar_preference : sig
+  (** Resolved native scrollbar style at the time of the query. This does not
+      expose the OS setting that produced it or change any scrollbar. *)
+  type t =
+    | Auto_hide
+    | Always_visible
+  [@@deriving equal, sexp_of]
+end
+
 module Expert : sig
   val identity_to_wire : Identity.t -> Gpuio_protocol.Desktop_wire.Identity.t
   val capabilities_of_wire : Gpuio_protocol.Desktop_wire.Capabilities.t -> Capabilities.t
+
+  val scrollbar_preference_of_wire
+    :  Gpuio_protocol.Desktop_wire.Scrollbar_preference.t
+    -> Scrollbar_preference.t
+
   val error_of_wire : Gpuio_protocol.Desktop_wire.Error.t -> Error.t
 end
 

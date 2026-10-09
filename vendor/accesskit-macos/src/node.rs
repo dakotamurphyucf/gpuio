@@ -15,7 +15,7 @@ use accesskit::{
 };
 use accesskit_consumer::{FilterResult, Node, NodeId, Tree};
 use objc2::{
-    ClassType, DeclaredClass, declare_class, msg_send_id,
+    ClassType, DeclaredClass, declare_class, msg_send, msg_send_id,
     mutability::InteriorMutable,
     rc::Id,
     runtime::{AnyObject, Sel},
@@ -122,7 +122,7 @@ fn ns_role(node: &Node) -> &'static NSAccessibilityRole {
             Role::Grid => NSAccessibilityTableRole,
             Role::Group => NSAccessibilityGroupRole,
             Role::Header => NSAccessibilityGroupRole,
-            Role::Heading => ns_string!("Heading"),
+            Role::Heading => ns_string!("AXHeading"),
             Role::Iframe => NSAccessibilityGroupRole,
             Role::IframePresentational => NSAccessibilityGroupRole,
             Role::ImeCandidate => NSAccessibilityUnknownRole,
@@ -321,6 +321,11 @@ impl NodeWrapper<'_> {
     }
 
     pub(crate) fn value(&self) -> Option<Value> {
+        if self.0.role() == Role::Heading {
+            // macOS exposes a heading's hierarchy through its numeric AXValue;
+            // its title/painted children continue to provide the heading text.
+            return self.0.data().level().map(|level| Value::Number(level as f64));
+        }
         if let Some(toggled) = self.0.toggled() {
             return Some(Value::Bool(toggled != Toggled::False));
         }
@@ -1077,10 +1082,12 @@ declare_class!(
         #[method(setAccessibilitySelected:)]
         fn set_selected(&self, selected: bool) {
             self.resolve_with_context(|node, tree, context| {
-                if supports_tree_selection(node) || supports_table_selection(node) {
+                if supports_tree_selection(node) || supports_table_selection(node) || supports_list_selection(node) {
                     let (select, deselect) = if supports_tree_selection(node) {
                         (TREE_SELECT, TREE_DESELECT)
-                    } else { (TABLE_SELECT, TABLE_DESELECT) };
+                    } else if supports_table_selection(node) {
+                        (TABLE_SELECT, TABLE_DESELECT)
+                    } else { (LIST_SELECT, LIST_DESELECT) };
                     if let Some((target_node, target_tree)) = tree.state().locate_node(node.id()) {
                         // Always queue desired state, including equal snapshots: a
                         // preceding opposite setter may still await application reduction.
@@ -1114,18 +1121,47 @@ declare_class!(
             });
         }
 
-        #[method_id(accessibilityAttributeValue:)]
-        fn accessibility_attribute_value(&self, attr: &NSString) -> Option<Id<NSString>> {
+        // Busy has no public modern NSAccessibility getter. Extend the legacy
+        // attributes without replacing AppKit's modern-property discovery.
+        #[method_id(accessibilityAttributeNames)]
+        fn accessibility_attribute_names(&self) -> Id<NSArray<NSString>> {
+            let inherited: Id<NSArray<NSString>> = unsafe {
+                msg_send_id![super(self), accessibilityAttributeNames]
+            };
+            let mut names: Vec<_> = inherited.to_vec_retained();
             self.resolve(|node| {
-                if attr == ns_string!("AXBrailleLabel") && node.has_braille_label() {
-                    return Some(NSString::from_str(node.braille_label().unwrap()))
-                } else if attr == ns_string!("AXBrailleRoleDescription") && node.has_braille_role_description() {
-                    return Some(NSString::from_str(node.braille_role_description().unwrap()))
+                for (name, include) in [
+                    (ns_string!("AXElementBusy"), true),
+                    (ns_string!("AXBrailleLabel"), node.has_braille_label()),
+                    (ns_string!("AXBrailleRoleDescription"), node.has_braille_role_description()),
+                ] {
+                    if include && !names.iter().any(|existing| &**existing == name) {
+                        names.push(name.copy());
+                    }
                 }
+            });
+            NSArray::from_vec(names)
+        }
 
-                None
-            })
-            .flatten()
+        #[method_id(accessibilityAttributeValue:)]
+        fn accessibility_attribute_value(&self, attr: &NSString) -> Option<Id<NSObject>> {
+            if attr == ns_string!("AXElementBusy") {
+                self.resolve(|node| {
+                    Id::into_super(Id::into_super(NSNumber::new_bool(node.is_busy())))
+                })
+            } else if attr == ns_string!("AXBrailleLabel") || attr == ns_string!("AXBrailleRoleDescription") {
+                self.resolve(|node| {
+                    if attr == ns_string!("AXBrailleLabel") && node.has_braille_label() {
+                        Some(Id::into_super(NSString::from_str(node.braille_label().unwrap())))
+                    } else if attr == ns_string!("AXBrailleRoleDescription") && node.has_braille_role_description() {
+                        Some(Id::into_super(NSString::from_str(node.braille_role_description().unwrap())))
+                    } else {
+                        None
+                    }
+                }).flatten()
+            } else {
+                unsafe { msg_send_id![super(self), accessibilityAttributeValue: attr] }
+            }
         }
 
         #[method(accessibilityRowCount)]
@@ -1157,6 +1193,41 @@ declare_class!(
                 Some(accesskit::SortDirection::Descending) => NSAccessibilitySortDirection::Descending,
                 _ => NSAccessibilitySortDirection::Unknown,
             }).unwrap_or(NSAccessibilitySortDirection::Unknown)
+        }
+
+        #[method_id(accessibilityColumnHeaderUIElements)]
+        fn column_headers(&self) -> Option<Id<NSArray<PlatformNode>>> {
+            self.table_headers(Role::ColumnHeader)
+        }
+
+        #[method_id(accessibilityRowHeaderUIElements)]
+        fn row_headers(&self) -> Option<Id<NSArray<PlatformNode>>> {
+            self.table_headers(Role::RowHeader)
+        }
+
+        #[method_id(accessibilityHeader)]
+        fn header(&self) -> Option<Id<PlatformNode>> {
+            self.resolve_with_context(|node, _, context| {
+                if !table_container(node) || filter(node) != FilterResult::Include {
+                    return None;
+                }
+                let headers: Vec<_> = node.filtered_children(|child| {
+                    table_header_filter(child, Role::ColumnHeader)
+                }).collect();
+                let mut parent = headers.first()?.filtered_parent(&filter);
+                while let Some(candidate) = parent {
+                    if candidate.id() == node.id() {
+                        return None;
+                    }
+                    if matches!(candidate.role(), Role::Row | Role::RowGroup | Role::Group)
+                        && headers.iter().all(|header| header.is_descendant_of(&candidate))
+                    {
+                        return Some(context.get_or_create_platform_node(candidate.id()));
+                    }
+                    parent = candidate.filtered_parent(&filter);
+                }
+                None
+            }).flatten()
         }
 
         #[method_id(accessibilityRows)]
@@ -1300,6 +1371,35 @@ declare_class!(
             });
         }
 
+        // AppKit 14 can report AXValue as settable from the implemented setter
+        // even when isAccessibilitySelectorAllowed rejects that selector.
+        #[method(accessibilityIsAttributeSettable:)]
+        fn is_attribute_settable(&self, attribute: &NSString) -> bool {
+            // NSAccessibilityElement does not implement this legacy selector.
+            // Forwarding an unhandled query to super aborts when VoiceOver asks
+            // whether a read-only attribute can be changed. Keep discovery in
+            // agreement with the modern setters and their live-node policy.
+            let selector = if attribute == ns_string!("AXValue") {
+                Some(sel!(setAccessibilityValue:))
+            } else if attribute == ns_string!("AXFocused") {
+                Some(sel!(setAccessibilityFocused:))
+            } else if attribute == ns_string!("AXSelectedTextRange") {
+                Some(sel!(setAccessibilitySelectedTextRange:))
+            } else if attribute == ns_string!("AXSelected") {
+                Some(sel!(setAccessibilitySelected:))
+            } else if attribute == ns_string!("AXExpanded") {
+                Some(sel!(setAccessibilityExpanded:))
+            } else if attribute == ns_string!("AXDisclosed") {
+                Some(sel!(setAccessibilityDisclosed:))
+            } else {
+                // Includes application-owned AXElementBusy and unknown names.
+                None
+            };
+            selector.is_some_and(|selector| unsafe {
+                msg_send![self, isAccessibilitySelectorAllowed: selector]
+            })
+        }
+
         #[method(isAccessibilitySelectorAllowed:)]
         fn is_selector_allowed(&self, selector: Sel) -> bool {
             self.resolve(|node| {
@@ -1349,6 +1449,12 @@ declare_class!(
                     return node.role() == Role::TreeItem && node.data().level().is_some();
                 }
                 if selector == sel!(accessibilityRowCount) { return table_container(node); }
+                if selector == sel!(accessibilityColumnHeaderUIElements)
+                    || selector == sel!(accessibilityRowHeaderUIElements)
+                    || selector == sel!(accessibilityHeader)
+                {
+                    return table_container(node) && filter(node) == FilterResult::Include;
+                }
                 if selector == sel!(accessibilityColumnCount) {
                     return table_container(node) && node.data().column_count().is_some();
                 }
@@ -1356,10 +1462,10 @@ declare_class!(
                     return node.role() == Role::Row && node.data().row_index().is_some();
                 }
                 if selector == sel!(accessibilityRowIndexRange) {
-                    return table_item(node) && node.data().row_index().is_some();
+                    return (table_item(node) || node.role() == Role::RowHeader) && node.data().row_index().is_some();
                 }
                 if selector == sel!(accessibilityColumnIndexRange) {
-                    return table_item(node) && node.data().column_index().is_some();
+                    return (table_item(node) || node.role() == Role::RowHeader) && node.data().column_index().is_some();
                 }
                 if selector == sel!(accessibilitySortDirection) { return node.role() == Role::ColumnHeader; }
                 if selector == sel!(isAccessibilitySelected) {
@@ -1372,7 +1478,7 @@ declare_class!(
                     let wrapper = NodeWrapper(node);
                     return wrapper.is_container_with_selectable_children() || table_container(node)
                 }
-                if selector == sel!(setAccessibilitySelected:) && (supports_tree_selection(node) || supports_table_selection(node)) {
+                if selector == sel!(setAccessibilitySelected:) && (supports_tree_selection(node) || supports_table_selection(node) || supports_list_selection(node)) {
                     return true;
                 }
                 if selector == sel!(setAccessibilitySelected:) || selector == sel!(accessibilityPerformPick)
@@ -1388,8 +1494,9 @@ declare_class!(
                 if selector == sel!(isAccessibilityModal) {
                     return node.is_dialog();
                 }
-                if selector == sel!(accessibilityAttributeValue:) {
-                    return node.has_braille_label() || node.has_braille_role_description()
+                if selector == sel!(accessibilityAttributeValue:)
+                    || selector == sel!(accessibilityAttributeNames) {
+                    return true;
                 }
                 if selector == sel!(accessibilityURL) {
                     return node.supports_url();
@@ -1445,6 +1552,14 @@ fn table_row_filter(node: &Node) -> FilterResult {
         _ => FilterResult::ExcludeNode,
     }
 }
+fn table_header_filter(node: &Node, role: Role) -> FilterResult {
+    match filter(node) {
+        FilterResult::ExcludeSubtree => FilterResult::ExcludeSubtree,
+        _ if node.role() == role => FilterResult::Include,
+        _ if matches!(node.role(), Role::Table | Role::Grid | Role::Tree | Role::TreeGrid) => FilterResult::ExcludeSubtree,
+        _ => FilterResult::ExcludeNode,
+    }
+}
 fn supports_table_selection(node: &Node) -> bool {
     table_item(node) && node.is_selectable()
         && node.supports_action(Action::CustomAction, &filter)
@@ -1463,6 +1578,20 @@ fn supports_tree_selection(node: &Node) -> bool {
         })
 }
 
+// Desired-state setters are opt-in; ordinary options retain upstream Click behavior.
+const LIST_SELECT: i32 = 0x4753_0001;
+const LIST_DESELECT: i32 = 0x4753_0002;
+
+fn supports_list_selection(node: &Node) -> bool {
+    node.role() == Role::ListBoxOption
+        && !node.is_disabled()
+        && node.is_selectable()
+        && node.supports_action(Action::CustomAction, &filter)
+        && [LIST_SELECT, LIST_DESELECT].iter().all(|id| {
+            node.data().custom_actions().iter().any(|action| action.id == *id)
+        })
+}
+
 fn supports_tree_expansion(node: &Node) -> bool {
     node.role() == Role::TreeItem
         && !node.is_disabled()
@@ -1472,6 +1601,19 @@ fn supports_tree_expansion(node: &Node) -> bool {
 }
 
 impl PlatformNode {
+    fn table_headers(&self, role: Role) -> Option<Id<NSArray<PlatformNode>>> {
+        self.resolve_with_context(|node, _, context| {
+            if !table_container(node) || filter(node) != FilterResult::Include {
+                return None;
+            }
+            let headers = node
+                .filtered_children(|child| table_header_filter(child, role))
+                .map(|header| context.get_or_create_platform_node(header.id()))
+                .collect::<Vec<_>>();
+            Some(NSArray::from_vec(headers))
+        }).flatten()
+    }
+
     fn set_tree_expanded(&self, expanded: bool) {
         self.resolve_with_context(|node, tree, context| {
             if !supports_tree_expansion(node) {

@@ -139,8 +139,14 @@ let scene t =
   in
   S.create
     ~description:
-      "Simulated model evaluation: horizontal latency, vertical quality. Four labelled \
-       samples can be selected and dragged. Background points are decorative fixtures."
+      ("Simulated model evaluation: horizontal latency, vertical quality. Four labelled \
+        samples can be selected and dragged. Background points are decorative fixtures. \
+        Sample positions: "
+       ^ String.concat
+           ~sep:"; "
+           (List.map t.samples ~f:(fun sample ->
+              let p = Sample.position sample in
+              sprintf "%s at x %.1f, y %.1f" sample.name (G.Point.x p) (G.Point.y p))))
     (axes @ labels @ cloud @ nodes)
   |> Or_error.ok_exn
 ;;

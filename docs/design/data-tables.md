@@ -242,13 +242,29 @@ its GPUI entity; it does not allocate ordinary variable-height list state. Its m
 fixed row height, overscan, active-row limit and scrollbar setting, with
 `Keep_position` anchoring. Table and tree input modes cannot share a root.
 
-Each active row maps to an inert Container. Its children follow schema order,
-with one inert Container per column, `Set_table_cell` metadata and exactly one
-ordinary child View. Cell metadata fixes the wrapper's column identity; changing
-that identity requires a replacement wrapper. The wrapper hierarchy is internal,
-not an application API. Final structure and all dirty table ancestors are checked,
-so a cell-only edit cannot bypass row/schema ownership validation. Unmounted cell
-copy text is released without deleting the logical row index.
+Each active row maps to an inert Container. Its children follow schema order.
+Rich/custom cells retain an inert Container with `Set_table_cell` metadata and
+exactly one ordinary child View. Plain `Bonsai.Table.Cell.text` cells instead use
+one childless Text node carrying the same column/copy metadata, with identical
+display and copy text. The private `View.Expert.table_text` helper marks this
+representation; arbitrary text Views remain ordinary rich-cell children.
+
+`Create_table_text` and `Set_table_text` (appended operation tags 123/124 in the
+unpublished paired protocol) atomically create or replace one compact cell's text
+and metadata. These are bounded single-cell operations, not nested transaction
+batches. Existing operation-count, message-byte, text, retained-payload, node and
+generation limits remain unchanged. Both display/copy strings count toward the
+retained-byte budget. Display/copy disagreement, children, rich spans, a handler,
+an orphan cell or a column change fail final admission without publication.
+
+Cell metadata fixes the node's column identity; changing it or switching between
+rich and compact representations replaces that owner. Both use the same native
+table renderer, selection, clipboard and accessibility-value paths. The internal
+wrapper/leaf hierarchy is not an application API. Final structure and all dirty
+table ancestors are checked, so a cell-only edit cannot bypass row/schema
+ownership validation. Unmounting releases cell text while keeping the logical
+row index. Plain-cell compaction reduces admission cost; arbitrary rich cells
+still consume the general View and atomic-update budgets.
 
 A schema revision cannot decrease. Changed columns, groups or accepted sort must
 advance it; increasing it with equal values is allowed. Other configuration
@@ -364,8 +380,9 @@ The Expert View constructor is not required for ordinary application code.
 `Table.Config`; `Table.paged` accepts a table-pager snapshot and generation-checked
 controls. Each active row has a keyed computation, and each column inside it has
 its own default-reset lifetime. `render_cell` returns a validated `Table.Cell`
-with independent copy text and an ordinary View. Only the requested/pinned rows
-create cells; all schema columns count against the cell budget, regardless of
+with independent copy text and an ordinary View. Requested/pinned rows and bounded
+programmatic scroll preparation create cells; all schema columns count against
+the cell budget, regardless of
 horizontal paint virtualization. Persistent preferences and I/O jobs belong
 outside these transient computations.
 
@@ -391,6 +408,25 @@ The model distinguishes displayed/native selection from a pending selection, so
 superseding a batch cannot report a selection that never reached native code.
 A newer native selection supersedes an older pending batch, and sequence checks
 prevent delayed display acknowledgment from overwriting that observation.
+
+Programmatic vertical scroll batches also prepare a bounded destination cell
+set in the same publication as the command. Fixed-height rows and the latest
+compatible observed span provide the estimate; one extra row covers a changed
+fractional offset. Pins keep priority and configured row/cell budgets still
+apply. Reveal uses the estimated nearest visible edge, explicit offsets start
+at their logical target, and end commands prepare the bounded tail. The final
+vertical destination in a batch determines the preparation. This is bounded
+anticipation, not an alternative layout engine or a claim that arbitrary native
+wheel movement has synchronous OCaml data.
+
+Preparation survives the local after-display command acknowledgment until a
+current native viewport replaces it. Superseding an undisplayed batch discards
+its preparation, as do incompatible query/order/config changes. Viewport effects
+capture the presenter command serial so an already-created older effect cannot
+undo a newer preparation. Wire delivery separately rejects obsolete tree
+revisions. Native geometry and requests remain authoritative: resize, clipping,
+unknown initial geometry or insufficient budgets may still require another row
+round trip. Missing application payloads remain the application's loading state.
 
 Viewport validity follows query, logical order and config, not row payload
 revision. This preserves useful geometry after a point update or empty

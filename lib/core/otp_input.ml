@@ -46,6 +46,49 @@ module Value = struct
   let paste t ~policy ~selection ~text = edit t ~policy ~selection ~text ~paste:true
 end
 
+module Appearance = struct
+  type t =
+    { geometry : Gpuio_protocol.Otp_presentation_wire.t
+    ; background : Color.t option
+    ; border : Color.t option
+    ; focus_border : Color.t option
+    ; selection : Color.t option
+    ; caret : Color.t option
+    }
+  [@@deriving equal, sexp_of]
+
+  let create
+        ?(groups = 1)
+        ?cell_width
+        ?(cell_gap = 5.)
+        ?(group_gap = 20.)
+        ?(radius = 6.)
+        ?(border_width = 1.)
+        ?background
+        ?border
+        ?focus_border
+        ?selection
+        ?caret
+        ()
+    =
+    let geometry =
+      { Gpuio_protocol.Otp_presentation_wire.default with
+        groups
+      ; cell_width
+      ; cell_gap
+      ; group_gap
+      ; radius
+      ; border_width
+      }
+    in
+    if Gpuio_protocol.Otp_presentation_wire.valid geometry
+    then Ok { geometry; background; border; focus_border; selection; caret }
+    else Or_error.error_string "invalid OTP cell presentation"
+  ;;
+
+  let default = create () |> Or_error.ok_exn
+end
+
 module Config = struct
   type t = W.Config.t [@@deriving equal, sexp_of]
 
@@ -138,6 +181,20 @@ end
 module Command_error = W.Error
 
 module Expert = struct
+  let appearance_to_wire (t : Appearance.t) ~theme =
+    let open Or_error.Let_syntax in
+    let resolve = function
+      | None -> return None
+      | Some color -> Theme.resolve theme color |> Or_error.map ~f:Option.some
+    in
+    let%bind background = resolve t.background in
+    let%bind border = resolve t.border in
+    let%bind focus_border = resolve t.focus_border in
+    let%bind selection = resolve t.selection in
+    let%map caret = resolve t.caret in
+    { t.geometry with background; border; focus_border; selection; caret }
+  ;;
+
   let config_to_wire t = t
   let value_to_wire t = t
   let policy_to_wire t = t

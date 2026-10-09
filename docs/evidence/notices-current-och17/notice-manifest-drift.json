@@ -1,0 +1,26 @@
+[
+  {
+    "name": "gpuio-counter-backend",
+    "path": "examples/extension_consumer/backend/Cargo.toml",
+    "previous_manifest_revision": "4453cbb1573533288e0ba9af303f10efe00b904c",
+    "previous_manifest_sha256": "0fbed476dcc552585176a19e0e6eadd6afce88d3c3fdd4bb3a49485c742b554d",
+    "current_manifest_sha256": "b8742b120d4e5741d6d7e1a4bd78a5468a84a85e73b335cef6fbcded4170d3a7",
+    "delta": "diff --git a/examples/extension_consumer/backend/Cargo.toml b/examples/extension_consumer/backend/Cargo.toml\nindex 70db8fd..53154df 100644\n--- a/examples/extension_consumer/backend/Cargo.toml\n+++ b/examples/extension_consumer/backend/Cargo.toml\n@@ -31,3 +31,5 @@ taffy = { path = \"../../../vendor/taffy\" }\n \n [patch.\"https://github.com/zed-industries/zed.git\"]\n gpui = { path = \"../../../vendor/gpui\" }\n+gpui_macos = { path = \"../../../vendor/gpui-macos\" }\n+gpui_apple = { path = \"../../../vendor/gpui-apple\" }\n"
+  },
+  {
+    "name": "gpuio-native",
+    "path": "rust/native/Cargo.toml",
+    "previous_manifest_revision": "10ac15ecfe8be9558af13dbb399e366bddbb2d49",
+    "previous_manifest_sha256": "894d216c09e08b6a4778067a34badf1c50205bf708eddc961abbe4d8873be4e5",
+    "current_manifest_sha256": "0febe981c5725d4e4350f6b13e191959e332ed118ffaee7f29bd166fca2b9e91",
+    "delta": "diff --git a/rust/native/Cargo.toml b/rust/native/Cargo.toml\nindex 090fe18..5b28ea6 100644\n--- a/rust/native/Cargo.toml\n+++ b/rust/native/Cargo.toml\n@@ -10,6 +10,7 @@ crate-type = [\"staticlib\", \"rlib\"]\n \n [features]\n performance-diagnostics = [\"gpui/profiler\"]\n+presentation-diagnostics = [\"performance-diagnostics\", \"gpui/presentation-diagnostics\", \"dep:gpui_apple\", \"gpui_apple/presentation-diagnostics\"]\n native-tests = []\n native-canvas-tests = [\"native-tests\", \"gpui_platform/test-support\"]\n native-image-tests = [\"native-tests\", \"gpui_platform/test-support\"]\n@@ -45,6 +46,7 @@ roxmltree = \"=0.21.1\"\n flate2 = \"=1.1.10\"\n \n [target.'cfg(target_os = \"macos\")'.dependencies]\n+gpui_apple = { git = \"https://github.com/zed-industries/zed.git\", rev = \"a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b\", optional = true }\n cocoa = \"=0.26.0\"\n objc2 = \"0.6.4\"\n objc2-foundation = { version = \"0.3.2\", default-features = false, features = [\"std\", \"NSString\", \"NSRange\", \"NSURL\", \"NSArray\", \"NSDictionary\", \"NSBundle\", \"NSError\", \"NSNotification\", \"NSOperation\", \"NSProcessInfo\", \"NSUUID\", \"NSSet\"] }\n@@ -60,6 +62,7 @@ gpuio-wayland = { path = \"../wayland\", optional = true }\n accesskit_macos = \"=0.26.3\"\n \n [dev-dependencies]\n+serde_json = \"1\"\n zbus = { version = \"=5.19.0\", default-features = false, features = [\"async-io\"] }\n async-io = \"2\"\n taffy = { version = \"=0.13.0\", default-features = false, features = [\"std\", \"taffy_tree\"] }\n@@ -376,3 +379,8 @@ harness = false\n [[test]]\n name = \"accessibility_structural_table\"\n harness = false\n+\n+[[test]]\n+name = \"native_metal_presentation\"\n+harness = false\n+required-features = [\"presentation-diagnostics\"]\n"
+  },
+  {
+    "name": "gpuio-signal-backend",
+    "path": "examples/signal_studio/backend/Cargo.toml",
+    "previous_manifest_revision": "e9643b319e0760326264426e99b550c267e1217b",
+    "previous_manifest_sha256": "58707b34c218a0a8a9f479a74438d8ce7b96f82b4e936c79a6b43897c6efbbde",
+    "current_manifest_sha256": "2540a5265bc2cbe8511697e9ca97fc764e5a81ccf991462cbe7423db28d68367",
+    "delta": "diff --git a/examples/signal_studio/backend/Cargo.toml b/examples/signal_studio/backend/Cargo.toml\nindex 2bbf1b5..481f1f5 100644\n--- a/examples/signal_studio/backend/Cargo.toml\n+++ b/examples/signal_studio/backend/Cargo.toml\n@@ -29,3 +29,5 @@ taffy = { path = \"../../../vendor/taffy\" }\n \n [patch.\"https://github.com/zed-industries/zed.git\"]\n gpui = { path = \"../../../vendor/gpui\" }\n+gpui_macos = { path = \"../../../vendor/gpui-macos\" }\n+gpui_apple = { path = \"../../../vendor/gpui-apple\" }\n"
+  }
+]

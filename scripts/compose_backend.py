@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a single-archive Dune backend from trusted static component packages.
+"""Generate a single-archive Dune backend from trusted static component/profile packages.
 
 Usage: compose_backend.py application-native.json generated-directory
 Paths in the JSON manifest are relative to that manifest, never the caller's cwd.
@@ -19,29 +19,49 @@ def identifier(value):
     return value
 
 
+def package_features(item):
+    features = item.get("features", [])
+    if (not isinstance(features, list) or len(features) > 64
+            or any(not isinstance(name, str)
+                   or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_+.-]{0,63}", name)
+                   for name in features)):
+        raise ValueError("features must be at most 64 plain Cargo feature names")
+    return set(features)
+
+
 def generate(manifest, output):
     config = json.loads(manifest.read_text())
-    if set(config) != {"library", "gpuio", "components"}:
-        raise ValueError("expected library, gpuio and components")
+    required = {"library", "gpuio", "components"}
+    if not required <= set(config) or set(config) - required - {"document_profiles"}:
+        raise ValueError("expected library, gpuio, components and optional document_profiles")
+    profiles = config.get("document_profiles", [])
+    if not isinstance(profiles, list) or len(profiles) > 64:
+        raise ValueError("expected at most 64 document profile packages")
     library = identifier(config["library"])
     root = (manifest.parent / config["gpuio"]).resolve()
     native = tomllib.loads((root / "rust/native/Cargo.toml").read_text())
     interop = native["dependencies"]["ocaml-interop"]
-    dependencies = []
+    dependency_specs = []
+    feature_sets = {}
     factories = []
-    source_paths = [root / "rust", root / "vendor/gpui-base", root / "vendor/accesskit-macos", root / "vendor/taffy"]
+    source_paths = [root / "rust", root / "vendor/gpui-base", root / "vendor/gpui", root / "vendor/gpui-macos", root / "vendor/gpui-apple", root / "vendor/accesskit-macos", root / "vendor/accesskit-consumer", root / "vendor/taffy"]
     component_paths = set()
-    if not 1 <= len(config["components"]) <= 64:
-        raise ValueError("expected 1..64 component packages")
+    aliases = {}
+    document_factories = []
+    if (not isinstance(config["components"], list) or len(config["components"]) > 64
+            or not (config["components"] or profiles)):
+        raise ValueError("expected 1..64 components or document profiles per category")
     workspace = next((parent for parent in (manifest.parent, *manifest.parent.parents)
                       if (parent / "dune-project").exists()), manifest.parent)
     # Dune mirrors paths inside its workspace into _build/default. External
     # dependencies must remain absolute or Cargo would resolve them from there.
     relative = lambda path: os.path.relpath(path, output) if path.is_relative_to(workspace) else str(path)
     for index, item in enumerate(config["components"]):
-        if set(item) != {"path", "factory"}:
+        if (not isinstance(item, dict) or not {"path", "factory"} <= set(item)
+                or set(item) - {"path", "factory", "features"}):
             raise ValueError("component entries require path and factory")
         component = (manifest.parent / item["path"]).resolve()
+        feature_sets.setdefault(component, set()).update(package_features(item))
         if component in component_paths:
             raise ValueError("duplicate component package")
         component_paths.add(component)
@@ -52,9 +72,38 @@ def generate(manifest, output):
         if not isinstance(factory, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*", factory):
             raise ValueError("factory must be a Rust function path returning Arc<dyn Factory>")
         alias = f"component_{index}"
-        dependencies.append(f'{alias} = {{ package = {json.dumps(package)}, path = {json.dumps(relative(component))} }}')
+        dependency_specs.append((alias, package, component))
         factories.append(f"{alias}::{factory}()")
+        aliases[component] = alias
         source_paths.append(component)
+    profile_paths = set()
+    for index, item in enumerate(profiles):
+        if (not isinstance(item, dict) or not {"path", "factory"} <= set(item)
+                or set(item) - {"path", "factory", "features"}):
+            raise ValueError("document profile entries require path and factory")
+        component = (manifest.parent / item["path"]).resolve()
+        feature_sets.setdefault(component, set()).update(package_features(item))
+        if component in profile_paths:
+            raise ValueError("duplicate document profile package")
+        profile_paths.add(component)
+        package = tomllib.loads((component / "Cargo.toml").read_text())["package"]["name"]
+        if not re.fullmatch(r"[a-z][a-z0-9_-]*", package):
+            raise ValueError("invalid Cargo package name")
+        factory = item["factory"]
+        if not isinstance(factory, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(::[A-Za-z_][A-Za-z0-9_]*)*", factory):
+            raise ValueError("profile factory must be a Rust function path returning Arc<dyn document Factory>")
+        alias = aliases.get(component)
+        if alias is None:
+            alias = f"document_profile_{index}"
+            dependency_specs.append((alias, package, component))
+            aliases[component] = alias
+            source_paths.append(component)
+        document_factories.append(f"{alias}::{factory}()")
+    dependencies = []
+    for alias, name, path in dependency_specs:
+        features = sorted(feature_sets[path])
+        extra = f", features = {json.dumps(features)}" if features else ""
+        dependencies.append(f'{alias} = {{ package = {json.dumps(name)}, path = {json.dumps(relative(path))}{extra} }}')
     package = library.replace("_", "-")
     cargo = f'''# Generated by GPUIO compose_backend.py; review with the application manifest.
 [package]
@@ -79,8 +128,15 @@ opt-level = 1
 gpuio-native = {{ path = {json.dumps(relative(root / 'rust/native'))} }}
 ocaml-interop = {{ git = {json.dumps(interop['git'])}, rev = {json.dumps(interop['rev'])}, features = ["no-caml-startup"] }}
 ''' + "\n".join(dependencies) + f'\n\n[patch.crates-io]\ngpuio-extension-sdk = {{ path = {json.dumps(relative(root / "rust/extension-sdk"))} }}\n'
+    if profiles:
+        cargo += f'gpuio-document-sdk = {{ path = {json.dumps(relative(root / "rust/document-sdk"))} }}\n'
     cargo += f'accesskit_macos = {{ path = {json.dumps(relative(root / "vendor/accesskit-macos"))} }}\n'
+    cargo += f'accesskit_consumer = {{ path = {json.dumps(relative(root / "vendor/accesskit-consumer"))} }}\n'
     cargo += f'taffy = {{ path = {json.dumps(relative(root / "vendor/taffy"))} }}\n'
+    cargo += '\n[patch."https://github.com/zed-industries/zed.git"]\n'
+    cargo += f'gpui = {{ path = {json.dumps(relative(root / "vendor/gpui"))} }}\n'
+    cargo += f'gpui_macos = {{ path = {json.dumps(relative(root / "vendor/gpui-macos"))} }}\n'
+    cargo += f'gpui_apple = {{ path = {json.dumps(relative(root / "vendor/gpui-apple"))} }}\n'
     registration = f'''// Generated static registration. No OCaml values are stored in components.
 #[ocaml_interop::export]
 pub fn gpuio_{library}_initialize(_cr: &mut ocaml_interop::OCamlRuntime, _unit: ocaml_interop::OCaml<()>) {{
@@ -88,6 +144,12 @@ pub fn gpuio_{library}_initialize(_cr: &mut ocaml_interop::OCamlRuntime, _unit: 
         .expect("incompatible or duplicate statically linked native components");
 }}
 '''
+    if profiles:
+        registration = registration.replace(
+            f"gpuio_native::extensions::install([{', '.join(factories)}])",
+            f"gpuio_native::registrations::install([{', '.join(factories)}], [{', '.join(document_factories)}])",
+        ).replace("incompatible or duplicate statically linked native components",
+                  "incompatible or duplicate statically linked native components/document profiles")
     deps = "\n".join(f"  (source_tree {json.dumps(relative(path))})" for path in source_paths if path.is_relative_to(workspace))
     if any(not path.is_relative_to(workspace) for path in source_paths):
         # Dune cannot source_tree outside its workspace. Let Cargo check those

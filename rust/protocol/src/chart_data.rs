@@ -72,17 +72,63 @@ impl Layer {
     }
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct Category {
+    pub id: i64,
+    pub label: String,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct CategoricalPoint {
+    pub id: i64,
+    pub category: i64,
+    pub value: Option<f64>,
+    pub label: String,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct CategoricalSeries {
+    pub id: i64,
+    pub name: String,
+    pub points: Vec<CategoricalPoint>,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub enum CategoricalLayer {
+    Line(CategoricalSeries),
+    Area(CategoricalSeries),
+    Bar(CategoricalSeries),
+}
+impl CategoricalLayer {
+    pub fn series(&self) -> &CategoricalSeries {
+        match self {
+            Self::Line(s) | Self::Area(s) | Self::Bar(s) => s,
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Contents {
     Cartesian(Vec<Layer>),
     Pie(Vec<Slice>),
     Radar(Vec<RadarAxis>, Vec<RadarSeries>),
     Candlestick(Vec<Candle>),
     Sankey(Vec<Node>, Vec<Edge>),
+    Categorical(Vec<Category>, Vec<CategoricalLayer>),
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct BarBackground {
+    pub series: i64,
+    pub datum: i64,
+    pub brush: crate::chart_appearance::Brush,
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct BarBaseline {
+    pub series: i64,
+    pub datum: i64,
+    pub baseline: f64,
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Data {
     pub version: i64,
     pub contents: Contents,
+    pub bar_backgrounds: Vec<BarBackground>,
+    pub bar_baselines: Vec<BarBaseline>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -139,8 +185,16 @@ impl Stats {
     }
 }
 impl Data {
+    pub fn bar_baseline(&self, series: i64, datum: i64) -> Option<f64> {
+        self.bar_baselines
+            .binary_search_by_key(&(series, datum), |b| (b.series, b.datum))
+            .ok()
+            .map(|i| self.bar_baselines[i].baseline)
+    }
     pub fn validate(&self) -> Result<Stats, ValidationError> {
-        require(self.version == 1)?;
+        require(self.version == 3)?;
+        limit(self.bar_baselines.len() <= MAX_POINTS)?;
+        limit(self.bar_backgrounds.len() <= MAX_POINTS)?;
         let mut stats = Stats::default();
         match &self.contents {
             Contents::Cartesian(layers) => {
@@ -160,6 +214,26 @@ impl Data {
                             point.y.is_none_or(number)
                                 && (!matches!(layer, Layer::Bar(_)) || point.y.is_some()),
                         )?;
+                        stats.text(&point.label, 256, false)?;
+                    }
+                }
+            }
+            Contents::Categorical(categories, layers) => {
+                limit(categories.len() <= MAX_POINTS && layers.len() <= MAX_SERIES)?;
+                require(unique(categories.iter().map(|c| c.id)))?;
+                require(unique(layers.iter().map(|l| l.series().id)))?;
+                for category in categories {
+                    stats.text(&category.label, 256, true)?;
+                }
+                for layer in layers {
+                    let series = layer.series();
+                    stats.values += series.points.len();
+                    limit(stats.values <= MAX_POINTS)?;
+                    require(series.points.len() == categories.len())?;
+                    require(unique(series.points.iter().map(|p| p.id)))?;
+                    stats.text(&series.name, 128, true)?;
+                    for (point, category) in series.points.iter().zip(categories) {
+                        require(point.category == category.id && point.value.is_none_or(number))?;
                         stats.text(&point.label, 256, false)?;
                     }
                 }
@@ -264,6 +338,47 @@ impl Data {
                 require(visited == nodes.len())?;
             }
         }
+        if !self.bar_backgrounds.is_empty() || !self.bar_baselines.is_empty() {
+            require(
+                self.bar_backgrounds
+                    .windows(2)
+                    .all(|pair| (pair[0].series, pair[0].datum) < (pair[1].series, pair[1].datum)),
+            )?;
+            require(
+                self.bar_baselines
+                    .windows(2)
+                    .all(|p| (p[0].series, p[0].datum) < (p[1].series, p[1].datum)),
+            )?;
+            let mut keys = BTreeSet::new();
+            match &self.contents {
+                Contents::Cartesian(layers) => {
+                    for layer in layers {
+                        if let Layer::Bar(series) = layer {
+                            keys.extend(series.points.iter().map(|p| (series.id, p.id)));
+                        }
+                    }
+                }
+                Contents::Categorical(_, layers) => {
+                    for layer in layers {
+                        if let CategoricalLayer::Bar(series) = layer {
+                            keys.extend(series.points.iter().map(|p| (series.id, p.id)));
+                        }
+                    }
+                }
+                _ => {}
+            }
+            require(
+                self.bar_baselines
+                    .iter()
+                    .all(|b| number(b.baseline) && keys.contains(&(b.series, b.datum))),
+            )?;
+            require(
+                self.bar_backgrounds
+                    .iter()
+                    .all(|b| b.brush.is_valid() && keys.contains(&(b.series, b.datum))),
+            )?;
+        }
+        limit(binprot::BinProtSize::binprot_size(self) <= MAX_BYTES)?;
         Ok(stats)
     }
 }

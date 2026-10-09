@@ -1,6 +1,7 @@
 //! Retained logical-pixel plotting geometry. Prepare on a bounded worker, then
 //! paint/hit-test the plan against the exact source snapshot used to build it.
 //! This module has no GPUI window or OCaml callbacks.
+use crate::chart_cartesian::{Kind, Layers, Projection};
 use crate::chart_reduce::{self as reduce, SourceSpan};
 use gpuio_protocol::{chart_data as data, chart_options as options, chart_sampling::Policy};
 use std::{
@@ -14,6 +15,7 @@ pub const MAX_PLAN_BYTES: usize = 64 * 1024 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     InvalidInput,
+    InvalidConfiguration,
     Cancelled,
     RenderLimit,
 }
@@ -108,12 +110,61 @@ pub struct Mark {
     pub layer: usize,
     pub shape: Shape,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Worker-measured label block in logical pixels, including its painted backing.
+/// Measurements follow the exact source snapshot's node or pie-slice order;
+/// None hides that entry's label without reserving space.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LabelMetrics {
+    pub width: f64,
+    pub height: f64,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FlowAlign {
+    Left,
+    Center,
+    Right,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FlowLabelPlacement {
+    pub align: FlowAlign,
+    pub width: f64,
+    pub block_height: f64,
+    pub above: bool,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PieLabelPlacement {
+    pub align_right: bool,
+    pub width: f64,
+    pub edge: Point,
+    pub bend: Point,
+    pub end: Point,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LabelKind {
     X,
     Y,
+    Axis(axis_presentation::AxisLabel),
     Radial,
-    Flow,
+    Pie {
+        slice_index: usize,
+        placement: Option<PieLabelPlacement>,
+    },
+    /// Stable source-axis identity, independent of caption text or display order.
+    /// Custom retained label content must join against this ID, not label indices.
+    RadarAxis(i64),
+    Flow {
+        placement: Option<FlowLabelPlacement>,
+        align_right: bool,
+        node_index: usize,
+    },
+    FlowLine {
+        placement: Option<FlowLabelPlacement>,
+        align_right: bool,
+        font_size: f64,
+        color: Option<u32>,
+        block_height: f64,
+        offset: f64,
+    },
     Series(usize),
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -171,7 +222,16 @@ impl Domain {
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Summary {
-    Bar(f64),
+    Bar {
+        value: f64,
+        baseline: f64,
+    },
+    Stacked {
+        baseline: f64,
+        value: f64,
+        lower: f64,
+        upper: f64,
+    },
     Candle {
         open: f64,
         high: f64,
@@ -272,11 +332,22 @@ struct Coordinates {
     height: f64,
     inset: f64,
     horizontal: bool,
+    reversed: bool,
+    categorical: Option<Projection>,
+    value_offset: f64,
 }
 impl Coordinates {
+    fn value(self, value: f64) -> f64 {
+        let fraction = self.y.unit(value + self.value_offset);
+        (if self.reversed {
+            1. - fraction
+        } else {
+            fraction
+        }) * self.height
+    }
     fn point(self, x: f64, y: f64) -> Point {
-        let category = self.inset + self.x.unit(x) * (self.width - 2. * self.inset);
-        let value = self.y.unit(y) * self.height;
+        let category = self.category(x);
+        let value = self.value(y);
         if self.horizontal {
             Point::new(value, category)
         } else {
@@ -284,12 +355,15 @@ impl Coordinates {
         }
     }
     fn category(self, x: f64) -> f64 {
-        self.inset + self.x.unit(x) * (self.width - 2. * self.inset)
+        self.categorical.map_or_else(
+            || self.inset + self.x.unit(x) * (self.width - 2. * self.inset),
+            |p| p.center(x),
+        )
     }
-    fn rect(self, x: f64, value: f64, offset: f64, width: f64) -> Rect {
+    fn rect_between(self, x: f64, lower: f64, value: f64, offset: f64, width: f64) -> Rect {
         let c = self.category(x) + offset;
-        let a = self.y.unit(0.) * self.height;
-        let b = self.y.unit(value) * self.height;
+        let a = self.value(lower);
+        let b = self.value(value);
         if self.horizontal {
             Rect {
                 left: a.min(b),
@@ -306,48 +380,28 @@ impl Coordinates {
             }
         }
     }
-    fn axes(self, plan: &mut Plan, axes: options::Axes) {
-        plan.x_domain = Some(self.x);
-        plan.y_domain = Some(self.y);
-        for v in self.x.ticks(axes.ticks) {
-            let c = self.category(v);
-            let (start, end) = if self.horizontal {
-                (Point::new(0., c), Point::new(self.height, c))
-            } else {
-                (Point::new(c, 0.), Point::new(c, self.height))
-            };
-            if axes.grid {
-                plan.grid.push((start, end));
-            }
-            if axes.x {
-                plan.labels.push(Label {
-                    position: if self.horizontal { start } else { end },
-                    text: format_number(v, axes.x_format),
-                    kind: LabelKind::X,
-                });
-            }
-        }
-        for v in self.y.ticks(axes.ticks) {
-            let c = self.y.unit(v) * self.height;
-            let (start, end) = if self.horizontal {
-                (Point::new(c, 0.), Point::new(c, self.width))
-            } else {
-                (
-                    Point::new(0., self.height - c),
-                    Point::new(self.width, self.height - c),
-                )
-            };
-            if axes.grid {
-                plan.grid.push((start, end));
-            }
-            if axes.y {
-                plan.labels.push(Label {
-                    position: if self.horizontal { end } else { start },
-                    text: format_number(v, axes.y_format),
-                    kind: LabelKind::Y,
-                });
-            }
-        }
+    fn axes(
+        self,
+        plan: &mut Plan,
+        axes: options::Axes,
+        categories: Option<&[data::Category]>,
+        styles: Option<axis_presentation::Styles<'_>>,
+        cancel: &AtomicBool,
+    ) -> Result<(), Error> {
+        let default_axis = gpuio_protocol::chart_axis::Axis::default();
+        let default_grid = gpuio_protocol::chart_grid::Grid::default();
+        axis_presentation::prepare(
+            self,
+            plan,
+            axes,
+            categories,
+            styles.unwrap_or(axis_presentation::Styles {
+                x: &default_axis,
+                y: &default_axis,
+                grid: &default_grid,
+            }),
+            cancel,
+        )
     }
 }
 fn minimum_spacing(mut positions: Vec<f64>, domain: Domain) -> f64 {
@@ -395,48 +449,75 @@ fn curve(points: &[Point], style: options::Curve, horizontal: bool) -> Vec<Comma
 }
 fn cartesian(
     plan: &mut Plan,
-    layers: &[data::Layer],
+    layers: Layers<'_>,
+    categories: Option<&[data::Category]>,
     reduced: &[reduce::Series],
     options: &options::Options,
+    presentation: Presentation<'_>,
     cancel: &AtomicBool,
 ) -> Result<(), Error> {
     let x = Domain::from(
-        layers
-            .iter()
-            .flat_map(|l| l.series().points.iter().map(|p| p.x)),
+        layers.iter().flat_map(|l| l.points.iter().map(|p| p.x)),
         false,
     );
-    let zero = layers
+    let baseline = |series: usize| {
+        presentation
+            .area_baselines
+            .get(series)
+            .copied()
+            .unwrap_or(0.)
+    };
+    let has_values = layers
         .iter()
-        .any(|l| matches!(l, data::Layer::Area(_) | data::Layer::Bar(_)));
+        .any(|l| l.points.iter().any(|p| p.y.is_some()));
+    let area_bases = layers
+        .iter()
+        .enumerate()
+        .filter(|(_, l)| has_values && l.kind == Kind::Area)
+        .map(|(i, _)| baseline(i));
     // Include original extrema even when their points were reduced, plus bar
     // aggregates whose sums can exceed the individual source values.
+    let stacked = options.cartesian.stacking == options::Stacking::Stacked;
     let source_y = layers
         .iter()
-        .filter(|layer| !matches!(layer, data::Layer::Bar(_)))
-        .flat_map(|l| l.series().points.iter().filter_map(|p| p.y));
+        .filter(|layer| layer.kind == Kind::Line || (!stacked && layer.kind == Kind::Area))
+        .flat_map(|l| l.points.iter().filter_map(|p| p.y));
     let aggregate_y = reduced
         .iter()
-        .flat_map(|s| match s {
-            reduce::Series::Bar(b) => b.as_slice(),
+        .flat_map(|s| s.bars())
+        .flat_map(|(b, bounds)| bounds.map_or([b.baseline, b.value], |s| [s.lower, s.upper]));
+    let area_y = reduced.iter().enumerate().flat_map(|(i, s)| {
+        let points = match s {
+            reduce::Series::StackedArea(points) => points.as_slice(),
             _ => &[],
-        })
-        .map(|b| b.value);
-    let y = Domain::from(source_y.chain(aggregate_y), zero);
+        };
+        points
+            .iter()
+            .flat_map(move |p| [p.bounds.lower + baseline(i), p.bounds.upper + baseline(i)])
+    });
+    // Preserve the legacy zero domain contribution of an empty zero-based bar
+    // layer. Any rendered nonzero baseline instead supplies its actual bounds.
+    let zero = layers.iter().any(|l| l.kind == Kind::Bar)
+        && reduced
+            .iter()
+            .flat_map(|s| s.bars())
+            .all(|(b, _)| b.baseline == 0.);
+    let y = Domain::from(
+        source_y.chain(aggregate_y).chain(area_y).chain(area_bases),
+        zero,
+    );
     let bars = reduced
         .iter()
-        .filter(|s| matches!(s, reduce::Series::Bar(_)))
+        .filter(|s| matches!(s, reduce::Series::Bar(_) | reduce::Series::StackedBar(_)))
         .count();
+    let groups = if stacked { 1 } else { bars.max(1) };
     let positions = reduced
         .iter()
-        .flat_map(|s| match s {
-            reduce::Series::Bar(b) => b.as_slice(),
-            _ => &[],
-        })
-        .map(|b| b.x)
+        .flat_map(|s| s.bars())
+        .map(|(b, _)| b.x)
         .collect();
     let spacing = minimum_spacing(positions, x);
-    let horizontal = options.cartesian.orientation == options::Orientation::Horizontal;
+    let horizontal = options.cartesian.orientation.is_horizontal();
     let (width, height) = if horizontal {
         (plan.height, plan.width)
     } else {
@@ -450,20 +531,54 @@ fn cartesian(
         height,
         inset: if bars > 0 { slot / 2. } else { 0. },
         horizontal,
+        reversed: options.cartesian.orientation.is_reversed(),
+        value_offset: 0.,
+        categorical: categories
+            .map(|c| Projection::new(c.len(), width, options.cartesian.category_layout, bars > 0)),
     };
-    c.axes(plan, options.axes);
-    let bar_width = slot * options.cartesian.bar_width / (bars.max(1) as f64);
+    c.axes(plan, options.axes, categories, presentation.axes, cancel)?;
+    let bar_width = slot * options.cartesian.bar_width / (groups as f64);
     let mut bar_index = 0;
     for (series, (layer, reduction)) in layers.iter().zip(reduced).enumerate() {
         check(cancel)?;
+        let mut series_options = options.cartesian;
+        series_options.curve = presentation
+            .curves
+            .get(series)
+            .copied()
+            .unwrap_or(options.cartesian.curve);
         match reduction {
-            reduce::Series::Bar(values) => {
-                let offset = (bar_index as f64 - (bars - 1) as f64 / 2.) * bar_width;
-                for (i, b) in values.iter().enumerate() {
+            reduce::Series::Bar(_) | reduce::Series::StackedBar(_) => {
+                for (i, (b, bounds)) in reduction.bars().enumerate() {
+                    let bar_width = c.categorical.map_or(bar_width, |p| {
+                        p.interval_width(b.source.start(), b.source.end() - 1)
+                            * options.cartesian.bar_width
+                            / groups as f64
+                    });
+                    let offset = if stacked {
+                        0.
+                    } else {
+                        (bar_index as f64 - (bars - 1) as f64 / 2.) * bar_width
+                    };
                     checkpoint(i, cancel)?;
-                    if b.source.len() > 1 {
-                        plan.summaries
-                            .push((plan.marks.len(), Summary::Bar(b.value)));
+                    if let Some(bounds) = bounds {
+                        plan.summaries.push((
+                            plan.marks.len(),
+                            Summary::Stacked {
+                                baseline: b.baseline,
+                                value: b.value,
+                                lower: bounds.lower,
+                                upper: bounds.upper,
+                            },
+                        ));
+                    } else if b.source.len() > 1 || b.baseline != 0. {
+                        plan.summaries.push((
+                            plan.marks.len(),
+                            Summary::Bar {
+                                value: b.value,
+                                baseline: b.baseline,
+                            },
+                        ));
                     }
                     plan.marks.push(Mark {
                         layer: series,
@@ -472,10 +587,27 @@ fn cartesian(
                             start: b.source.start(),
                             end: b.source.end(),
                         },
-                        shape: Shape::Bar(c.rect(b.x, b.value, offset, bar_width)),
+                        shape: Shape::Bar(bounds.map_or_else(
+                            || c.rect_between(b.x, b.baseline, b.value, offset, bar_width),
+                            |s| c.rect_between(b.x, s.lower, s.upper, offset, bar_width),
+                        )),
                     });
                 }
                 bar_index += 1;
+            }
+            reduce::Series::StackedArea(points) => {
+                stacking::area(
+                    plan,
+                    series,
+                    layer.points,
+                    points,
+                    Coordinates {
+                        value_offset: baseline(series),
+                        ..c
+                    },
+                    series_options,
+                    cancel,
+                )?;
             }
             reduce::Series::Line(points) | reduce::Series::Area(points) => {
                 let area = matches!(reduction, reduce::Series::Area(_));
@@ -490,7 +622,7 @@ fn cartesian(
                     let mut coordinates = Vec::with_capacity(run.len());
                     for (i, p) in run.iter().enumerate() {
                         checkpoint(i, cancel)?;
-                        let datum = &layer.series().points[p.source];
+                        let datum = layer.points.get(p.source).expect("reduced source index");
                         let center = c.point(datum.x, datum.y.expect("reduced defined point"));
                         coordinates.push(center);
                         plan.marks.push(Mark {
@@ -507,15 +639,17 @@ fn cartesian(
                         });
                     }
                     if run.len() > 1 {
-                        let commands = curve(&coordinates, options.cartesian.curve, horizontal);
+                        let commands = curve(&coordinates, series_options.curve, horizontal);
                         if area {
                             let mut fill = commands.clone();
-                            fill.push(Command::Line(
-                                c.point(layer.series().points[run.last().unwrap().source].x, 0.),
-                            ));
-                            fill.push(Command::Line(
-                                c.point(layer.series().points[run[0].source].x, 0.),
-                            ));
+                            fill.push(Command::Line(c.point(
+                                layer.points.get(run.last().unwrap().source).unwrap().x,
+                                baseline(series),
+                            )));
+                            fill.push(Command::Line(c.point(
+                                layer.points.get(run[0].source).unwrap().x,
+                                baseline(series),
+                            )));
                             fill.push(Command::Close);
                             plan.paths.push(Path {
                                 layer: series,
@@ -536,67 +670,153 @@ fn cartesian(
     }
     Ok(())
 }
-fn pie(plan: &mut Plan, slices: &[data::Slice], options: options::Pie) {
-    // Dividing first avoids both aggregate overflow and precision loss from
-    // converting raw tiny/huge values to f32 in a graphics API.
+fn pie(
+    plan: &mut Plan,
+    slices: &[data::Slice],
+    options: &options::Pie,
+    metrics: Option<&[Option<LabelMetrics>]>,
+) -> Result<(), Error> {
+    if let Some(metrics) = metrics
+        && (metrics.len() != slices.len()
+            || metrics.iter().flatten().any(|m| {
+                !m.width.is_finite() || m.width < 0. || !m.height.is_finite() || m.height <= 0.
+            }))
+    {
+        return Err(Error::InvalidInput);
+    }
+    let outside = options.labels && options.label_placement == options::LabelPlacement::Outside;
+    if outside && metrics.is_none() {
+        return Err(Error::InvalidInput);
+    }
     let maximum = slices.iter().map(|s| s.value).fold(0., f64::max);
     if maximum == 0. {
-        return;
+        return Ok(());
     }
     let total = slices.iter().map(|s| s.value / maximum).sum::<f64>();
-    let radius = plan.width.min(plan.height) / 2.;
+    let radii: BTreeMap<_, _> = options
+        .slice_radii
+        .iter()
+        .map(|r| (r.slice, (r.inner, r.outer)))
+        .collect();
+    let label_width = if outside {
+        slices
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| {
+                s.value > 0. && radii.get(&s.id).is_none_or(|(inner, outer)| outer > inner)
+            })
+            .filter_map(|(i, _)| metrics.unwrap()[i])
+            .map(|m| m.width)
+            .fold(0., f64::max)
+            .min(plan.width * 0.25)
+    } else {
+        0.
+    };
+    let radius = match options.radius {
+        options::PieRadius::Fit if outside => {
+            let margin = (label_width + options.label_gap + 4.).min(plan.width * 0.35);
+            (plan.width / 2. - margin).min(plan.height / 2. - 9_f64.min(plan.height * 0.2))
+        }
+        options::PieRadius::Fit => plan.width.min(plan.height) / 2.,
+        options::PieRadius::Pixels(radius) => radius,
+    };
     let center = Point::new(plan.width / 2., plan.height / 2.);
     let mut angle = -PI / 2.;
+    let mut candidates = Vec::new();
     for (i, slice) in slices.iter().enumerate() {
         let sweep = (slice.value / maximum) / total * TAU;
         let gap = options.pad_angle.min(sweep * 0.5);
-        if sweep > 0. {
+        let (inner, outer) = radii
+            .get(&slice.id)
+            .copied()
+            .unwrap_or((radius * options.inner_radius, radius));
+        if sweep > 0. && outer > inner {
             plan.marks.push(Mark {
                 layer: i,
                 source: Source::Slice(i),
                 shape: Shape::Wedge {
                     center,
-                    inner: radius * options.inner_radius,
-                    outer: radius,
+                    inner,
+                    outer,
                     start: angle + gap / 2.,
                     end: angle + sweep - gap / 2.,
                 },
             });
-            if options.labels {
+            if outside {
+                if sweep >= PI / 360.
+                    && let Some(m) = metrics.unwrap()[i]
+                {
+                    candidates.push(pie_labels::Candidate {
+                        slice_index: i,
+                        angle: angle + sweep / 2.,
+                        outer,
+                        width: m.width,
+                        text: slice.label.clone(),
+                    });
+                }
+            } else if options.labels {
                 plan.labels.push(Label {
                     position: Point::polar(
                         center,
-                        radius * (options.inner_radius + (1. - options.inner_radius) * 0.65),
+                        inner + (outer - inner) * 0.65,
                         angle + sweep / 2.,
                     ),
                     text: slice.label.clone(),
-                    kind: LabelKind::Radial,
+                    kind: LabelKind::Pie {
+                        slice_index: i,
+                        placement: None,
+                    },
                 });
             }
         }
         angle += sweep;
     }
+    if outside {
+        plan.labels.extend(pie_labels::layout(
+            plan.width,
+            plan.height,
+            options.label_gap,
+            candidates,
+        ));
+    }
+    Ok(())
 }
+
 fn radar(
     plan: &mut Plan,
     axes: &[data::RadarAxis],
     series: &[data::RadarSeries],
     options: options::Radar,
-) {
+) -> Result<(), Error> {
     if axes.is_empty() {
-        return;
+        return Ok(());
     }
     let center = Point::new(plan.width / 2., plan.height / 2.);
-    let radius = plan.width.min(plan.height) / 2.;
+    let radius = match options.radius {
+        options::RadarRadius::Fit => plan.width.min(plan.height) / 2.,
+        options::RadarRadius::Pixels(radius) => radius,
+    };
+    let shared_maximum = match options.scale {
+        options::RadarScale::PerAxis => None,
+        options::RadarScale::Maximum(maximum) => Some(maximum),
+        options::RadarScale::DataMax => {
+            let maximum = series
+                .iter()
+                .flat_map(|s| &s.values)
+                .map(|(_, value)| *value)
+                .fold(0_f64, f64::max);
+            Some(if maximum > 0. { maximum } else { 1. })
+        }
+    };
     let angle = |i: usize| i as f64 / axes.len() as f64 * TAU - PI / 2.;
     for (i, axis) in axes.iter().enumerate() {
         let endpoint = Point::polar(center, radius, angle(i));
         plan.grid.push((center, endpoint));
         if options.labels {
             plan.labels.push(Label {
-                position: endpoint,
+                position: Point::polar(center, radius + options.label_gap, angle(i)),
                 text: axis.label.clone(),
-                kind: LabelKind::Radial,
+                kind: LabelKind::RadarAxis(axis.id),
             });
         }
         for level in 1..=options.levels {
@@ -611,8 +831,18 @@ fn radar(
         let values: BTreeMap<_, _> = s.values.iter().copied().collect();
         let mut points = Vec::with_capacity(axes.len() + 1);
         for (i, axis) in axes.iter().enumerate() {
-            let position =
-                Point::polar(center, radius * (values[&axis.id] / axis.maximum), angle(i));
+            let maximum = shared_maximum.unwrap_or(axis.maximum);
+            let position = Point::polar(center, radius * (values[&axis.id] / maximum), angle(i));
+            // Reject excessive extrapolation before f32 mesh conversion; never
+            // clamp data or vertices into a different polygon.
+            let limit = gpuio_protocol::canvas::COORDINATE_LIMIT;
+            if !position.x.is_finite()
+                || !position.y.is_finite()
+                || position.x.abs() > limit
+                || position.y.abs() > limit
+            {
+                return Err(Error::RenderLimit);
+            }
             points.push(position);
             plan.marks.push(Mark {
                 layer: index,
@@ -640,13 +870,16 @@ fn radar(
             commands,
         });
     }
+    Ok(())
 }
 fn candles(
     plan: &mut Plan,
     source: &[data::Candle],
     values: &[reduce::Candle],
     options: &options::Options,
-) {
+    axes: Option<axis_presentation::Styles<'_>>,
+    cancel: &AtomicBool,
+) -> Result<(), Error> {
     let x = Domain::from(source.iter().map(|v| v.x), false);
     let y = Domain::from(values.iter().flat_map(|v| [v.low, v.high]), false);
     let spacing = minimum_spacing(values.iter().map(|v| v.x).collect(), x);
@@ -658,8 +891,11 @@ fn candles(
         height: plan.height,
         inset: slot / 2.,
         horizontal: false,
+        reversed: false,
+        value_offset: 0.,
+        categorical: None,
     };
-    c.axes(plan, options.axes);
+    c.axes(plan, options.axes, None, axes, cancel)?;
     for candle in values {
         let center = c.category(candle.x);
         let half = slot * options.candlestick.body_width / 2.;
@@ -689,17 +925,30 @@ fn candles(
             },
         });
     }
+    Ok(())
 }
 fn sankey(
     plan: &mut Plan,
     nodes: &[data::Node],
     edges: &[data::Edge],
     options: options::Sankey,
+    labels: Option<&[Option<LabelMetrics>]>,
+    cancel: &AtomicBool,
 ) -> Result<(), Error> {
     use gpuio_plot::sankey::{Sankey, SankeyAlign, SankeyLink, SankeyValueScale};
+    check(cancel)?;
+    if let Some(labels) = labels
+        && (labels.len() != nodes.len()
+            || labels.iter().flatten().any(|m| {
+                !m.width.is_finite() || m.width < 0. || !m.height.is_finite() || m.height <= 0.
+            }))
+    {
+        return Err(Error::InvalidInput);
+    }
     if nodes.is_empty() {
         return Ok(());
     }
+    let labels = labels.filter(|_| options.labels);
     let indices: BTreeMap<_, _> = nodes.iter().enumerate().map(|(i, n)| (n.id, i)).collect();
     let maximum = edges.iter().map(|e| e.value).fold(0., f64::max);
     let links: Vec<_> = edges
@@ -731,6 +980,34 @@ fn sankey(
     let graph = layout
         .topology(nodes.len(), &links)
         .map_err(|_| Error::InvalidInput)?;
+    check(cancel)?;
+    let (mut left, mut right, mut top, mut bottom) = (0_f64, 0_f64, 0_f64, 0_f64);
+    if let Some(labels) = labels {
+        for node in &graph.nodes {
+            check(cancel)?;
+            let Some(metric) = labels[node.index] else {
+                continue;
+            };
+            bottom = 4.;
+            if node.layer == 0 {
+                left = left.max(metric.width + options.label_gap);
+            } else if node.layer + 1 == graph.layer_count() {
+                right = right.max(metric.width + options.label_gap);
+            } else {
+                top = top.max(metric.height + options.label_gap);
+            }
+        }
+        left = left.min(plan.width * 0.2);
+        right = right.min(plan.width * 0.2);
+        let cap = plan.height * 0.6;
+        if top + bottom > cap {
+            let factor = cap / (top + bottom);
+            top *= factor;
+            bottom *= factor;
+        }
+    }
+    let available_width = plan.width - left - right;
+    let available_height = plan.height - top - bottom;
     // Fit the actual columns, not total node count. Keep room for positive
     // node heights so crowded padding cannot erase all visible flows.
     let mut columns = vec![0_usize; graph.layer_count()];
@@ -739,35 +1016,55 @@ fn sankey(
     }
     let largest_column = columns.iter().copied().max().unwrap_or(1);
     let graph = layout
+        .extent(
+            left as f32,
+            top as f32,
+            (plan.width - right) as f32,
+            (plan.height - bottom) as f32,
+        )
         .node_width(
             options
                 .node_width
-                .min(plan.width / (2 * columns.len() - 1) as f64) as f32,
+                .min(available_width / (2 * columns.len() - 1) as f64) as f32,
         )
         .node_padding(
             options
                 .node_padding
-                .min(plan.height / (2 * largest_column) as f64) as f32,
+                .min(available_height / (2 * largest_column) as f64) as f32,
         )
         .layout_from(graph);
     for link in &graph.links {
+        check(cancel)?;
         if link.value == 0. {
             continue;
         }
         let a = &graph.nodes[link.source];
         let b = &graph.nodes[link.target];
+        // Widen paint and hit geometry together. Keep raw values/provenance
+        // unchanged and clip endpoint spans inside small plotting rectangles.
+        let source_half = f64::from(link.source_width).max(options.min_link_width) / 2.;
+        let target_half = f64::from(link.target_width).max(options.min_link_width) / 2.;
+        let span = |center: f64, half: f64| {
+            (
+                (center - half).max(top),
+                (center + half).min(plan.height - bottom),
+            )
+        };
+        let (source_top, source_bottom) = span(f64::from(link.y0), source_half);
+        let (target_top, target_bottom) = span(f64::from(link.y1), target_half);
         plan.marks.push(Mark {
             layer: link.source,
             source: Source::Edge(link.index),
             shape: Shape::Ribbon {
-                start_top: Point::new(a.x1 as f64, (link.y0 - link.source_width / 2.) as f64),
-                start_bottom: Point::new(a.x1 as f64, (link.y0 + link.source_width / 2.) as f64),
-                end_top: Point::new(b.x0 as f64, (link.y1 - link.target_width / 2.) as f64),
-                end_bottom: Point::new(b.x0 as f64, (link.y1 + link.target_width / 2.) as f64),
+                start_top: Point::new(a.x1 as f64, source_top),
+                start_bottom: Point::new(a.x1 as f64, source_bottom),
+                end_top: Point::new(b.x0 as f64, target_top),
+                end_bottom: Point::new(b.x0 as f64, target_bottom),
             },
         });
     }
     for node in &graph.nodes {
+        check(cancel)?;
         let bounds = Rect {
             left: node.x0 as f64,
             right: node.x1 as f64,
@@ -780,10 +1077,67 @@ fn sankey(
             shape: Shape::Node(bounds),
         });
         if options.labels {
+            let align_right = (bounds.left + bounds.right) / 2. > plan.width / 2.;
+            let (position, placement) = if let Some(labels) = labels {
+                let Some(metric) = labels[node.index] else {
+                    continue;
+                };
+                let middle = (bounds.left + bounds.right) / 2.;
+                let (x, y, align, width, above) = if node.layer == 0 {
+                    (
+                        bounds.left - options.label_gap,
+                        (bounds.top + bounds.bottom) / 2.,
+                        FlowAlign::Right,
+                        (left - options.label_gap).max(0.),
+                        false,
+                    )
+                } else if node.layer + 1 == graph.layer_count() {
+                    (
+                        bounds.right + options.label_gap,
+                        (bounds.top + bounds.bottom) / 2.,
+                        FlowAlign::Left,
+                        (right - options.label_gap).max(0.),
+                        false,
+                    )
+                } else {
+                    (
+                        middle,
+                        bounds.top - options.label_gap,
+                        FlowAlign::Center,
+                        2. * middle.min(plan.width - middle).max(0.),
+                        true,
+                    )
+                };
+                (
+                    Point::new(x, y),
+                    Some(FlowLabelPlacement {
+                        align,
+                        width,
+                        block_height: metric.height,
+                        above,
+                    }),
+                )
+            } else {
+                (
+                    Point::new(
+                        if align_right {
+                            bounds.left - options.label_gap
+                        } else {
+                            bounds.right + options.label_gap
+                        },
+                        (bounds.top + bounds.bottom) / 2.,
+                    ),
+                    None,
+                )
+            };
             plan.labels.push(Label {
-                position: Point::new(bounds.left, (bounds.top + bounds.bottom) / 2.),
+                position,
                 text: nodes[node.index].label.clone(),
-                kind: LabelKind::Flow,
+                kind: LabelKind::Flow {
+                    placement,
+                    align_right,
+                    node_index: node.index,
+                },
             });
         }
     }
@@ -854,7 +1208,88 @@ pub fn prepare(
     height: f64,
     cancel: &AtomicBool,
 ) -> Result<Plan, Error> {
+    prepare_with_labels(data, policy, options, (width, height), None, cancel)
+}
+/// Measured outside-label geometry. The caller must supply exact native block
+/// metrics for this snapshot; preparation never estimates text widths. None
+/// preserves the existing inside layout. Sankey and pie data accept metrics.
+/// Public option/worker integration is a separate layer above this pure engine.
+pub fn prepare_with_labels(
+    data: &data::Data,
+    policy: Policy,
+    options: &options::Options,
+    size: (f64, f64),
+    labels: Option<&[Option<LabelMetrics>]>,
+    cancel: &AtomicBool,
+) -> Result<Plan, Error> {
+    prepare_with_axes(data, policy, options, size, labels, None, cancel)
+}
+pub(crate) fn prepare_with_axes(
+    data: &data::Data,
+    policy: Policy,
+    options: &options::Options,
+    size: (f64, f64),
+    labels: Option<&[Option<LabelMetrics>]>,
+    axes: Option<axis_presentation::Styles<'_>>,
+    cancel: &AtomicBool,
+) -> Result<Plan, Error> {
+    prepare_with_presentation(
+        data,
+        policy,
+        options,
+        size,
+        labels,
+        Presentation {
+            axes,
+            curves: &[],
+            area_baselines: &[],
+        },
+        cancel,
+    )
+}
+#[derive(Clone, Copy)]
+pub(crate) struct Presentation<'a> {
+    pub axes: Option<axis_presentation::Styles<'a>>,
+    pub curves: &'a [options::Curve],
+    pub area_baselines: &'a [f64],
+}
+pub(crate) fn prepare_with_presentation(
+    data: &data::Data,
+    policy: Policy,
+    options: &options::Options,
+    size: (f64, f64),
+    labels: Option<&[Option<LabelMetrics>]>,
+    presentation: Presentation<'_>,
+    cancel: &AtomicBool,
+) -> Result<Plan, Error> {
+    let axes = presentation.axes;
+    if !presentation.curves.is_empty()
+        && Layers::of(data).is_none_or(|layers| layers.len() != presentation.curves.len())
+    {
+        return Err(Error::InvalidInput);
+    }
+    if !presentation.area_baselines.is_empty()
+        && (Layers::of(data).is_none_or(|layers| layers.len() != presentation.area_baselines.len())
+            || presentation
+                .area_baselines
+                .iter()
+                .any(|n| !n.is_finite() || n.abs() > 1e100))
+    {
+        return Err(Error::InvalidInput);
+    }
+    if axes.is_some_and(|s| !s.x.is_valid() || !s.y.is_valid() || !s.grid.is_valid()) {
+        return Err(Error::InvalidInput);
+    }
+    let (width, height) = size;
     check(cancel)?;
+    if labels.is_some()
+        && !matches!(
+            data.contents,
+            data::Contents::Sankey(..) | data::Contents::Pie(_)
+        )
+    {
+        return Err(Error::InvalidInput);
+    }
     if !options.is_valid()
         || !width.is_finite()
         || !height.is_finite()
@@ -865,24 +1300,21 @@ pub fn prepare(
     {
         return Err(Error::InvalidInput);
     }
-    let reduction = reduce::prepare(
+    let reduction = reduce::prepare_with_options(
         data,
         policy,
-        if options.cartesian.orientation == options::Orientation::Horizontal
-            && matches!(data.contents, data::Contents::Cartesian(_))
-        {
+        if options.cartesian.orientation.is_horizontal() && Layers::of(data).is_some() {
             height
         } else {
             width
         },
+        options,
         cancel,
     )
-    .map_err(|e| {
-        if e == reduce::Error::Cancelled {
-            Error::Cancelled
-        } else {
-            Error::InvalidInput
-        }
+    .map_err(|e| match e {
+        reduce::Error::Cancelled => Error::Cancelled,
+        reduce::Error::IncompatibleBarBaselines => Error::InvalidConfiguration,
+        _ => Error::InvalidInput,
     })?;
     let mut plan = Plan {
         width,
@@ -898,21 +1330,35 @@ pub fn prepare(
         rendered_values: reduction.rendered_values,
     };
     match (&data.contents, &reduction.contents) {
-        (data::Contents::Cartesian(layers), reduce::Contents::Cartesian(series)) => {
-            cartesian(&mut plan, layers, series, options, cancel)?
-        }
+        (
+            data::Contents::Cartesian(_) | data::Contents::Categorical(..),
+            reduce::Contents::Cartesian(series),
+        ) => cartesian(
+            &mut plan,
+            Layers::of(data).unwrap(),
+            match &data.contents {
+                data::Contents::Categorical(c, _) => Some(c.as_slice()),
+                _ => None,
+            },
+            series,
+            options,
+            presentation,
+            cancel,
+        )?,
         (data::Contents::Candlestick(source), reduce::Contents::Candlestick(values)) => {
-            candles(&mut plan, source, values, options)
+            candles(&mut plan, source, values, options, axes, cancel)?
         }
-        (data::Contents::Pie(slices), _) => pie(&mut plan, slices, options.pie),
-        (data::Contents::Radar(axes, series), _) => radar(&mut plan, axes, series, options.radar),
+        (data::Contents::Pie(slices), _) => pie(&mut plan, slices, &options.pie, labels)?,
+        (data::Contents::Radar(axes, series), _) => radar(&mut plan, axes, series, options.radar)?,
         (data::Contents::Sankey(nodes, edges), _) => {
-            sankey(&mut plan, nodes, edges, options.sankey)?
+            sankey(&mut plan, nodes, edges, options.sankey, labels, cancel)?
         }
         _ => return Err(Error::InvalidInput),
     }
     match &data.contents {
-        data::Contents::Cartesian(layers) => series_identifiers(&mut plan, layers.len(), cancel)?,
+        data::Contents::Cartesian(_) | data::Contents::Categorical(..) => {
+            series_identifiers(&mut plan, Layers::of(data).unwrap().len(), cancel)?
+        }
         data::Contents::Radar(_, series) => series_identifiers(&mut plan, series.len(), cancel)?,
         _ => (),
     }
@@ -925,3 +1371,15 @@ pub fn prepare(
 
 #[cfg(test)]
 mod tests;
+
+mod stacking;
+
+#[cfg(test)]
+mod flow_labels_tests;
+
+#[cfg(test)]
+mod pie_radii_tests;
+
+mod pie_labels;
+
+pub(crate) mod axis_presentation;

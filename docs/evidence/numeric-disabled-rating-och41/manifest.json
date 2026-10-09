@@ -1,0 +1,8 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "fedb652abf8e83c55e1fea37a9ef1e4139b10db8f07f4b7ac29246facec2de95",
+  "base_revision": "84117ea60aa68f957b60ac6bdf59d9816e328d9a",
+  "source_patch": "gallery-rating-002/source.patch",
+  "platform": "macOS 14.5 arm64; M1 Max; built-in display",
+  "scope": "Numeric disabled state correction, TestPlatform policy paint, physical public gallery Rating walkthrough; no VoiceOver or Linux GUI"
+}

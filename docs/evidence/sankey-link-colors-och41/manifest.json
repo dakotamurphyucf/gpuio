@@ -1,0 +1,262 @@
+{
+  "base_commit": "0244af1e719172cdbd0c4a372a83738e8d97b7c3",
+  "scope": "Local Sankey ribbon color integration",
+  "archive_sha256": "8f46940ee8508d87db92473a41d1b08fce8bcfb9484adcf903a77bb2a7e0b0c9",
+  "files": [
+    {
+      "path": "binary.json",
+      "bytes": 127,
+      "sha256": "24088dd7bf50b033bc7829574cfdd68d99a889c412dd67790a16261117744cf7"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 1205,
+      "sha256": "719a0880d3ced7b7af03ff7baf134d39eff96ca8f70dae5f32a7886bcddccf78"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 82,
+      "sha256": "6e1453ea9c1ef0c20b76675b08f9e8c930bf10a19af1097d06b47b389abcaa58"
+    },
+    {
+      "path": "final-results.json",
+      "bytes": 1186,
+      "sha256": "90df4297e743d8d115cf7b5b9cebf19273951dd499cf76471813bcc57787b504"
+    },
+    {
+      "path": "images/chart-link-colors-images/gallery-sankey-default-flows.png",
+      "bytes": 383774,
+      "sha256": "284ec4e87c4b71965d270ec44540cbfe2271ed6331ff2a6d3424044b3f79d007"
+    },
+    {
+      "path": "images/chart-link-colors-images/gallery-sankey-gradient-flows.png",
+      "bytes": 1385442,
+      "sha256": "b1d0f574ed07bd4ecf5f0b1208f647930cb3b1201d9a1c61c3f121e47e55161c"
+    },
+    {
+      "path": "images/chart-link-colors-images/gallery-sankey-target-colored-flows.png",
+      "bytes": 384497,
+      "sha256": "bb593486cb7d0bffc156a138b87b91ba45a2b1b7d9397f8da6675aa6e5307696"
+    },
+    {
+      "path": "logs/chart-link-colors-clippy-final.log",
+      "bytes": 588352,
+      "sha256": "d8dea0b4ce5ce73b471756dc036ee285b64760e7dab991ed1e6e4a7783c1cc3c"
+    },
+    {
+      "path": "logs/chart-link-colors-clippy.log",
+      "bytes": 589042,
+      "sha256": "6b06f65b7c13e10fbb6d732ee82c0561dc87d0d8fdb5de24bb6d53dfd41f11d9"
+    },
+    {
+      "path": "logs/chart-link-colors-consumer.log",
+      "bytes": 113586,
+      "sha256": "e53047a9852acd5904946c5abe57cbf49e24ff0a435fd4da08a8d9b0bb128b14"
+    },
+    {
+      "path": "logs/chart-link-colors-core.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-link-colors-dune.log",
+      "bytes": 705858,
+      "sha256": "11549e3a5025d2bf1f6a994bc92331dc29a5e45006bc310c75d9dc27719083c8"
+    },
+    {
+      "path": "logs/chart-link-colors-gallery.log",
+      "bytes": 12674,
+      "sha256": "25510b17bfe36c7b2a318ca35d2b718e3606382adacf4403659ecf89a18f956a"
+    },
+    {
+      "path": "logs/chart-link-colors-gpu-final.log",
+      "bytes": 599717,
+      "sha256": "f95344a0ea1c005dc13a7dbea2be6b7d8e5364b83323996e072df2ccce805d70"
+    },
+    {
+      "path": "logs/chart-link-colors-gpu.log",
+      "bytes": 590941,
+      "sha256": "9479816fb65f2e98b439edb20b9a1c4dba87c6b1a1e9d1369e16af8b7164b906"
+    },
+    {
+      "path": "logs/chart-link-colors-native-focused.log",
+      "bytes": 588794,
+      "sha256": "dcd453761bb04fe3bbe4c89cf8e0379f03d0ea1d36979af1c31cedabd2258472"
+    },
+    {
+      "path": "logs/chart-link-colors-native.log",
+      "bytes": 696244,
+      "sha256": "70450c665ab83410deb83358ca74c2a382e7c7737fcbeb8f855085d2de5c0fe1"
+    },
+    {
+      "path": "logs/chart-link-colors-protocol-final.log",
+      "bytes": 56188,
+      "sha256": "7d4d8f43b3c5cc6a776e48d61057bbda781dbc3a418aa5186d6ff6efe90c662e"
+    },
+    {
+      "path": "logs/chart-link-colors-protocol.log",
+      "bytes": 15601,
+      "sha256": "03dad1f9f7ce7f599a860519a7ac1c36f9e2cad6990f9edfe408ab4c2c92f33b"
+    },
+    {
+      "path": "logs/chart-link-colors-rustfmt-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source/docs/catalog/charts-review.md",
+      "bytes": 11775,
+      "sha256": "ed6563b6208b6271c7614ef492df93876d67c01ea6fbcf083d517b3ce3400701"
+    },
+    {
+      "path": "source/docs/design/chart-inspection.md",
+      "bytes": 4546,
+      "sha256": "de482d3a6f53187aad8c9b29c7700559f1f7c31538082b4785236e51bf911dc1"
+    },
+    {
+      "path": "source/docs/design/chart-node-labels.md",
+      "bytes": 3676,
+      "sha256": "1612cbe061094ffdaf943a55ab7524204ba8174ca9aa08c1e714f756aef9c8d6"
+    },
+    {
+      "path": "source/docs/design/chart-ordinal-colors.md",
+      "bytes": 5649,
+      "sha256": "462308b52420d5371682f1cbfb9150e0fca011726599e1e47fdd13e4e22a481d"
+    },
+    {
+      "path": "source/docs/design/charts.md",
+      "bytes": 47028,
+      "sha256": "4effdec549bbf447c407e4a01f72c5cb1e4a436932aad360b645684a3768da3b"
+    },
+    {
+      "path": "source/docs/design/sankey-link-colors.md",
+      "bytes": 2287,
+      "sha256": "cb00d62f1e9dbabb36db2c4dc8e2263e744e71fb39c096a5bbb01fc87c0ab864"
+    },
+    {
+      "path": "source/docs/design/sankey-presentation.md",
+      "bytes": 3365,
+      "sha256": "c59b2b23a010225228ad823f4e752c2c9c87b626ea2ca356bc9691550718c52e"
+    },
+    {
+      "path": "source/docs/evidence/sankey-link-colors-och41.md",
+      "bytes": 5746,
+      "sha256": "951ccbe80a3cbcf032d3d34fac6a88244cbc2c008bfe5415c4dcebe69bd07f75"
+    },
+    {
+      "path": "source/docs/status.md",
+      "bytes": 53433,
+      "sha256": "c7a820629db8fabf72369f94f84b4d90bfcdbf0f595008d791a2158a213692b7"
+    },
+    {
+      "path": "source/examples/charts/samples/sankey_presentation.md",
+      "bytes": 7979,
+      "sha256": "87fbc07b9254ade10603fc5f838b80f7dde046526debe15145f77aaebdb49425"
+    },
+    {
+      "path": "source/examples/charts/samples/sankey_presentation.ml",
+      "bytes": 2633,
+      "sha256": "8dc551280a7e8a51a3ecc55ead1e44c47dfca3240e152f959a3fd8bc2789f91b"
+    },
+    {
+      "path": "source/examples/charts/samples/sankey_presentation.mli",
+      "bytes": 414,
+      "sha256": "f169d8db3f3e840734bb4b7bfd546a189e693d533ee1f7792dcc55342d614060"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.md",
+      "bytes": 14279,
+      "sha256": "9623f487e30deafd5f7565f1f26ce288a48f26f0853c8024900971ee292647f4"
+    },
+    {
+      "path": "source/lib/core/chart_options.ml",
+      "bytes": 5551,
+      "sha256": "0817509162794159c2657e8fbd70ae09f2dfa25157bd13de834330aacbb44a2d"
+    },
+    {
+      "path": "source/lib/core/chart_options.mli",
+      "bytes": 7536,
+      "sha256": "d20ba3bb3137e1d1ae072a2ba182f0b27cfdd477178fcbd672c553edd6e59082"
+    },
+    {
+      "path": "source/lib/protocol/chart_options_wire.ml",
+      "bytes": 3937,
+      "sha256": "7e79c7fb8f9efe2487511ecb55f2070900090d28adcf912888b0fb73147571be"
+    },
+    {
+      "path": "source/rust/native/src/canvas_paint.rs",
+      "bytes": 10406,
+      "sha256": "1864bdb6056a92b7f62d45fa6aea62f65cbe148d83e7bd9effe0199becef1dc7"
+    },
+    {
+      "path": "source/rust/native/src/chart_colors.rs",
+      "bytes": 2986,
+      "sha256": "69cda0fd63f68a922f2f269f676f63a2d774dd8ed8d6b3e6b8178ae19544fe1f"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint.rs",
+      "bytes": 26144,
+      "sha256": "67ab734677c2feabed7dcf1012693665d4410a1c6e80e304f9655f77f800292f"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint/native_test.rs",
+      "bytes": 21771,
+      "sha256": "afc9d484b31d0677122dfe430a77d078537942d17a0f98b6cdc98951a2d62486"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint/sankey_tests.rs",
+      "bytes": 6643,
+      "sha256": "5f561f1b2175ab66938b19e888a32dc9fda8e78d23b7cf490f18491bb61d3229"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_options.rs",
+      "bytes": 5973,
+      "sha256": "8965e601ce24b5aaa15b371a5e93f5952955c0b0509bb6a480002635de8487b8"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_options.rs",
+      "bytes": 4439,
+      "sha256": "cd4dd289c63f0af2a804621354a49a65f8d6696ab9f47160e0b87a90496a141f"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_options.rs",
+      "bytes": 9339,
+      "sha256": "24adc185dba3a93b36ab93cab94d0163a45e4b999d2fb2d7c4d78b4885f96e65"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_view.rs",
+      "bytes": 4945,
+      "sha256": "979c7e2ec43106ca2f6eeddd8cfb37bad8db554a7cd7e2273e01f17f043302cc"
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "bytes": 357855,
+      "sha256": "aa6bb2de319d530c7709fc133195644bb61f3bb6810e45e3e9f4ff62cf73c777"
+    },
+    {
+      "path": "source/test/chart/chart_options_test.ml",
+      "bytes": 8421,
+      "sha256": "f94c50a6ab81ae4d8958fa1bdcacb5f294e249083c2fae8e491393f31fadc8b7"
+    },
+    {
+      "path": "source/test/chart/chart_view_test.ml",
+      "bytes": 5334,
+      "sha256": "50c05b975707a7f53126c04542d89b36a3a492b5e5d7a893dd3b5044c609e907"
+    },
+    {
+      "path": "source/test/chart/dune",
+      "bytes": 401,
+      "sha256": "228a2d7f1d611350142d4980cdc4ee68496bd06250396e81a7c99571f17b4a7d"
+    },
+    {
+      "path": "source/test/fixtures/chart-v5-link-colors-view.hex",
+      "bytes": 527,
+      "sha256": "de302531f2a206713ac6418bff6fbf3602d1950ed2c9006f242ffd38c4dee279"
+    },
+    {
+      "path": "tracked.patch",
+      "bytes": 42474,
+      "sha256": "7c8001578dda870ab85c81c49478aeea595d64311bf4eafa846097474cb15a64"
+    }
+  ]
+}

@@ -46,7 +46,12 @@ async fn rasterized(
                         == asset_svg::Size::Exact(
                             asset_svg::RasterSize::new(width, height).unwrap(),
                         )
-                    && state.rendered.tint == tint
+                    && state.rendered.tint.is_none()
+                    && tint.is_none_or(|color| {
+                        window.painted_monochrome_sprites().iter().any(|sprite| {
+                            sprite.color == crate::host::color(&Color::Rgba(color.into()))
+                        })
+                    })
                     && state.rendered.fit == ImageFit::Fill
             })
             .unwrap();

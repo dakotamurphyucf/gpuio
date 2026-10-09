@@ -1,0 +1,30 @@
+{
+  "metal-presentation-hook/report.json": {
+    "bytes": 76383,
+    "sha256": "7a3ffc387743b42deb78a54715d9b6073e26e74308897e0de896376ccf5a71cb"
+  },
+  "metal-presentation-calibration.json": {
+    "bytes": 63460,
+    "sha256": "eea9fea3b8f24d296f29c1de09a63e543141305aa479db7aad613d932c9a651d"
+  },
+  "metal-presentation-display.json": {
+    "bytes": 35,
+    "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+  },
+  "build.log": {
+    "bytes": 1300029,
+    "sha256": "9c8c08939880a6a3a4b4bd2feff8211ac15ed0a5c1642b35b16b95936cf3d1bb"
+  },
+  "terminal-run.json": {
+    "bytes": 62955,
+    "sha256": "2744e45f86e1b91a1e849af6f46039b111119b7a7178cb2a08ca0a94d7974633"
+  },
+  "failed-steps.log": {
+    "bytes": 2032378,
+    "sha256": "ef7ac90a95f90ddbf620cf61c41d3fd4f9697c98bc1a4c0044a3fc4759dfdc30"
+  },
+  "linux-job.log": {
+    "bytes": 205286,
+    "sha256": "1aba145b1192f12eb02c2bd46dcf7d752ea7db67d20ed656721b123d5277ee1f"
+  }
+}

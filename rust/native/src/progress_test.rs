@@ -107,14 +107,28 @@ pub(super) async fn exercise(
             view.session.borrow().tree(view.id).unwrap().revision()
         })
         .unwrap();
-    pause(cx).await; // Do not request another frame: GPUI must drive this cycle itself.
-    let advanced = paint(cx, handle);
+    // The segment enters from outside the track: its clipped origin remains
+    // zero during the first 300 ms of the 1500 ms cycle. Observe its full entry
+    // rather than assuming a 180 ms delay already changes the origin. Do not
+    // request another frame: GPUI must drive this cycle itself.
+    let mut advanced = started;
+    for _ in 0..100 {
+        cx.background_executor()
+            .timer(std::time::Duration::from_millis(20))
+            .await;
+        advanced = paint(cx, handle);
+        if advanced.bounds.origin.x != started.bounds.origin.x
+            && (f32::from(advanced.bounds.size.width) - 60.).abs() < 0.01
+        {
+            break;
+        }
+    }
     assert!(
         advanced.count > started.count,
         "native animation paints without an OCaml update"
     );
     assert_ne!(advanced.bounds.origin.x, started.bounds.origin.x);
-    assert_eq!(advanced.bounds.size.width, px(60.));
+    assert!((f32::from(advanced.bounds.size.width) - 60.).abs() < 0.01);
     assert_eq!(advanced.color, gpui::Hsla::from(gpui::rgba(0xee7733ff)));
     handle
         .update(cx, |view, _, _| {

@@ -7,6 +7,13 @@ let max_schemes = 16
 let max_link_bytes = 16_384
 let max_links = 64
 let max_link_batch_bytes = 262_144
+let max_clipboard_text_bytes = 262_144
+
+let valid_clipboard_text text =
+  String.length text <= max_clipboard_text_bytes
+  && Stdlib.String.is_valid_utf_8 text
+  && not (String.contains text '\000')
+;;
 
 let letter = function
   | 'a' .. 'z' -> true
@@ -75,6 +82,13 @@ module Capabilities = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Scrollbar_preference = struct
+  type t =
+    | Auto_hide
+    | Always_visible
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Error = struct
   type t =
     | Invalid_request
@@ -98,6 +112,8 @@ module Request = struct
     | Reveal_file of string
     | Open_file of string
     | Register_scheme of string
+    | Scrollbar_preference
+    | Write_clipboard_text of string
   [@@deriving bin_io, equal, sexp_of]
 
   let valid_path path =
@@ -109,9 +125,10 @@ module Request = struct
 
   let valid = function
     | Configure identity -> Identity.valid identity
+    | Write_clipboard_text text -> valid_clipboard_text text
     | Reveal_file path | Open_file path -> valid_path path
     | Register_scheme scheme -> valid_scheme scheme
-    | Capabilities | Take_links | Activate _ -> true
+    | Capabilities | Take_links | Activate _ | Scrollbar_preference -> true
   ;;
 end
 
@@ -138,11 +155,17 @@ module Response = struct
     | Requested
     | Registered
     | Failed of Error.t
+    | Scrollbar_preference of Scrollbar_preference.t
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
     | Links batch -> Link_batch.valid batch
-    | Configured | Capabilities _ | Requested | Registered | Failed _ -> true
+    | Configured
+    | Capabilities _
+    | Requested
+    | Registered
+    | Failed _
+    | Scrollbar_preference _ -> true
   ;;
 end
 

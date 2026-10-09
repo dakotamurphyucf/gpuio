@@ -1,0 +1,139 @@
+{
+  "source_base": "647e2668e3e63e47c71609277f66c1a437cad07a",
+  "scope": "Dedicated native inspection suite: editor/composition lifetimes and aggregate publication identity; broader qualification remains open",
+  "source_files": [
+    {
+      "path": ".github/workflows/foundation.yml",
+      "bytes": 77703,
+      "sha256": "5cb6f86b4123c7a0e7fc73350a5f4c900c3bbebfcd7d9966df232102acc391fa"
+    },
+    {
+      "path": "rust/native/Cargo.toml",
+      "bytes": 10234,
+      "sha256": "3a7943a4d7acaf594c47b75553770c46cbc585f9e307fd4e5fa2bfa8ece03692"
+    },
+    {
+      "path": "rust/native/src/chart_input_test.rs",
+      "bytes": 15746,
+      "sha256": "b8aa4b5c516311193a06097fb1d951d4a98f40d54fc5597b6940b2e552fd791a"
+    },
+    {
+      "path": "rust/native/src/chart_inspection_aggregate_test.rs",
+      "bytes": 11442,
+      "sha256": "95c883b2bbe001b3634380e36a8c3998d81e541ef2320c90b960d76498949f04"
+    },
+    {
+      "path": "rust/native/src/chart_inspection_content_test.rs",
+      "bytes": 10952,
+      "sha256": "b61d529b93a37deed31c4735bbec071b953c35ae72cf91334a7964fbbdb33639"
+    },
+    {
+      "path": "rust/native/src/chart_inspection_editor_test.rs",
+      "bytes": 10807,
+      "sha256": "ba549c764133db8af71f66f5d76b84f638f240f1c834d4a7aa2cb77a5b1e1b69"
+    },
+    {
+      "path": "rust/native/src/chart_view_test.rs",
+      "bytes": 17676,
+      "sha256": "6914f9f57471b6759ec353d3d129a1297a312679a3dc8273bd161d47ee849bc8"
+    },
+    {
+      "path": "rust/native/src/lib.rs",
+      "bytes": 11261,
+      "sha256": "5443a3b19c95b4b6d18714854870cbc3134dad59d68580f338aaac3935977bf6"
+    },
+    {
+      "path": "rust/native/tests/native_chart_inspection.rs",
+      "bytes": 68,
+      "sha256": "291bd2ef64176dc89c28512adeb359783074b53e0edaaedc028b2d567f9f028e"
+    }
+  ],
+  "files": [
+    {
+      "path": "environment.txt",
+      "bytes": 119,
+      "sha256": "75857bc455ebd6739d5a525383512818dec698f93c61ae34ad6fbb73a5b1f080"
+    },
+    {
+      "path": "existing-native-input.log",
+      "bytes": 590102,
+      "sha256": "1e7ba545ca8349464eec32deeafde4ed65ae1d0cbfcebe3157261c1522cf237a"
+    },
+    {
+      "path": "existing-native-view.log",
+      "bytes": 592996,
+      "sha256": "319e6ed706a50db08d402aff5001a016de7f07d82de1318eef2ee742289495c5"
+    },
+    {
+      "path": "final-clippy.log",
+      "bytes": 588275,
+      "sha256": "cd36d3e7b20f547857508e8976aaf85634bbfcc6a2937e35090e65090e8ff80c"
+    },
+    {
+      "path": "final-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-results.json",
+      "bytes": 645,
+      "sha256": "711d179eea04a7ba4ff9c09516e71d679c1b1a3edc27b5baaa15c7751427fb5d"
+    },
+    {
+      "path": "hidden-view-result.json",
+      "bytes": 324,
+      "sha256": "c1fa6f59a1904e3aae98c80414786dea63bf30b926daa85250396601fbf1cedb"
+    },
+    {
+      "path": "native-aggregate-reselection.log",
+      "bytes": 589018,
+      "sha256": "ff1eb827112164e900f5eea8eb85adba19b28ee95f0be7f1b97e05e0b499986a"
+    },
+    {
+      "path": "native-aggregate.log",
+      "bytes": 589064,
+      "sha256": "9d4e4a2f1f083a4b27a673cd417e67b54cdd8f33280e27614325a3b7f0e43efc"
+    },
+    {
+      "path": "native-clippy.log",
+      "bytes": 588275,
+      "sha256": "b600a63f8d358857ff118fe9a478e9d6bf16bad6630041620338ac0fce84b45b"
+    },
+    {
+      "path": "native-composition-retirement.log",
+      "bytes": 588809,
+      "sha256": "6c9ca768111fc031f2ed5a4955d1ae7106f6b375665b86cae36c04d632673f8a"
+    },
+    {
+      "path": "native-first.log",
+      "bytes": 588847,
+      "sha256": "e18ed3fac5a024c0e7c6907931e59b5b1c70a6081d3e426faca8dddc717a0637"
+    },
+    {
+      "path": "native-runs.json",
+      "bytes": 988,
+      "sha256": "68ee0f4f5e3f558b7a4ffba9045988eaced3ddfc9239f4fe9417a857c8df4b31"
+    },
+    {
+      "path": "native-second.log",
+      "bytes": 588803,
+      "sha256": "feb1c0baa4f941280d6159fa1c187cde701e090d288514d6078eec54d5e24515"
+    },
+    {
+      "path": "native-units.log",
+      "bytes": 700465,
+      "sha256": "0fbe076338a71deb058e702d8d0d261adf11669691358af28a274d17db4f17f2"
+    },
+    {
+      "path": "qualification-results.json",
+      "bytes": 1147,
+      "sha256": "07bcc6c780ff2c81575bc5aacf4e683b7f68e778c778eccde77ef0d09a6fa8ef"
+    },
+    {
+      "path": "rust-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "archive_sha256": "11ec984932c9bee830cb815ab6a8bb527786ddaee98dc188c7b5fe1d6addf691"
+}

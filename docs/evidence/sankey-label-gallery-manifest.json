@@ -1,0 +1,33 @@
+{
+  "source_base": "66dad21",
+  "platform": "macOS 14.5 arm64",
+  "local_render_scale": 2,
+  "sources": {
+    "rust/native/src/chart_view.rs": "65c2ffd404bb085f49e00c10feb1b6bc045ceced283ec9cd94a34544089e8bb8",
+    "rust/native/src/chart_view_test.rs": "6396f69afcf5aeaab6c0eb5e41f4bb4059a924ba2eab512a323299314e14704b",
+    "rust/native/src/chart_label_view_test.rs": "03a21b9aa393afabd4003312d77b2b1bf9c962073c8881014cdb82cbb142d046",
+    "examples/charts/samples/sankey_presentation.ml": "f3348cf4f08a77b3cf09fa54adc70695e5be3f649d1ad048b5230c14cd398407",
+    "examples/charts/samples/sankey_presentation.mli": "b9a9a31fc5269fd84add90e7a3155a9188e5b5d7338cd269b8844bc45d5b35d4",
+    "examples/gallery/charts_page.ml": "18a254ddeea72ba79043e09fe585e2b1a464f90b355b75a11893c41c05119393",
+    "scripts/test_gallery.py": "e05d029744501ced6c6e7e365f955e51ef5816be8c870a0594222c76da8879b1",
+    "scripts/gallery_sankey_labels.py": "595c68ca78f7a0b47909d3f8dc5553843e446ca6a2335fce4b9df72f370d46f1"
+  },
+  "evidence": {
+    "sankey-label-wrap-regression-before-actual.log": "32630d2ef0ded4c0dec9bb3d0cd52790ebd53c1bf260c7da3702e45def033fdc",
+    "sankey-label-wrap-regression-after.log": "9eceb4e827f20e5a1f59b3363ed1e46f63323c51070d517e8cd53f6079999a17",
+    "sankey-label-wrap-regression-after-wide.log": "32bf2d93419559d1b3a3940cd70dbb2ce943a1f5130318cdf0fe7f52406e5fed",
+    "sankey-label-gallery-rebuild.log": "4126f23df7b3f7a94599e885511585344d1f0e7af7b0f76afe14fa339f450907",
+    "sankey-label-gallery-fixed.log": "7596a959842537d0403b5d1492e331e5c4bce9959e6199e988c5aa536a168801",
+    "sankey-label-installed.log": "90ab5bac1919aa7fc86597fc21b3ded52e22079297e0911013be037e2ef8feb3",
+    "sankey-label-installed-rerun.log": "0d36f891b1fc78209cded51b9f2cda858ded42342cfb41b63d9c400d574f7e13",
+    "sankey-label-gallery-clippy.log": "f2fddd0e08d148dea4ef36f6280afa77d6c7d8e966639e5c3f6e600ebaedeab3",
+    "sankey-label-gallery-images/gallery-flow-labels-outside.png": "c3ea77325f4b31f6615377800c8667d808a5b20e40276134f73d73097ec92b33",
+    "sankey-label-gallery-fixed-images/gallery-flow-labels-outside.png": "c59178584579291f4625f0c4c61f60f82a44315f65db133fb4683558bdfefc33",
+    "sankey-label-installed-images/gallery-flow-labels-theme-changed.png": "bfd0f6d7517248b06584f75ee9a6356ce04f63711700f15dd9a5eb8261eee879",
+    "sankey-label-installed-images/gallery-flow-labels-narrow.png": "bf1ec20454bdf56b5f5c92554da0737041b2f6ed30c047eefb0ea03636ad2137",
+    "sankey-label-gallery-ocaml.log": "dce39559451c6898061703f3c5aaab75360c0fd965b766ea8e26421977ee8204",
+    "sankey-label-gallery-rustfmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "archive_sha256": "9cba22cb0fe27647495603557956b3563dee92f033d668cb789acc05e92043d7",
+  "note": "Final native/full OCaml/Clippy/Rustfmt/root/installed rerun pass. Before-fix and overbroad narrow-case pixel failures plus initial installed driver failure retained; final installed rerun uses the same independently built binary."
+}

@@ -15,7 +15,11 @@ val create
   -> Bonsai.Cont.graph
   -> t Bonsai.Cont.t
 
-val view : ?style:Gpuio.Style.t -> t -> Gpuio_bonsai.View.t
+val view
+  :  ?style:Gpuio.Style.t
+  -> ?appearance:Gpuio.Otp_input.Appearance.t
+  -> t
+  -> Gpuio_bonsai.View.t
 
 (** Last accepted observation, absent before mounting. An unplaced retained
     controller may retain an old snapshot; native commands then return

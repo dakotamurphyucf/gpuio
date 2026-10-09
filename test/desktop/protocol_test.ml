@@ -27,6 +27,9 @@ let%expect_test "desktop requests match independently defined Rust fixtures" =
     ; Reveal_file "/tmp/\255", "\004\006/tmp/\255"
     ; Open_file "/a", "\005\002/a"
     ; Register_scheme "gpuio", "\006\005gpuio"
+    ; Scrollbar_preference, "\007"
+    ; Write_clipboard_text "λ\n", "\008\003\206\187\010"
+    ; Write_clipboard_text "", "\008\000"
     ]
   in
   List.iter cases ~f:(fun (request, bytes) ->
@@ -219,8 +222,47 @@ let%expect_test "packaging quotes literal arguments and keeps identity declarati
 let%expect_test "desktop capability is required by the current OCaml handshake" =
   let module Bridge = Gpuio_protocol.Wire in
   assert (Int64.equal (Int64.bit_and Bridge.capabilities 2199023255552L) 2199023255552L);
-  assert (Int64.equal Bridge.capabilities 17592186044415L);
+  assert (Int64.equal Bridge.capabilities 9223372036854775807L);
   assert (
     Or_error.is_ok (Bridge.Message.encode (Hello (Bridge.version, Bridge.capabilities))));
   [%expect {||}]
+;;
+
+let%expect_test "scrollbar snapshots match Rust and reject malformed response payloads" =
+  let module Bridge = Gpuio_protocol.Wire in
+  assert (
+    String.equal
+      (Bridge.Message.encode (Desktop (7L, Scrollbar_preference)) |> Or_error.ok_exn)
+      "\019\007\007");
+  List.iter [ "\001\057\007\006\000"; "\001\057\007\006\001" ] ~f:(fun bytes ->
+    print_s [%sexp (Bridge.Event.decode bytes |> Or_error.ok_exn : Bridge.Event.t list)]);
+  List.iter
+    [ "\001\057\007\006"
+    ; "\001\057\007\006\002"
+    ; "\001\057\007\006\000\000"
+    ; "\001\057\000\006\000"
+    ]
+    ~f:(fun bytes -> assert (Result.is_error (Bridge.Event.decode bytes)));
+  [%expect
+    {|
+    ((Desktop_response 7 (Scrollbar_preference Auto_hide)))
+    ((Desktop_response 7 (Scrollbar_preference Always_visible)))
+  |}]
+;;
+
+let%expect_test "clipboard text preserves valid payloads and enforces the byte boundary" =
+  let module Text = Gpuio.Clipboard.Text in
+  List.iter
+    [ ""; "λ\n世界\t👨‍👩‍👧‍👦"; String.make Text.max_bytes 'x' ]
+    ~f:(fun text ->
+      assert (String.equal (Text.to_string (Text.of_string text |> Or_error.ok_exn)) text);
+      assert (Wire.Request.valid (Write_clipboard_text text)));
+  List.iter
+    [ "a\000b"; "\255"; String.make (Text.max_bytes + 1) 'x' ]
+    ~f:(fun text ->
+      assert (Result.is_error (Text.of_string text));
+      assert (
+        Result.is_error
+          (Gpuio_protocol.Wire.Message.encode (Desktop (1L, Write_clipboard_text text)))));
+  [%expect {| |}]
 ;;

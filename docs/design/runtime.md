@@ -69,6 +69,15 @@ before opening or from a lifecycle callback is supported without reentering the
 driver. By default closing the last window exits the app; set
 `~exit_on_last_window:false` for background work and call `App.shutdown` explicitly.
 
+Native command intake can close between the UI loop's event drain and its next
+submission. A synchronous `Closed` response marks transport closure, retires
+unsent commands and prevents further submissions, including motion/frame updates.
+The UI loop continues draining until the native `Stopped` event, which follows
+previously queued output. Pending completions and disposal retain their normal
+shutdown ordering; the rejected command is never acknowledged as submitted.
+Backpressure still preserves commands for retry, and other submission errors
+still propagate. This does not dispose the bridge before the native runner exits.
+
 `Stream.create ~scope ~capacity ~on_batch` batches values in order into one effect
 per scheduler delivery. `push` is for UI-domain producers, never yields, and
 returns an error without accepting the value when the scheduler queue or batch
@@ -163,3 +172,33 @@ through Eio and uses two-second inter-chunk gaps for reproducible observation;
 ordinary demo operation starts no metrics task. The monitor itself is one scoped
 task, included in task counts. The combined acceptance evidence records actual
 results rather than inferring performance from these interfaces alone.
+
+## Completion failures during teardown
+
+Closing rejects new editor commands while already admitted commands may still
+reply before native closure. The close acknowledgment completes any remaining
+requests for that exact window generation with `Closed`. A reused window slot
+cannot inherit those requests, and late replies cannot complete them twice.
+
+Teardown attempts all independent request completions and resource cleanup steps
+even if a user completion raises. It then propagates the first exception with its
+original backtrace. The application worker uses the same policy across windows,
+so one failing callback cannot prevent another window's cleanup or inbox closure.
+This does not relax the documented requirement that scope cleanup functions must
+not raise, block or perform I/O. See the [command lifecycle evidence](../evidence/command-lifecycle-och17.md)
+for tested boundaries and the remaining native-dispatch acceptance work.
+
+
+Application-scoped desktop, notification, asset, document, chart and canvas
+requests use the same attempt-all rule on native `Stopped` and worker disposal.
+Their request maps are detached together before invoking completions, so a
+reentrant teardown cannot replay callbacks. Disposal sets the application to
+stopping before invoking user effects; an attempted new request returns `Closed`.
+See the [application-request repair](../evidence/application-teardown-och17.md).
+
+Force-close and explicit shutdown use that same attempt-all policy before native
+acknowledgments arrive: they finish independent cleanup and queue the close/stop
+request before propagating the first failure. Opening windows are woken and close
+through their eventual opening acknowledgment. Closing/stopping is set before
+callbacks, so repeated or reentrant calls do not enqueue duplicates. See the
+[force-close regression evidence](../evidence/force-close-cleanup-och17.md).

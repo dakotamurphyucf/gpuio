@@ -15,18 +15,31 @@ val create
   -> Gpuio.Text_source.t
   -> (t, Error.t) Result.t Bonsai.Effect.t
 
+(** A borrowed identity, not an extension of the scope/registration lifetime. *)
 val handle : t -> Gpuio.Text_source.Handle.t
+
+(** The latest locally desired source, which may not yet be published. Returns
+    [None] after explicit release, scope cancellation or native upload failure.
+    Keep application-owned content separately if it must survive those events. *)
 val source : t -> Gpuio.Text_source.t option
 
 (** True once the latest desired snapshot is accepted natively. This is not
     parser completion or physical presentation. False after release. *)
 val is_published : t -> bool
 
+(** Native upload failures retire this registration and are retained here.
+    Subsequent mutations return an error; [reset] does not revive it. Recovery
+    requires [create] with a new registration and application-owned content.
+    Local admission errors returned by mutations do not retire the registration. *)
 val error : t -> Error.t option
+
 val release : t -> unit
 
 (** Setters accept a coalesced desired snapshot; native publication is async.
-    The latest terminal state is always delivered with its exact content. *)
+    Coalescing preserves the latest terminal state with its exact content while
+    the registration remains live and uploads succeed. [Ok ()] is local admission,
+    not an acknowledgement of native publication or an unconditional delivery
+    guarantee. Observe [is_published] and [error]. *)
 val append : t -> string -> unit Or_error.t
 
 (** Byte chunks may split Unicode scalars; at most three bytes are buffered.

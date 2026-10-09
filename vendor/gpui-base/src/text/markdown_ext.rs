@@ -4,7 +4,7 @@ use std::{
     fmt,
     ops::Range,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicU64, Ordering},
     },
 };
@@ -41,8 +41,25 @@ type MarkdownInlineRenderFn = dyn Fn(&MarkdownNode, &InlineRenderContext, &mut W
     + Send
     + Sync;
 
+/// A custom renderer's explicit displayed-content contract. Text is rendered
+/// by TextView itself so its searchable bytes and painted glyphs agree. NonText
+/// promises the custom element contains no searchable glyphs. Opaque keeps the
+/// existing renderer but cannot establish complete document query counts.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MarkdownPresentation {
+    Opaque,
+    Text(SharedString),
+    NonText,
+}
+type MarkdownPresentationFn = dyn Fn(&MarkdownNode) -> MarkdownPresentation + Send + Sync;
+
 /// A reusable Markdown extension that parses and renders one custom node.
 pub trait MarkdownPlugin: Send + Sync + 'static {
+    /// Resolve from already-prepared data only: no I/O, layout or matching.
+    /// TextView replaces the plugin renderer for Text; NonText retains it.
+    fn presentation(&self, _node: &MarkdownNode) -> MarkdownPresentation {
+        MarkdownPresentation::Opaque
+    }
     /// Whether this plugin produces block-level nodes.
     ///
     /// Plugins are inline by default. Block plugins should return `true`.
@@ -57,6 +74,10 @@ pub trait MarkdownPlugin: Send + Sync + 'static {
     fn parse(&self, node: &mdast::Node, cx: &MarkdownParseContext<'_>) -> Option<MarkdownNode>;
 
     /// Render a custom Markdown node produced by this plugin.
+    /// Opaque/NonText blocks are wrapped as whole selectable objects. Native
+    /// child controls must claim their own mouse-down selection with
+    /// `GlobalState::suppress_text_selection` (or their editor adapter) so
+    /// double/triple clicks do not also select the containing object.
     fn render(&self, node: &MarkdownNode, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         node.as_text().to_string()
     }
@@ -106,8 +127,14 @@ impl<'a> MarkdownParseContext<'a> {
 /// A custom Markdown node produced by [`MarkdownExtensions`].
 #[derive(Clone)]
 pub struct MarkdownNode {
+    pub(crate) projection_key: Arc<()>,
+    // Parsed-occurrence state; unlike the immutable displayed-text projection,
+    // this belongs to the reader's selection lifetime.
+    pub(super) block_text: Arc<Mutex<super::inline::InlineState>>,
+    pub(super) block_selected: Arc<Mutex<super::block_object::BlockSelection>>,
     name: SharedString,
     text: SharedString,
+    explicit_text: bool,
     markdown: SharedString,
     accessibility_label: Option<SharedString>,
     data: Arc<dyn Any + Send + Sync>,
@@ -121,8 +148,12 @@ impl MarkdownNode {
         T: Any + Send + Sync + 'static,
     {
         Self {
+            projection_key: Arc::new(()),
+            block_text: Arc::new(Mutex::new(Default::default())),
+            block_selected: Arc::default(),
             name: name.into(),
             text: SharedString::default(),
+            explicit_text: false,
             markdown: SharedString::default(),
             accessibility_label: None,
             data: Arc::new(data),
@@ -133,6 +164,13 @@ impl MarkdownNode {
     /// Stable name for this custom node.
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub(super) fn shared_name(&self) -> SharedString {
+        self.name.clone()
+    }
+    pub(super) fn shared_markdown(&self) -> SharedString {
+        self.markdown.clone()
     }
 
     /// Text representation of this custom node.
@@ -178,7 +216,7 @@ impl MarkdownNode {
     }
 
     pub(crate) fn with_inline_source(mut self, source: &str) -> Self {
-        if self.text.is_empty() {
+        if !self.explicit_text {
             self.text = source.to_string().into();
         }
         if self.markdown.is_empty() {
@@ -187,9 +225,11 @@ impl MarkdownNode {
         self
     }
 
-    /// Set the text representation of this custom node.
+    /// Set the text representation of this custom node. Explicit empty text is
+    /// preserved; only an unspecified representation defaults to source syntax.
     pub fn text(mut self, text: impl Into<SharedString>) -> Self {
         self.text = text.into();
+        self.explicit_text = true;
         self
     }
 
@@ -208,6 +248,11 @@ impl MarkdownNode {
     }
 
     pub(crate) fn set_span(&mut self, span: Option<Span>) {
+        // A plugin may reuse a cloned template. Each parsed occurrence needs
+        // its own identity; subsequent renderer clones preserve this key.
+        self.projection_key = Arc::new(());
+        self.block_text = Arc::new(Mutex::new(Default::default()));
+        self.block_selected = Arc::default();
         self.span = span;
     }
 
@@ -235,6 +280,7 @@ impl PartialEq for MarkdownNode {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
             && self.text == other.text
+            && self.explicit_text == other.explicit_text
             && self.markdown == other.markdown
             && self.accessibility_label == other.accessibility_label
             && self.span == other.span
@@ -244,8 +290,10 @@ impl PartialEq for MarkdownNode {
 /// Registry for custom Markdown parsing and rendering.
 #[derive(Clone, Default)]
 pub struct MarkdownExtensions {
+    presentations: HashMap<SharedString, Arc<MarkdownPresentationFn>>,
     enable_mdx: bool,
     enable_frontmatter: bool,
+    frontmatter_descriptions: bool,
     block_parsers: Vec<Arc<MarkdownBlockParserFn>>,
     block_renderers: HashMap<SharedString, Arc<MarkdownBlockRenderFn>>,
     inline_parsers: Vec<Arc<MarkdownInlineParserFn>>,
@@ -273,6 +321,18 @@ impl MarkdownExtensions {
         self.enable_frontmatter = true;
         self.bump_revision();
         self
+    }
+
+    /// Render supported top-level YAML mappings as native description rows.
+    /// Unsupported forms and mappings over 128 entries remain YAML code.
+    pub fn frontmatter_description_list(mut self) -> Self {
+        self.enable_frontmatter = true;
+        self.frontmatter_descriptions = true;
+        self.bump_revision();
+        self
+    }
+    pub(crate) fn has_frontmatter_descriptions(&self) -> bool {
+        self.frontmatter_descriptions
     }
 
     /// Enable MDX JSX/expression constructs.
@@ -308,12 +368,17 @@ impl MarkdownExtensions {
     }
 
     /// Apply a reusable Markdown plugin.
-    pub fn plugin<P>(self, plugin: P) -> Self
+    pub fn plugin<P>(mut self, plugin: P) -> Self
     where
         P: MarkdownPlugin,
     {
         let plugin = Arc::new(plugin);
         let name = SharedString::from(plugin.name().to_string());
+        let presentation = plugin.clone();
+        self.presentations.insert(
+            name.clone(),
+            Arc::new(move |node| presentation.presentation(node)),
+        );
         let parser = plugin.clone();
         let renderer = plugin;
 
@@ -343,6 +408,12 @@ impl MarkdownExtensions {
         self.revision
     }
 
+    pub(crate) fn presentation(&self, node: &MarkdownNode) -> MarkdownPresentation {
+        self.presentations
+            .get(node.name())
+            .map_or(MarkdownPresentation::Opaque, |f| f(node))
+    }
+
     /// Whether replacing these extension handles can change the parsed tree.
     ///
     /// Render methods commonly rebuild equivalent plugin closures every frame.
@@ -352,6 +423,7 @@ impl MarkdownExtensions {
         self.parser_revision == other.parser_revision
             && self.enable_mdx == other.enable_mdx
             && self.enable_frontmatter == other.enable_frontmatter
+            && self.frontmatter_descriptions == other.frontmatter_descriptions
             && self.block_parsers.len() == other.block_parsers.len()
             && self.block_renderers.len() == other.block_renderers.len()
             && self.inline_parsers.len() == other.inline_parsers.len()

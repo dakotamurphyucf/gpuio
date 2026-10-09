@@ -2,6 +2,7 @@ open Core
 module Identity = Gpuio.Desktop.Identity
 module Capabilities = Gpuio.Desktop.Capabilities
 module Error = Gpuio.Desktop.Error
+module Scrollbar_preference = Gpuio.Desktop.Scrollbar_preference
 module Event = Gpuio.Desktop.Event
 module Document = Gpuio.Window.Document
 
@@ -47,6 +48,16 @@ val set_document
   -> (Gpuio.Window.Snapshot.t, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
 
 val capabilities : App.t -> (Capabilities.t, Error.t) Result.t Bonsai.Effect.t
+
+(** Read the resolved native scrollbar preference once, without activation or
+    desktop identity registration. macOS reads the current AppKit style; the
+    pinned Linux backend returns [Unsupported]. The snapshot is asynchronous and
+    may become stale; callers choose when to refresh and which view policy to
+    apply. No observation or polling is installed. Uses the shared bounded
+    desktop request lane (16 pending requests); shutdown returns [Closed]. *)
+val scrollbar_preference
+  :  App.t
+  -> (Scrollbar_preference.t, Error.t) Result.t Bonsai.Effect.t
 
 (** Request process-level activation. Linux reports [Unsupported] in the pinned
     backend; window activation remains [App.Window.command]. Success means the

@@ -3,10 +3,25 @@ use super::*;
 #[cfg(target_os = "macos")]
 #[path = "table_host_test/accessibility.rs"]
 mod accessibility;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/appearance.rs"]
+mod appearance;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/behavior.rs"]
+mod behavior;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/column_viewport.rs"]
+mod column_viewport;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/headers.rs"]
+mod headers;
 #[path = "table_host_test/history.rs"]
 mod history;
 #[path = "table_host_test/input.rs"]
 mod input;
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/scrollbar.rs"]
+mod scrollbar;
 #[cfg(feature = "native-image-tests")]
 #[path = "table_host_test/style.rs"]
 mod style;
@@ -217,7 +232,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
     assert!(first.visible_last > 1 && first.visible_last < 16);
     assert!(first.requested.contains(&1) && first.requested.len() <= 16);
     let weak = window
-        .update(cx, |view, _, cx| {
+        .update(cx, |view, window, cx| {
             assert!(
                 view.lists.is_empty(),
                 "table must not allocate ordinary list state"
@@ -233,7 +248,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
             assert!(
                 view.focus
                     .borrow()
-                    .can_restore(&state.native.focus_handle(cx)),
+                    .can_focus(&state.native.focus_handle(cx), window),
                 "table focus registered after begin_frame"
             );
             state.native.downgrade()
@@ -425,6 +440,7 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
             let _ = cx;
         })
         .unwrap();
+    input::compact(cx, window).await;
     eprintln!(
         "GPUIO_NATIVE_TABLE_HOST_OK: retained Views, 100k sparse rows, actual viewport, keyed commands, row-height anchor, single/empty sources and release"
     );
@@ -512,3 +528,7 @@ fn run_case(history: bool) {
         std::panic::resume_unwind(error);
     }
 }
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "table_host_test/presentation.rs"]
+mod presentation;

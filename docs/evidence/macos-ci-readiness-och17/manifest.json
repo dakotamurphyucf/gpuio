@@ -1,0 +1,108 @@
+{
+  "platform": "macOS 14.5 arm64 / M1 Max",
+  "driver_revision": "50702832de1642733939ee1690a657d57489f7be",
+  "voiceover": "Owner hold; untouched",
+  "calendar_executable_sha256": "ecc6cdad398b9f3cf1b83c6c862fae0c35a035595cdd4450c8db0acfba1384a2",
+  "gallery_executable_sha256": "d4ad6a43bd258ea414f02891965de3a54c54f8a333b2b9fbdc0b8e39220a3402",
+  "runs": [
+    {
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 examples/calendar/main.exe",
+      "session": 48888,
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/test_calendar.py",
+      "session": 48572,
+      "exit_code": 1,
+      "scope": "Intermediate harness incorrectly awaited disabled date AXFocused"
+    },
+    {
+      "command": "python3 scripts/test_calendar.py",
+      "session": 17204,
+      "exit_code": 0,
+      "scope": "Final enabled starting focus barrier; complete original behavior checks"
+    },
+    {
+      "command": "python3 scripts/test_macos_theme_files.py --executable scratch/agents/root-20261004-resumed/gallery-installed-popup-focus/consumer/_build/default/main.exe --output scratch/agents/root-20261004-resumed/ci-37343201640-repairs/theme-run-1",
+      "session": 10585,
+      "exit_code": 0,
+      "scope": "All12 theme cases; writer held until child reaped"
+    }
+  ],
+  "archive": "local-validation.tar.gz",
+  "sha256": "9aa47e498e01120ce0da7838f8b25b53d70e43c666a52c93d1f205045e613ab2",
+  "files": [
+    {
+      "path": "calendar-build.log",
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+    },
+    {
+      "path": "calendar-run-1.log",
+      "sha256": "410648c06f35564f5a8ef805810c646897aea4f50dbaf8337d417a1e6abd432e"
+    },
+    {
+      "path": "calendar-run-2.log",
+      "sha256": "38ae7e81de663197937aa317e7ef580965bdde6edd2a903a0b291b3af4c3f9e0"
+    },
+    {
+      "path": "catalog.log",
+      "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75"
+    },
+    {
+      "path": "driver.patch",
+      "sha256": "ad3d7cab69854f32a4a231fcb065b941b98ec0776d94a4d74b94534858b4f103"
+    },
+    {
+      "path": "drivers/test_calendar.py",
+      "sha256": "31a574977b44dae5b89fdc28a70a56610f6ca9aca292a3c18ffd0834f35973ea"
+    },
+    {
+      "path": "drivers/test_macos_theme_files.py",
+      "sha256": "dc04cc4971ab954b5fa165cf0f0f5e99e1fb3915897c96df28d25b8d9e6d5897"
+    },
+    {
+      "path": "hosted-calendar-step.log",
+      "sha256": "4955ddab1f27ff679fa567fcc6a6730307db499ebc30f0d493e09db4c9bdb73a"
+    },
+    {
+      "path": "hosted-run.json",
+      "sha256": "974ebc993fa7715afa2ade821b830571076995653876de2e761f1b88d63a11a0"
+    },
+    {
+      "path": "hosted-source-checkout.log",
+      "sha256": "821373f8823d4f57d853587e6f5e02cd4d4634c753aab142ec37671bccb22a5d"
+    },
+    {
+      "path": "hosted-theme-step.log",
+      "sha256": "6c49e1cbc84751f2d5d779451a4817d44d9f4253a9aa6bdac4700fdbca32d768"
+    },
+    {
+      "path": "metadata.json",
+      "sha256": "5a3c277d38be9022990c109e70cb246daa263cb30dcf4c1a162ad7e28b3ae98c"
+    },
+    {
+      "path": "theme-run-1.log",
+      "sha256": "8b32cf70f2eb4b6fd73b082b0887477dbb4d5ff72543e6ccf2b895b328e1a447"
+    },
+    {
+      "path": "theme-run-1/amber.png",
+      "sha256": "6563e7a045a8d62f8d9d9a03166342b2e9a1ac7f051de660bc753a4cc7204434"
+    },
+    {
+      "path": "theme-run-1/application.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "theme-run-1/aurora.png",
+      "sha256": "f9a5356db1f09c9ded9d07abf225312acb0fa7ee30a8d3aea62ebab4702d3ba2"
+    },
+    {
+      "path": "theme-run-1/invalid-kept.png",
+      "sha256": "8befbc5199719e76fc967b7bc6bd4ff0e0cde02f7791cf13e263b20a1d25445d"
+    },
+    {
+      "path": "theme-run-1/report.json",
+      "sha256": "c751a59c61308feded3218728ab33be8cbd6b269fd3b565c4ea249aa8e4eca59"
+    }
+  ]
+}

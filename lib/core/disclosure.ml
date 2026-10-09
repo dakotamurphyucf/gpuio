@@ -1,6 +1,35 @@
 open Core
 module Id = Choice.Id
 
+module Motion = struct
+  type t = Animation.Spring.t option [@@deriving equal, sexp_of]
+
+  let immediate = None
+  let spring value = Some value
+
+  let standard =
+    Animation.Spring.create
+      ~stiffness:400.
+      ~damping:40.
+      ~mass:1.
+      ~epsilon:0.1
+      ~max_duration:(Time_ns.Span.of_sec 2.)
+      ()
+    |> Or_error.ok_exn
+    |> spring
+  ;;
+end
+
+module Expert = struct
+  let motion_config motion ~expanded ~hidden =
+    Option.map motion ~f:(fun spring ->
+      { Gpuio_protocol.Reveal_wire.expanded
+      ; retain = Content_policy.equal hidden Retain
+      ; spring = Animation.Expert.spring_to_wire spring
+      })
+  ;;
+end
+
 module Mode = struct
   type t =
     | Single of { allow_empty : bool }

@@ -4,6 +4,8 @@ use super::*;
 use crate::chart_geometry::Point;
 use gpui::{Hitbox, HitboxId, MouseButton, Pixels};
 use gpuio_protocol::chart_selection::Selection;
+#[path = "chart_inspection_view.rs"]
+mod inspection;
 type Shared = Rc<RefCell<State>>;
 #[path = "chart_data_view.rs"]
 mod data_view;
@@ -12,18 +14,22 @@ pub(super) use data_view::capture_browse;
 pub(super) use data_view::element as data_element;
 pub(super) struct Input {
     pub focus: gpui::FocusHandle,
-    gate: crate::host::focus::Shared,
+    pub(super) gate: crate::host::focus::Shared,
     bounds: Bounds<Pixels>,
     capture: Option<HitboxId>,
     pub token: Rc<()>,
     pub selected: Option<Selection>,
     pub selected_index: Option<usize>,
     hover: Option<usize>,
+    pub(super) pointer: Option<Point>,
     cursor: Option<usize>,
     pub data_cursor: Option<usize>,
     blur: Option<gpui::Subscription>,
 }
 impl Input {
+    pub(super) fn preview_index(&self) -> Option<usize> {
+        self.hover.or(self.cursor).or(self.selected_index)
+    }
     pub fn new(gate: crate::host::focus::Shared, cx: &mut App) -> Self {
         Self {
             focus: cx.focus_handle().tab_stop(true),
@@ -34,6 +40,7 @@ impl Input {
             selected: None,
             selected_index: None,
             hover: None,
+            pointer: None,
             cursor: None,
             data_cursor: None,
             blur: None,
@@ -43,9 +50,14 @@ impl Input {
         self.selected = None;
         self.selected_index = None;
         self.cursor = None;
+        self.pointer = None;
     }
 }
 impl State {
+    #[cfg(all(target_os = "macos", feature = "native-tests"))]
+    pub(in crate::host) fn pointer_ready(&self, window: &Window) -> bool {
+        self.input_allowed(window, true)
+    }
     pub(in crate::host) fn chart_focused(&self, window: &Window) -> bool {
         self.input.focus.is_focused(window)
     }
@@ -56,6 +68,7 @@ impl State {
             window.release_pointer();
         }
         self.input.hover = None;
+        self.input.pointer = None;
         self.input.cursor = None;
     }
     fn base_input_allowed(&self, window: &Window, pointer: bool) -> bool {
@@ -104,13 +117,17 @@ impl State {
         let frame = self.ready_frame.unwrap();
         p.x >= 0. && p.y >= 0. && p.x <= frame.plot.width && p.y <= frame.plot.height
     }
-    fn redraw(&self, window: &Window, cx: &mut App) {
+    pub(super) fn redraw(&self, window: &Window, cx: &mut App) {
+        let visibility_changed = self.sync_label_visibility();
         let handle = window.window_handle();
         let node = self.node;
         cx.defer(move |cx| {
             let _ = handle.update(cx, |root, window, cx| {
                 if let Ok(view) = root.downcast::<View>() {
                     view.update(cx, |view, cx| {
+                        if visibility_changed {
+                            view.sync_tooltips(window, cx);
+                        }
                         view.invalidate_resource_row(node);
                         cx.notify();
                     });
@@ -152,7 +169,11 @@ impl State {
         }
         let key = event.keystroke.key.as_str();
         if key == "tab" {
-            self.cancel_input(window);
+            if self.inspection_position().is_some() {
+                self.cancel_capture(window);
+            } else {
+                self.cancel_input(window);
+            }
             self.redraw(window, cx);
             return;
         }
@@ -197,93 +218,57 @@ impl State {
                 self.input.cursor = Some(next);
             }
         }
+        self.input.pointer = None;
+        self.input.hover = None;
+        // An explicit command on the chart supersedes an older card's pointer
+        // retention. Keys dispatched to a child never reach this branch.
+        self.content.pointer_inside.set(false);
         self.redraw(window, cx);
         window.prevent_default();
         cx.stop_propagation();
     }
-    fn cancel_capture(&mut self, window: &mut Window) {
+    pub(super) fn cancel_capture(&mut self, window: &mut Window) {
         if let Some(capture) = self.input.capture.take()
             && window.captured_hitbox() == Some(capture)
         {
             window.release_pointer();
         }
     }
-    pub(super) fn input_overlay(&self) -> Option<gpui::AnyElement> {
+    pub(super) fn input_overlay(
+        &self,
+        custom: Option<(super::inspection_content::Position, gpui::AnyElement)>,
+    ) -> Option<gpui::AnyElement> {
         if self.closed || self.config.disabled || self.input.data_cursor.is_some() {
             return None;
         }
         let ready = self.ready.as_ref()?;
         let frame = self.ready_frame?;
-        let index = self
-            .input
-            .hover
-            .or(self.input.cursor)
-            .or(self.input.selected_index)?;
-        let details = crate::chart_details::describe(
+        let index = custom
+            .as_ref()
+            .map(|(position, _)| position.index)
+            .or(self.input.preview_index())?;
+        let details = crate::chart_details::describe_with_radar_labels(
             ready.snapshot.data(),
             &ready.config.sampling,
             &ready.config.options,
             ready.plan.geometry(),
             index,
+            &self.config.radar_labels,
         )?;
         let selected = self.input.capture.is_none() && self.input.selected_index == Some(index);
-        let color = ready.config.style.selection_color as u32;
-        let backing = presentation::label_backing(color);
-        let text_color = ready.config.style.label_color as u32;
-        let card = div()
-            .id("gpuio-chart-details")
-            .role(gpui::Role::Group)
-            .aria_label(format!("{}: {}", details.title, details.text))
-            .absolute()
-            .top(px(40.))
-            .right(px(8.))
-            .w(px((frame.width - 16.).clamp(0., 280.) as f32))
-            .max_h(px((frame.legend.y - 48.).max(0.) as f32))
-            .overflow_hidden()
-            .p_2()
-            .rounded_md()
-            .bg(gpui::rgba(presentation::label_backing(text_color)))
-            .text_color(gpui::rgba(text_color))
-            .text_size(px(12.))
-            .line_height(px(17.))
-            .child(
-                div()
-                    .id("gpuio-chart-detail-title")
-                    .role(gpui::Role::Label)
-                    .aria_label(details.title.clone())
-                    .text_ellipsis()
-                    .child(details.title),
-            )
-            .child(
-                div()
-                    .id("gpuio-chart-detail-values")
-                    .role(gpui::Role::Label)
-                    .aria_label(details.text.clone())
-                    .child(details.text),
-            );
-        Some(
-            div()
-                .absolute()
-                .top_0()
-                .left_0()
-                .size_full()
-                .child(
-                    div()
-                        .absolute()
-                        .left(px((frame.plot.x + details.anchor.x - 8.) as f32))
-                        .top(px((frame.plot.y + details.anchor.y - 8.) as f32))
-                        .size(px(16.))
-                        .rounded_full()
-                        .bg(gpui::rgba(color))
-                        .text_color(gpui::rgba(backing))
-                        .text_size(px(12.))
-                        .line_height(px(16.))
-                        .text_center()
-                        .child(if selected { "✓" } else { "○" }),
-                )
-                .child(card)
-                .into_any_element(),
-        )
+        let pointer = custom
+            .as_ref()
+            .and_then(|(position, _)| position.pointer)
+            .or(self.input.hover.and(self.input.pointer));
+        let custom = custom.map(|(position, element)| inspection::Custom {
+            element,
+            container: position.container,
+            bounds: position.bounds,
+            focus: self.content.focus.clone(),
+        });
+        Some(inspection::overlay(
+            ready, frame, details, selected, pointer, custom,
+        ))
     }
 }
 pub(super) fn install_blur(state: &Shared, window: &mut Window, cx: &mut App) {
@@ -315,7 +300,15 @@ pub(super) fn keyboard(
     element
         .track_focus(&focus)
         .aria_description("Arrows browse plotted values; Enter or Space commits. D opens original data, including missing and unpainted values. Escape cancels a drag or clears selection.")
-        .on_key_down(move |event, window, cx| state.borrow_mut().key(&token, event, window, cx))
+        .on_key_down(move |event, window, cx| {
+            let gate = state.borrow().input.gate.clone();
+            let visibility = gate.borrow().visibility_identity();
+            state.borrow_mut().key(&token, event, window, cx);
+            let changed = !Rc::ptr_eq(&visibility, &gate.borrow().visibility_identity());
+            if changed {
+                sync_label_inputs(window, cx);
+            }
+        })
         .on_a11y_action(gpui::AccessibleAction::Focus, move |_, window, cx| {
             let state = access.borrow();
             if Rc::ptr_eq(&state.input.token, &access_token)
@@ -324,6 +317,14 @@ pub(super) fn keyboard(
                 window.focus(&state.input.focus, cx);
             }
         })
+}
+
+/// Run after releasing chart state: retiring focus/menu owners can invoke native
+/// focus callbacks. This must not wait for a frame in an occluded window.
+fn sync_label_inputs(window: &mut Window, cx: &mut App) {
+    if let Some(view) = window.root::<View>().flatten() {
+        view.update(cx, |view, cx| view.sync_tooltips(window, cx));
+    }
 }
 pub(super) fn prepaint(
     state: &Shared,
@@ -340,7 +341,9 @@ pub(super) fn prepaint(
         bounds.origin + gpui::point(px(frame.plot.x as f32), px(frame.plot.y as f32)),
         gpui::size(px(frame.plot.width as f32), px(frame.plot.height as f32)),
     );
-    let hitbox = window.insert_hitbox(plot, gpui::HitboxBehavior::BlockMouse);
+    // Selection owns pointer input, but charts have no wheel gesture. Let the
+    // enclosing scroll view receive wheel events even while inspecting a mark.
+    let hitbox = window.insert_hitbox(plot, gpui::HitboxBehavior::BlockMouseExceptScroll);
     if let Some(old) = state.input.capture {
         if window.captured_hitbox() == Some(old) && state.input_allowed(window, true) {
             window.capture_pointer(hitbox.id);
@@ -352,7 +355,7 @@ pub(super) fn prepaint(
     Some(hitbox)
 }
 pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window) {
-    let (token, focus, gate, node, eligible) = {
+    let (token, focus, gate, node, eligible, bounds) = {
         let state = state.borrow();
         (
             state.input.token.clone(),
@@ -361,10 +364,16 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
             state.node,
             state.base_input_allowed(window, false)
                 && state.lease.as_ref().and_then(Lease::snapshot).is_some(),
+            state.input.bounds,
         )
     };
-    gate.borrow_mut()
-        .record(node, focus.clone(), eligible, focus.is_focused(window));
+    gate.borrow_mut().record(
+        node,
+        focus.clone(),
+        eligible,
+        focus.is_focused(window),
+        bounds,
+    );
     let Some(hitbox) = hitbox else {
         return;
     };
@@ -385,6 +394,7 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
             return;
         }
         state.input.hover = state.target(event.position);
+        state.input.pointer = state.input.hover.map(|_| state.local(event.position));
         state.input.cursor = None;
         state.input.capture = Some(down_hit.id);
         window.capture_pointer(down_hit.id);
@@ -409,6 +419,10 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
             return;
         }
         let captured = state.input.capture;
+        let was_inside_content = state.content.pointer_inside.get();
+        if captured.is_none() && state.hold_inspection(event.position, window, cx) {
+            return;
+        }
         if captured.is_some_and(|capture| {
             window.captured_hitbox() != Some(capture)
                 || event.pressed_button != Some(MouseButton::Left)
@@ -422,7 +436,13 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
         } else {
             None
         };
-        if next != state.input.hover {
+        let pointer = next.map(|_| state.local(event.position));
+        let follows = state.config.style.inspection.card.visible
+            && state.config.style.inspection.card.placement
+                == gpuio_protocol::chart_inspection::Placement::Cursor;
+        let moved_card = follows && pointer != state.input.pointer;
+        state.input.pointer = pointer;
+        if next != state.input.hover || moved_card || was_inside_content {
             state.input.hover = next;
             state.input.cursor = None;
             state.redraw(window, cx);
@@ -438,6 +458,13 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
         }
         let mut state = up.borrow_mut();
         let Some(capture) = state.input.capture else {
+            if state.content.pointer_inside.replace(false) {
+                if !state.hold_inspection(event.position, window, cx) {
+                    state.input.hover = None;
+                    state.input.pointer = None;
+                }
+                state.redraw(window, cx);
+            }
             return;
         };
         let commit = state.valid_callback(&token, window, true)
@@ -452,9 +479,11 @@ pub(super) fn paint(state: &Shared, hitbox: Option<Hitbox>, window: &mut Window)
         state.cancel_capture(window);
         if commit {
             state.input.hover = target;
+            state.input.pointer = target.map(|_| state.local(event.position));
             state.commit(target, cx);
         } else {
             state.input.hover = None;
+            state.input.pointer = None;
         }
         state.redraw(window, cx);
         cx.stop_propagation();

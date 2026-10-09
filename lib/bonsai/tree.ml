@@ -287,6 +287,7 @@ let inner
       ~allow_moves
       ~lifetime
       ~config
+      ~scrollbar
       ~label
       ~auto_load
       ~cancel_hidden
@@ -366,6 +367,7 @@ let inner
              source
              ~state
              ~config
+             ~scrollbar
              ~accessibility
              ~on_request
              ~allow_moves
@@ -450,6 +452,7 @@ let component
       ~label
       ?key
       ?(style = B.return fill)
+      ?(scrollbar = B.return None)
       ?(mode = B.return S.Mode.Single)
       ?(initial_selected = B.return [])
       ?(initial_expanded = B.return [])
@@ -483,6 +486,7 @@ let component
           ~allow_moves
           ~lifetime
           ~config
+          ~scrollbar
           ~label
           ~auto_load
           ~cancel_hidden

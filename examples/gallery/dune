@@ -1,0 +1,17 @@
+(executable
+ (name main)
+ (libraries
+  core
+  gpuio
+  gpuio.bonsai
+  gpuio.eio
+  gpuio_gallery_model
+  gpuio_gallery_files
+  gpuio_chart_samples
+  gpuio_example_counter
+  gpuio_example_document
+  gpuio_counter_backend
+  bonsai
+  eio_main)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

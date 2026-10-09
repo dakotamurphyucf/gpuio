@@ -20,6 +20,7 @@ pub(super) struct Layout {
     scroll: Pixels,
     color: Hsla,
     focused: bool,
+    appearance: gpuio_protocol::otp_presentation::Appearance,
 }
 impl Layout {
     pub(super) fn matches(&self, model: &State) -> bool {
@@ -105,9 +106,15 @@ fn build(input: &Input, bounds: Bounds<Pixels>, window: &Window) -> Layout {
     let text = editor.draft();
     let height = bounds.size.height;
     let font = window.text_style().font_size.to_pixels(window.rem_size());
-    let cell = (font * 2.).max(px(28.));
-    let gap = px(5.);
-    let inset = px(5.);
+    let appearance = input.appearance.as_deref().cloned().unwrap_or_default();
+    let cell = appearance
+        .cell_width
+        .map_or_else(|| (font * 2.).max(px(28.)), |width| px(width as f32));
+    let left = |index| {
+        bounds.left()
+            + px(appearance.cell_left(index, model.config().policy.length(), f32::from(cell)))
+    };
+    let inset = px(5.).min(cell / 4.);
     let y = bounds.top() + (height - window.line_height()).max(px(0.)) / 2.;
     let mut positions = Vec::new();
     let mut lines = Vec::new();
@@ -155,7 +162,7 @@ fn build(input: &Input, bounds: Bounds<Pixels>, window: &Window) -> Layout {
                 None,
                 window,
             );
-            let left = bounds.left() + (cell + gap) * index;
+            let left = left(index);
             lines.push(Line {
                 origin: point(left + (cell - shaped.width) / 2., y),
                 shaped,
@@ -163,9 +170,9 @@ fn build(input: &Input, bounds: Bounds<Pixels>, window: &Window) -> Layout {
             positions.push((index, left + inset));
         }
         let end = if text.len() == model.config().policy.length() {
-            bounds.left() + (cell + gap) * text.len() - gap - inset
+            left(text.len() - 1) + cell - inset
         } else {
-            bounds.left() + (cell + gap) * text.len() + inset
+            left(text.len()) + inset
         };
         positions.push((text.len(), end));
     }
@@ -192,10 +199,7 @@ fn build(input: &Input, bounds: Bounds<Pixels>, window: &Window) -> Layout {
         (0..model.config().policy.length())
             .map(|index| {
                 Bounds::new(
-                    point(
-                        bounds.left() + (cell + gap) * index - scroll,
-                        bounds.top() + px(1.),
-                    ),
+                    point(left(index) - scroll, bounds.top() + px(1.)),
                     size(cell, (height - px(2.)).max(px(0.))),
                 )
             })
@@ -215,6 +219,7 @@ fn build(input: &Input, bounds: Bounds<Pixels>, window: &Window) -> Layout {
         scroll,
         color: window.text_style().color,
         focused,
+        appearance,
     };
     let range = editor.selection().range();
     if range.is_empty() {
@@ -270,7 +275,12 @@ impl Element for Field {
         cx: &mut App,
     ) -> Option<Layout> {
         let hitbox = window.insert_hitbox(bounds, HitboxBehavior::Normal);
-        self.input.update(cx, |state, _| {
+        self.input.update(cx, |state, cx| {
+            let visible = bounds
+                .intersect(&window.content_mask().bounds)
+                .intersect(&window.fully_visible_bounds());
+            state.cursor.in_view = visible.size.width > px(0.) && visible.size.height > px(0.);
+            state.sync_cursor(window, cx);
             if let Some(capture) = state.capture {
                 if window.captured_hitbox() == Some(capture)
                     && state.pointer
@@ -325,6 +335,7 @@ impl Element for Field {
             });
         });
         let input = self.input.read(cx);
+        let caret_visible = input.cursor.visible;
         if input.access() == Access::Allowed && !input.model.config().disabled {
             window.handle_input(
                 &input.focus,
@@ -334,18 +345,26 @@ impl Element for Field {
         }
         window.with_content_mask(Some(ContentMask { bounds }), |window| {
             for cell in &layout.cells {
-                let mut quad = fill(*cell, layout.color.opacity(0.04));
-                quad.corner_radii = px(6.).into();
-                quad.border_widths = px(1.).into();
+                let color = |specified: Option<i64>, fallback| {
+                    specified.map_or(fallback, |value| rgba(value as u32).into())
+                };
+                let a = &layout.appearance;
+                let mut quad = fill(*cell, color(a.background, layout.color.opacity(0.04)));
+                let half = cell.size.width.min(cell.size.height) / 2.;
+                quad.corner_radii = px(a.radius as f32).min(half).into();
+                quad.border_widths = px(a.border_width as f32).min(half).into();
                 quad.border_color = if layout.focused {
-                    rgba(0x6688ffff).into()
+                    color(a.focus_border, rgba(0x6688ffff).into())
                 } else {
-                    layout.color.opacity(0.25)
+                    color(a.border, layout.color.opacity(0.25))
                 };
                 window.paint_quad(quad);
             }
             if let Some(selection) = layout.selection {
-                window.paint_quad(fill(selection, rgba(0x6688ff40)));
+                window.paint_quad(fill(
+                    selection,
+                    rgba(layout.appearance.selection.unwrap_or(0x6688ff40) as u32),
+                ));
             }
             for line in &layout.lines {
                 let painted = line.shaped.paint(
@@ -362,8 +381,14 @@ impl Element for Field {
                 }
                 let _ = painted;
             }
-            if let Some(caret) = layout.caret {
-                window.paint_quad(fill(caret, layout.color));
+            if let Some(caret) = layout.caret.filter(|_| caret_visible) {
+                window.paint_quad(fill(
+                    caret,
+                    layout
+                        .appearance
+                        .caret
+                        .map_or(layout.color, |value| rgba(value as u32).into()),
+                ));
             }
         });
         self.input.update(cx, |input, _| {
@@ -383,3 +408,11 @@ impl Element for Field {
         }
     }
 }
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "otp_presentation_test.rs"]
+mod presentation_test;
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "otp_cursor_test.rs"]
+mod cursor_test;

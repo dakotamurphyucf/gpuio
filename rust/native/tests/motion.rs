@@ -173,6 +173,51 @@ fn loop_uses_integer_modulo_at_long_uptime_and_clock_never_reverses() {
     assert_eq!(value(&mut state, 1_000_000_000_001_000).0, 0.);
 }
 #[test]
+fn stepped_motion_holds_during_delay_then_jumps_and_completes_after_paint() {
+    let mut cfg = config(8, 120.);
+    cfg.delay_ms = 200;
+    cfg.easing = Easing::Steps(4, StepPosition::JumpStart);
+    let mut state = State::new(Arc::new(cfg), ms(0), false).unwrap();
+    assert_eq!(value(&mut state, 199), (0., Wake::At(ms(200)), None));
+    assert_eq!(value(&mut state, 200), (30., Wake::Frame, None));
+    assert_eq!(value(&mut state, 449), (30., Wake::Frame, None));
+    assert_eq!(value(&mut state, 450), (60., Wake::Frame, None));
+    assert_eq!(value(&mut state, 950), (120., Wake::Frame, None));
+    // Reaching the target on an early step is not terminal completion.
+    let sample = state.sample(ms(1200));
+    assert_eq!(sample.wake, Wake::Idle);
+    assert_eq!(
+        state.painted(sample),
+        Some(Endpoint {
+            generation: 8,
+            outcome: Outcome::Finished,
+        })
+    );
+    assert_eq!(value(&mut state, 1300), (120., Wake::Idle, None));
+}
+
+#[test]
+fn piecewise_cubic_motion_has_exact_quarter_points_and_painted_completion() {
+    let mut cfg = config(7, 160.);
+    cfg.easing = Easing::EaseInOutCubic;
+    let mut state = State::new(Arc::new(cfg), ms(0), false).unwrap();
+    for (time, expected) in [(0, 0.), (250, 10.), (500, 80.), (750, 150.)] {
+        assert_eq!(value(&mut state, time), (expected, Wake::Frame, None));
+    }
+    let sample = state.sample(ms(1000));
+    assert_eq!(sample.values.get(Property::Width), Some(160.));
+    assert_eq!(sample.wake, Wake::Idle);
+    assert_eq!(
+        state.painted(sample),
+        Some(Endpoint {
+            generation: 7,
+            outcome: Outcome::Finished,
+        })
+    );
+    assert_eq!(value(&mut state, 1100), (160., Wake::Idle, None));
+}
+
+#[test]
 fn bezier_inverts_x_and_clamps_property_overshoot() {
     assert!((Easing::CubicBezier(0., 0., 0., 1.).sample(0.125) - 0.5).abs() < 1e-10);
     for easing in [
@@ -181,6 +226,7 @@ fn bezier_inverts_x_and_clamps_property_overshoot() {
         Easing::EaseIn,
         Easing::EaseOut,
         Easing::EaseInOut,
+        Easing::EaseInOutCubic,
     ] {
         assert_eq!(easing.sample(0.), 0.);
         assert_eq!(easing.sample(1.), 1.);
@@ -261,4 +307,95 @@ fn extreme_finite_bezier_controls_still_produce_bounded_geometry() {
             .sample(0.5)
             .is_finite()
     );
+}
+
+#[test]
+fn linear_stop_motion_holds_jumps_clamps_and_confirms_completion() {
+    let mut cfg = config(9, 100.);
+    cfg.delay_ms = 200;
+    cfg.easing = Easing::LinearStops(
+        LinearStops::new(vec![(0., -0.25), (0.5, -0.25), (0.5, 1.25), (1., 1.25)]).unwrap(),
+    );
+    let mut state = State::new(Arc::new(cfg), ms(0), false).unwrap();
+    assert_eq!(value(&mut state, 199), (0., Wake::At(ms(200)), None));
+    assert_eq!(value(&mut state, 200), (0., Wake::Frame, None));
+    assert_eq!(value(&mut state, 699).0, 0.);
+    assert_eq!(value(&mut state, 700).0, 125.);
+    assert_eq!(value(&mut state, 1199).0, 125.);
+    let sample = state.sample(ms(1200));
+    assert_eq!(sample.values.get(Property::Width), Some(100.));
+    assert_eq!(
+        state.painted(sample),
+        Some(Endpoint {
+            generation: 9,
+            outcome: Outcome::Finished
+        })
+    );
+    assert_eq!(value(&mut state, 1300), (100., Wake::Idle, None));
+}
+
+#[test]
+fn signed_delay_advances_legacy_motion_at_clock_zero_and_preserves_completion() {
+    let mut cfg = config(1, 100.);
+    cfg.delay_ms = -250;
+    let mut state = State::new(Arc::new(cfg.clone()), ms(0), false).unwrap();
+    assert_eq!(value(&mut state, 0), (25., Wake::Frame, None));
+    state.set_visible(false, ms(100));
+    assert_eq!(value(&mut state, 1000), (25., Wake::Idle, None));
+    state.set_visible(true, ms(1100));
+    assert_eq!(value(&mut state, 1100).0, 35.);
+    let endpoint = state.sample(ms(1750));
+    assert_eq!(endpoint.values.get(Property::Width), Some(100.));
+    assert_eq!(endpoint.wake, Wake::Idle);
+    assert_eq!(state.painted(endpoint).unwrap().outcome, Outcome::Finished);
+    cfg.delay_ms = -1250;
+    cfg.repeat = Repeat::Alternate;
+    let mut repeat = State::new(Arc::new(cfg.clone()), ms(0), false).unwrap();
+    assert_eq!(value(&mut repeat, 0), (75., Wake::Frame, None));
+    cfg.repeat = Repeat::Once;
+    let mut finished = State::new(Arc::new(cfg), ms(0), false).unwrap();
+    assert_eq!(
+        value(&mut finished, 0).2.unwrap().outcome,
+        Outcome::Finished
+    );
+}
+
+#[test]
+fn finite_repeat_direction_counts_and_reduced_endpoints_match_single_stage_programs() {
+    for direction in [
+        Direction::Normal,
+        Direction::Reverse,
+        Direction::Alternate,
+        Direction::AlternateReverse,
+    ] {
+        for count in [0, 1, 2, 3] {
+            let mut cfg = config(1, 100.);
+            cfg.duration_ms = 100;
+            cfg.easing = Easing::EaseIn;
+            cfg.repeat = Repeat::Finite(IterationCount::new(count), direction);
+            let mut state = State::new(Arc::new(cfg.clone()), ms(0), false).unwrap();
+            for time in (0..count * 100).step_by(25) {
+                let progress = (time % 100) as f64 / 100.;
+                let directed = if direction.reverses((time / 100) as u128) {
+                    1. - progress
+                } else {
+                    progress
+                };
+                let sample = value(&mut state, time);
+                assert!((sample.0 - Easing::EaseIn.sample(directed) * 100.).abs() < 1e-9);
+                assert!(sample.2.is_none());
+            }
+            let expected = if direction.reverses(count.saturating_sub(1) as u128) {
+                0.
+            } else {
+                100.
+            };
+            let end = value(&mut state, count * 100);
+            assert_eq!(end.0, expected);
+            assert_eq!(end.1, Wake::Idle);
+            assert_eq!(end.2.unwrap().outcome, Outcome::Finished);
+            let mut reduced = State::new(Arc::new(cfg), ms(0), true).unwrap();
+            assert_eq!(value(&mut reduced, 0).0, expected);
+        }
+    }
 }

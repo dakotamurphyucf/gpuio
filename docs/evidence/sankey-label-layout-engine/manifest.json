@@ -1,0 +1,22 @@
+{
+  "base_commit": "bb24014",
+  "scope": "pure internal geometry and placement; no worker measurement or GUI",
+  "files": [
+    {
+      "path": "clippy.log",
+      "bytes": 589029,
+      "sha256": "8ccfbdb8fba556af8673e4f182f5527f931fdf6bda39d983fc04cde7eab7680c"
+    },
+    {
+      "path": "initial-chart-tests.log",
+      "bytes": 598638,
+      "sha256": "022e172682b6e26641cff6730eb1ba46901f3219b0b94ab0e86ab36338704f51"
+    },
+    {
+      "path": "native-library-tests.log",
+      "bytes": 653399,
+      "sha256": "8debcada9443d0175d3d5f42970a726e4e1dc67d5f609536f28c437fa4ebd809"
+    }
+  ],
+  "archive_sha256": "c97f8198426c3bca2d06f8f5b5489fa548dcc5dc401cc3f3e35dd2328c2d7d02"
+}

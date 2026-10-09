@@ -1,0 +1,79 @@
+{
+  "base_revision": "6be17496",
+  "production_changes": false,
+  "local_gallery": {
+    "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+    "binary_sha256": "0fd4939eb126602d11fbd82c0ecfc9a0b42e48b2ddba51471bbd6fb415112928",
+    "revision": "6be1749668d58c1b4c1f5dd4ed713ffab6444236",
+    "cases": [
+      {
+        "case": "current",
+        "argument_default": null,
+        "appkit": "Auto_hide",
+        "oracle": {
+          "argument_default": "unset",
+          "initialization_seconds": 0.5,
+          "settled": "Auto_hide",
+          "startup": "Auto_hide"
+        },
+        "before": -0.0,
+        "scrolled": 26.0,
+        "after_preference": 26.0,
+        "end": 677.0,
+        "reactivation": "retained published status, explicit choice, fresh successful read",
+        "result": "pass",
+        "child_exit": 0
+      },
+      {
+        "case": "legacy",
+        "argument_default": "Always",
+        "appkit": "Always_visible",
+        "oracle": {
+          "argument_default": "Always",
+          "initialization_seconds": 0.5,
+          "settled": "Always_visible",
+          "startup": "Always_visible"
+        },
+        "before": -0.0,
+        "scrolled": 26.0,
+        "after_preference": 26.0,
+        "end": 677.0,
+        "reactivation": "retained published status, explicit choice, fresh successful read",
+        "result": "pass",
+        "child_exit": 0
+      },
+      {
+        "case": "overlay",
+        "argument_default": "WhenScrolling",
+        "appkit": "Auto_hide",
+        "oracle": {
+          "argument_default": "WhenScrolling",
+          "initialization_seconds": 0.5,
+          "settled": "Auto_hide",
+          "startup": "Auto_hide"
+        },
+        "before": -0.0,
+        "scrolled": 26.0,
+        "after_preference": 26.0,
+        "end": 677.0,
+        "reactivation": "retained published status, explicit choice, fresh successful read",
+        "result": "pass",
+        "child_exit": 0
+      }
+    ],
+    "result": "pass"
+  },
+  "diagnostic_runs": [
+    {
+      "id": 37773298062,
+      "revision": "670a8ad4a5b746aa9418028bdd696e99da3c65c9",
+      "result": "success"
+    },
+    {
+      "id": 37773657349,
+      "revision": "7f459a846345e8e1b506886a590be4f35fa8c534",
+      "result": "success"
+    }
+  ],
+  "scope": "Hosted AppKit-only oracle validation; full corrected hosted gallery pending"
+}

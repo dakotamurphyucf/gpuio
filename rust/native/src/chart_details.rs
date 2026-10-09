@@ -1,5 +1,6 @@
 //! Bounded tooltip descriptions of the exact prepared source. Aggregate values
 //! are retained during worker reduction, never recomputed from a large span here.
+use crate::chart_cartesian::Layers;
 use crate::chart_geometry::{self as geometry, Plan, Point, Shape, Source, Summary};
 use gpuio_protocol::{
     chart_data::{Contents, Data},
@@ -58,6 +59,7 @@ fn anchor(shape: Shape) -> Point {
         },
     }
 }
+#[cfg(test)]
 pub(crate) fn describe(
     data: &Data,
     policy: &Policy,
@@ -65,12 +67,26 @@ pub(crate) fn describe(
     plan: &Plan,
     index: usize,
 ) -> Option<Details> {
+    describe_with_radar_labels(data, policy, options, plan, index, &[])
+}
+
+pub(crate) fn describe_with_radar_labels(
+    data: &Data,
+    policy: &Policy,
+    options: &Options,
+    plan: &Plan,
+    index: usize,
+    radar_labels: &[i64],
+) -> Option<Details> {
     let mark = plan.marks.get(index)?;
     let x = |n| geometry::format_number(n, options.axes.x_format);
     let y = |n| geometry::format_number(n, options.axes.y_format);
     let (title, text) = match (&data.contents, mark.source) {
-        (Contents::Cartesian(layers), Source::Cartesian { series, start, end }) => {
-            let series = layers.get(series)?.series();
+        (
+            Contents::Cartesian(_) | Contents::Categorical(..),
+            Source::Cartesian { series, start, end },
+        ) => {
+            let series = Layers::of(data)?.get(series)?;
             let first = series.points.get(start)?;
             let count = end.checked_sub(start)?;
             let last = series.points.get(end.checked_sub(1)?)?;
@@ -78,33 +94,77 @@ pub(crate) fn describe(
                 return None;
             }
             let value = match plan.summary(index) {
-                Some(Summary::Bar(value)) => value,
+                Some(Summary::Bar { value, .. } | Summary::Stacked { value, .. }) => value,
                 None if count == 1 => first.y?,
                 _ => return None,
             };
             let aggregate =
                 matches!(mark.shape, Shape::Bar(_)) && !matches!(policy.bars, Bar::Exact);
+            let category = |index: usize| match &data.contents {
+                Contents::Categorical(categories, _) => categories
+                    .get(index)
+                    .map(|c| format!("{} (category {})", c.label, c.id)),
+                _ => None,
+            };
             let text = if aggregate {
                 let operation = match policy.bars {
                     Bar::Sum(_) => "Sum",
                     Bar::Mean(_) => "Mean",
                     Bar::Exact => return None,
                 };
-                format!(
-                    "{operation} of {count} samples\nx: {} – {}\ny: {}",
-                    x(first.x),
-                    x(last.x),
-                    y(value)
-                )
+                if let Some(first_category) = category(start) {
+                    format!(
+                        "{operation} across {count} categories (missing values excluded)\nCategories: {first_category} – {}\ny: {}",
+                        category(end - 1)?,
+                        y(value)
+                    )
+                } else {
+                    format!(
+                        "{operation} of {count} samples\nx: {} – {}\ny: {}",
+                        x(first.x),
+                        x(last.x),
+                        y(value)
+                    )
+                }
             } else {
                 let label = if first.label.is_empty() {
                     String::new()
                 } else {
                     format!("{}\n", first.label)
                 };
-                format!("{label}x: {}\ny: {}", x(first.x), y(value))
+                if let Some(category) = category(start) {
+                    format!("{label}Category: {category}\ny: {}", y(value))
+                } else {
+                    format!("{label}x: {}\ny: {}", x(first.x), y(value))
+                }
             };
-            (series.name.clone(), text)
+            let text = if series.kind == crate::chart_cartesian::Kind::Bar
+                && !data.bar_baselines.is_empty()
+            {
+                let baseline = match plan.summary(index) {
+                    Some(Summary::Bar { baseline, .. } | Summary::Stacked { baseline, .. }) => {
+                        baseline
+                    }
+                    _ => data.bar_baseline(series.id, first.id).unwrap_or(0.),
+                };
+                format!(
+                    "{text}\nSource baseline: {}\nEndpoint: {}",
+                    y(baseline),
+                    y(value)
+                )
+            } else {
+                text
+            };
+            let text = if let Some(Summary::Stacked { lower, upper, .. }) = plan.summary(index) {
+                format!(
+                    "{text}\nStack baseline: {}\nStack endpoint: {}",
+                    y(lower),
+                    y(upper)
+                )
+            } else {
+                text
+            };
+            (series.name.to_owned(), text)
         }
         (Contents::Pie(values), Source::Slice(index)) => {
             let slice = values.get(index)?;
@@ -134,7 +194,11 @@ pub(crate) fn describe(
             let value = series.values.iter().find(|(id, _)| *id == axis.id)?.1;
             (
                 series.name.clone(),
-                format!("{}\n{} / {}", axis.label, y(value), y(axis.maximum)),
+                if radar_labels.contains(&axis.id) {
+                    format!("{} / {}", y(value), y(axis.maximum))
+                } else {
+                    format!("{}\n{} / {}", axis.label, y(value), y(axis.maximum))
+                },
             )
         }
         (Contents::Candlestick(values), Source::Candle(span)) => {
@@ -227,7 +291,9 @@ mod tests {
     #[test]
     fn aggregate_tooltips_use_reduced_values_and_original_interval() {
         let data = Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Bar(Series {
                 id: 9,
                 name: "Throughput".into(),
@@ -249,7 +315,13 @@ mod tests {
                 ..Default::default()
             };
             let plan = prepare(&data, policy);
-            assert_eq!(plan.summary(0), Some(Summary::Bar(value)));
+            assert_eq!(
+                plan.summary(0),
+                Some(Summary::Bar {
+                    value,
+                    baseline: 0.
+                })
+            );
             let details = describe(&data, &policy, &Options::default(), &plan, 0).unwrap();
             assert_eq!(details.title, "Throughput");
             assert_eq!(
@@ -263,7 +335,9 @@ mod tests {
             );
         }
         let candles = Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Candlestick(vec![
                 Candle {
                     id: 42,
@@ -295,8 +369,51 @@ mod tests {
         assert_eq!(details.text, "x: 0 – 1\nOpen 2 · High 9\nLow -2 · Close 6");
     }
     #[test]
+    fn custom_radar_content_omits_only_its_axis_title() {
+        let data = Data {
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
+            contents: Contents::Radar(
+                [7, 9, 11]
+                    .into_iter()
+                    .map(|id| RadarAxis {
+                        id,
+                        label: "Repeated caption".into(),
+                        maximum: 100.,
+                    })
+                    .collect(),
+                vec![RadarSeries {
+                    id: 1,
+                    name: "Original series".into(),
+                    values: vec![(7, 20.), (9, 30.), (11, 40.)],
+                }],
+            ),
+        };
+        let policy = Policy::default();
+        let options = Options::default();
+        let plan = prepare(&data, policy);
+        let mut checked = 0;
+        for index in 0..plan.marks.len() {
+            let original = describe(&data, &policy, &options, &plan, index).unwrap();
+            let custom =
+                describe_with_radar_labels(&data, &policy, &options, &plan, index, &[7]).unwrap();
+            assert_eq!(custom.title, original.title);
+            assert_eq!(custom.anchor.x, original.anchor.x);
+            assert_eq!(custom.anchor.y, original.anchor.y);
+            if original.text == "Repeated caption\n20 / 100" {
+                assert_eq!(custom.text, "20 / 100");
+                checked += 1;
+            } else {
+                assert_eq!(custom.text, original.text);
+            }
+        }
+        assert!(checked > 0);
+    }
+
+    #[test]
     fn every_family_describes_actual_marks_and_rejects_unrelated_sources() {
-        for fixture in include_str!("../../../test/fixtures/chart-v1-data.hex").lines() {
+        for fixture in include_str!("../../../test/fixtures/chart-v3-data.hex").lines() {
             let (_, hex) = fixture.split_once(' ').unwrap();
             let bytes = (0..hex.len())
                 .step_by(2)
@@ -311,7 +428,9 @@ mod tests {
                 assert!(!details.text.is_empty());
                 assert!(details.anchor.x.is_finite() && details.anchor.y.is_finite());
                 let empty = Data {
-                    version: 1,
+                    version: 3,
+                    bar_baselines: vec![],
+                    bar_backgrounds: vec![],
                     contents: Contents::Pie(vec![]),
                 };
                 assert!(describe(&empty, &policy, &Options::default(), &plan, index).is_none());

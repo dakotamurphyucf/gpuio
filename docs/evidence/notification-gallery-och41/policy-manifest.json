@@ -1,0 +1,23 @@
+{
+  "checks/notification-policy-001.log": "533c11e150f827340df793adb8d5853f6efc0f2e99a97e4702469fb41806fa08",
+  "checks/notification-policy-001/gallery-failure.png": "e43903131b51428fce0d59b5fc372ac8e2ab89ea42ae38c472c88a3b558feb95",
+  "checks/notification-policy-001/notification-policy-failure.png": "e43903131b51428fce0d59b5fc372ac8e2ab89ea42ae38c472c88a3b558feb95",
+  "checks/notification-policy-001/notification-policy.json": "76927fc507d31c43c3cf00b986be9d37d056f5d62a97a8b33a159235ce497845",
+  "checks/notification-policy-001/notifications-hover-full.png": "2b81f6f30ebd7e669c4a4d3db527260a9c190c0ee83532c7882d6ad1faf6fce1",
+  "checks/notification-policy-001/notifications-hover-reduced.png": "2b81f6f30ebd7e669c4a4d3db527260a9c190c0ee83532c7882d6ad1faf6fce1",
+  "checks/notification-policy-002.log": "7e0baabd826e6c858e491efe1d6ef6880ebb9de57b11baaf839d305ce54a37d8",
+  "checks/notification-policy-002/gallery-failure.png": "1863c39e998b1a1d8c894cbd51bed072e42c1abf9625f8be33dc49affc48f558",
+  "checks/notification-policy-002/notification-policy-failure.png": "779b7a1965cc909564c0c9bf035e8a9d1d256433c4e190311e3259947748f788",
+  "checks/notification-policy-002/notification-policy.json": "3901dfc5ebdf5a00104d236515b78cac5fe508c0ad7db4333bbca6f06b4b4960",
+  "checks/notification-policy-002/notifications-hover-full.png": "2b81f6f30ebd7e669c4a4d3db527260a9c190c0ee83532c7882d6ad1faf6fce1",
+  "checks/notification-policy-003.log": "525f8e6e85dcf82dac5b55d60622fa6634cf96caaf2dcabea20114c9c404d6a1",
+  "checks/notification-policy-003/notification-policy.json": "e9f28ff9a6b94eec13ffe6c9f28b330b0a46fcfec2cd79a93ecab58f697d68f2",
+  "checks/notification-policy-003/notifications-hover-full.png": "2b81f6f30ebd7e669c4a4d3db527260a9c190c0ee83532c7882d6ad1faf6fce1",
+  "checks/notification-policy-003/notifications-hover-reduced.png": "2b81f6f30ebd7e669c4a4d3db527260a9c190c0ee83532c7882d6ad1faf6fce1",
+  "checks/notification-policy-installed-001.log": "38cfe3efe6f6f4e1ab562133e2f67b7977393441a34b2d9a328a6f1e2f94ba0b",
+  "checks/notification-policy-installed-001/notification-policy.json": "615b167099a06010aae5dfbdd353df779b1a70ef2bc326ed199e158cf3d86fcf",
+  "checks/notification-policy-installed-001/notifications-hover-full.png": "2b81f6f30ebd7e669c4a4d3db527260a9c190c0ee83532c7882d6ad1faf6fce1",
+  "checks/notification-policy-installed-001/notifications-hover-reduced.png": "2b81f6f30ebd7e669c4a4d3db527260a9c190c0ee83532c7882d6ad1faf6fce1",
+  "source/scripts/gallery_notifications.py": "06a7f3e2559183f9028c7973756c10708b701fc3b5872cee8e98439b29c0e52a",
+  "source/scripts/test_gallery.py": "2045a611d732c761a05e76ba2f69155e63f75dbe290c8320a211862a251fc1e2"
+}

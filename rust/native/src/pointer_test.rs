@@ -154,6 +154,21 @@ pub(super) async fn exercise(
     apply(cx, handle, vec![Op::SetPointer(node(82), config())]);
     draw(cx, handle);
     down(cx, handle, inside);
+    let mut disabled = style(120.);
+    disabled.push(Style::Fields(vec![Field::Disabled(true)]));
+    apply(cx, handle, vec![Op::SetStyle(node(82), disabled)]);
+    assert!(captured(cx, handle).is_none());
+    assert_eq!(
+        events(transport).last().unwrap().1.phase,
+        PointerPhase::Cancelled(PointerCancel::Disabled)
+    );
+    draw(cx, handle);
+    down(cx, handle, inside);
+    assert!(captured(cx, handle).is_none());
+    assert!(events(transport).is_empty());
+    apply(cx, handle, vec![Op::SetStyle(node(82), style(120.))]);
+    draw(cx, handle);
+    down(cx, handle, inside);
     let mut hidden = style(120.);
     hidden.push(Style::Fields(vec![Field::Visibility(1)]));
     apply(cx, handle, vec![Op::SetStyle(node(82), hidden)]);

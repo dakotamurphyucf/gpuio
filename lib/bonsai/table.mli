@@ -20,6 +20,9 @@ module Cell : sig
     -> unit Bonsai.Effect.t Gpuio.View.t
     -> t Or_error.t
 
+  (** Compact plain-text cell: display, clipboard and accessibility text are
+      identical. Uses one retained native leaf; [create] keeps arbitrary rich
+      content and its ordinary View resource/transaction costs. *)
   val text : column:Gpuio.Table_column.Id.t -> string -> t Or_error.t
 end
 
@@ -37,7 +40,14 @@ module Controller : sig
 
   val select : t -> Row.t Selection.t -> unit Bonsai.Effect.t
   val reveal : t -> ?column:Gpuio.Table_column.Id.t -> Row.t -> unit Bonsai.Effect.t
+
+  (** Prepare a bounded destination row set together with the command, using
+      the latest compatible viewport when available. Pins retain priority and
+      native layout remains authoritative. This avoids a separate cell round
+      trip for ordinary jumps; unknown/resized geometry or an insufficient row
+      budget can still require further native demand. *)
   val scroll_to : t -> ?offset:float -> Row.t -> unit Bonsai.Effect.t Or_error.t
+
   val scroll_to_column : t -> Gpuio.Table_column.Id.t -> unit Bonsai.Effect.t
   val scroll_to_end : t -> unit Bonsai.Effect.t
   val reset_columns : t -> unit Bonsai.Effect.t
@@ -56,6 +66,13 @@ module Output : sig
       A rendered-frame acknowledgement does not guarantee that observation has
       already been delivered to Bonsai. *)
   val viewport : _ t -> Gpuio.Virtual_list.Viewport.t option
+
+  (** Latest horizontal column bands for the current source/query/configuration.
+      Includes pinned and partially visible columns, even with no data rows.
+      [None] means not yet observed, distinct from a measured empty viewport.
+      Like [viewport], this is an asynchronous layout snapshot, not OS occlusion
+      or a guarantee of visibility after a window/subtree stops drawing. *)
+  val column_viewport : _ t -> Gpuio.Table.Column_viewport.t option
 
   val active_rows : _ t -> int
   val active_cells : _ t -> int
@@ -76,7 +93,8 @@ end
     do not cancel application I/O; reset the Eio pager to cancel its producers.
     Generations must be nonnegative and cannot decrease within a native mount.
 
-    Only requested/pinned rows allocate cells. All columns of each active row
+    Requested/pinned rows and bounded programmatic scroll preparation allocate
+    cells. All columns of each active row
     count against [config]'s cell limit. Cells use Managed_rows' default-reset
     lifecycle contract and receive their own lifetime guard. Preferences and
     application jobs belong outside transient cell computations. Source-order
@@ -84,12 +102,39 @@ end
     Give the table bounded geometry through [style] or its parent. The caller's
     key and style belong to the native table root: padding, border and surface
     decoration are applied once. Style updates preserve selection and anchors;
-    source-lineage resets remain independent of the caller's sibling key. *)
+    source-lineage resets remain independent of the caller's sibling key.
+
+    [headers] submits keyed rich leaf/group Views through [Gpuio.Table_header].
+    Their computations belong to the caller and are independent of body-row
+    eviction and cell lifetimes. Native controls retain their keyed owners until
+    removed or the table mount is replaced. Header content consumes normal View
+    resources but does not consume the active body-cell budget.
+
+    [header_presentation] styles native header bands through a checked paint and
+    typography scope. [render_row_presentation] runs once per active row in that
+    row's managed lifetime, independently of columns. Eviction tears it down;
+    durable application work belongs outside it. Presentation updates retain
+    native geometry, scroll owners and cell computations. Native interaction
+    states are resolved locally without callbacks into OCaml.
+
+    [scrollbar] configures the actual native viewport, inside any layout
+    wrappers. It defaults to [B.return None], which retains legacy native
+    presentation. Changing it preserves the viewport and mounted row state;
+    [config]'s scrollbar enable flag still takes precedence. *)
 val component
   :  'data Gpuio.Table_data.t B.t
   -> config:Config.t B.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
+  -> ?headers:unit Bonsai.Effect.t Gpuio.View.t Gpuio.Table_header.t list B.t
+  -> ?header_presentation:Gpuio.Table_presentation.Header.t B.t
+  -> ?render_row_presentation:
+       (row:Row.t B.t
+        -> data:'data B.t
+        -> lifetime:Managed_rows.Lifetime.t B.t
+        -> B.graph
+        -> Gpuio.Table_presentation.Row.t Or_error.t B.t)
   -> ?query_generation:int64 B.t
   -> ?on_request:(Row.t Request.t -> unit Bonsai.Effect.t) B.t
   -> render_cell:
@@ -114,6 +159,15 @@ val paged
   -> config:Config.t B.t
   -> ?key:Gpuio.Key.t
   -> ?style:Gpuio.Style.t B.t
+  -> ?scrollbar:Gpuio.Scrollbar.t option B.t
+  -> ?headers:unit Bonsai.Effect.t Gpuio.View.t Gpuio.Table_header.t list B.t
+  -> ?header_presentation:Gpuio.Table_presentation.Header.t B.t
+  -> ?render_row_presentation:
+       (row:Row.t B.t
+        -> data:'data B.t
+        -> lifetime:Managed_rows.Lifetime.t B.t
+        -> B.graph
+        -> Gpuio.Table_presentation.Row.t Or_error.t B.t)
   -> ?auto_load:bool B.t
   -> ?on_request:(Row.t Request.t -> unit Bonsai.Effect.t) B.t
   -> render_cell:

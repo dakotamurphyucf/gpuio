@@ -1,0 +1,10 @@
+[package]
+name = "gpuio-document-sdk"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+gpuio-extension-sdk = { path = "../extension-sdk" }
+gpui-base = { path = "../../vendor/gpui-base" }

@@ -1,0 +1,65 @@
+{
+  "complete": true,
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "qualification": "existing Mac with denied development directories; not clean-machine or release approval",
+  "app": "signal_studio",
+  "archive_sha256": "1b425dec531287ae7e4875578888fab8bcc123d1a8529f4c4c46fe5fdf275a6c",
+  "executable_sha256": "babc788a3b40f269262f0270f142515454a25cfbd4e48e669a248e4650d00582",
+  "packaging_revision": "d38087867200dded7d491d3e44b7be389780c6c3",
+  "packaging_revision_scope": "packaging checkout; binary build revision is not attested",
+  "denied_paths": [
+    {
+      "path": "/Users/dakotamurphy/gpuio",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/opt/homebrew",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/usr/local",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/dakotamurphy/.cargo",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/dakotamurphy/.rustup",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/dakotamurphy/.opam",
+      "exists": true,
+      "denied": true
+    }
+  ],
+  "environment_keys": [
+    "HOME",
+    "LANG",
+    "LC_CTYPE",
+    "LOGNAME",
+    "PATH",
+    "TMPDIR",
+    "USER"
+  ],
+  "cwd": "/private/var/folders/hk/nzkknx9x1q3fbg99rsr02q8m0000gn/T/gpuio-extracted-eju64lvo",
+  "checks": [
+    "extension",
+    "canvas",
+    "charts",
+    "inspector",
+    "stream",
+    "responsive-state",
+    "remount",
+    "ordinary-close"
+  ],
+  "notification_authorization": "Authorized",
+  "notification_opt_in": false,
+  "clipboard_restored": true
+}

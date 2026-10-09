@@ -49,6 +49,13 @@ pub enum Error {
     StaleGeneration,
 }
 
+/// Keep count arithmetic in u128, but bound OS timer waits to one day. Larger
+/// finite waits recheck at that horizon without overflowing Instant/timer APIs;
+/// this bound never changes the completion comparison.
+pub(crate) fn bounded_duration(nanos: u128) -> Duration {
+    Duration::from_nanos(nanos.min(86_400_000_000_000) as u64)
+}
+
 pub struct State {
     config: Arc<Config>,
     from: Values,
@@ -179,7 +186,25 @@ impl State {
         }
         let target = Values::from_targets(&self.config.targets);
         if self.reduced {
-            if self.config.repeat == Repeat::Once {
+            if let Some((count, direction)) = self.config.repeat.policy() {
+                let iteration = count.unwrap_or(1).saturating_sub(1);
+                let reverse = direction.reverses(if count.is_some() {
+                    iteration as u128
+                } else {
+                    0
+                });
+                let initial = if count.is_some_and(|count| count <= 1) {
+                    self.from
+                } else {
+                    Values::from_targets(self.config.initial.as_ref().unwrap())
+                };
+                result.values = if reverse == count.is_some() {
+                    initial
+                } else {
+                    target
+                };
+                result.done = count.is_some();
+            } else if self.config.repeat == Repeat::Once {
                 result.values = target;
                 result.done = true;
             } else {
@@ -192,17 +217,66 @@ impl State {
             result.done = true;
             return result;
         }
-        let delay = Duration::from_millis(self.config.delay_ms as u64);
+        let delay = Duration::from_millis(self.config.delay_ms.max(0) as u64);
         let begin = self.start.saturating_add(delay);
         if now < begin {
-            result.values = self.from;
+            result.values = if self
+                .config
+                .repeat
+                .policy()
+                .is_some_and(|(_, direction)| direction.reverses(0))
+            {
+                target
+            } else {
+                self.from
+            };
             result.wake = Wake::At(begin);
             return result;
         }
         let duration = Duration::from_millis(self.config.duration_ms as u64);
-        let elapsed = now.saturating_sub(begin);
+        // Keep the clock origin intact: backdating would lose the advance at
+        // origin zero and would make suspension/restart arithmetic ambiguous.
+        let advance = if self.config.delay_ms < 0 {
+            Duration::from_millis(self.config.delay_ms.unsigned_abs())
+        } else {
+            Duration::ZERO
+        };
+        let elapsed = now.saturating_sub(begin).saturating_add(advance);
         let mut from = self.from;
         let phase = match self.config.repeat {
+            Repeat::Finite(..) | Repeat::Infinite(_) => {
+                let (count, direction) = self.config.repeat.policy().unwrap();
+                if duration.is_zero()
+                    || count.is_some_and(|count| {
+                        elapsed.as_nanos() >= duration.as_nanos() * count as u128
+                    })
+                {
+                    let count = count.expect("validated positive infinite duration");
+                    let initial = if count <= 1 {
+                        from
+                    } else {
+                        Values::from_targets(self.config.initial.as_ref().unwrap())
+                    };
+                    result.values = if direction.reverses(count.saturating_sub(1) as u128) {
+                        initial
+                    } else {
+                        target
+                    };
+                    result.done = true;
+                    return result;
+                }
+                let cycle = elapsed.as_nanos() / duration.as_nanos();
+                if cycle > 0 {
+                    from = Values::from_targets(self.config.initial.as_ref().unwrap());
+                }
+                let phase =
+                    (elapsed.as_nanos() % duration.as_nanos()) as f64 / duration.as_nanos() as f64;
+                if direction.reverses(cycle) {
+                    1. - phase
+                } else {
+                    phase
+                }
+            }
             Repeat::Once => {
                 if duration.is_zero() || elapsed >= duration {
                     result.values = target;
@@ -233,6 +307,22 @@ impl State {
                 Some(target.property.clamp(from + (target.value - from) * phase));
         }
         result.wake = Wake::Frame;
+        if let Some((count, _)) = self.config.repeat.policy()
+            && from == target
+        {
+            let declared = Values::from_targets(self.config.initial.as_ref().unwrap());
+            result.wake = if declared == target {
+                count.map_or(Wake::Idle, |count| {
+                    Wake::At(now.saturating_add(bounded_duration(
+                        duration.as_nanos() * count as u128 - elapsed.as_nanos(),
+                    )))
+                })
+            } else {
+                Wake::At(now.saturating_add(
+                    duration - bounded_duration(elapsed.as_nanos() % duration.as_nanos()),
+                ))
+            };
+        }
         result
     }
     pub fn accepts_sample(&self, sample: &Sample) -> bool {

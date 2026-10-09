@@ -141,3 +141,228 @@ let%expect_test "row activation and deactivation effects compose with the reset"
     (true 1 ())
     |}]
 ;;
+
+let%expect_test "nested lifetimes survive data updates but never revive after remount" =
+  List.iter [ false; true ] ~f:(fun optimize ->
+    let members = B.Expert.Var.create (Int.Map.of_alist_exn [ 1, 0; 2, 0 ]) in
+    let columns = B.Expert.Var.create (Int.Map.singleton 0 ()) in
+    let calls = ref [] in
+    let component graph =
+      Rows.assoc
+        (module Int)
+        (B.Expert.Var.value members)
+        ~f:(fun row data _ graph ->
+          Rows.assoc
+            (module Int)
+            (B.Expert.Var.value columns)
+            ~f:(fun _ _ lifetime _graph ->
+              let open B.Let_syntax in
+              let%arr row = row
+              and data = data
+              and lifetime = lifetime in
+              ( lifetime
+              , Rows.Lifetime.guard
+                  lifetime
+                  (E.of_thunk (fun () -> calls := (row, data) :: !calls)) ))
+            graph)
+        graph
+    in
+    let driver =
+      Bonsai_driver.create
+        ~optimize
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        component
+    in
+    let cycle () =
+      Bonsai_driver.flush driver;
+      Bonsai_driver.trigger_lifecycles driver;
+      Bonsai_driver.flush driver;
+      Bonsai_driver.result driver
+    in
+    let cell rows row = Map.find_exn (Map.find_exn rows row) 0 in
+    let fire (_, action) =
+      Bonsai_driver.schedule_event driver action;
+      ignore (cycle () : _ Int.Map.t)
+    in
+    let initial = cycle () in
+    let first = cell initial 1
+    and second = cell initial 2 in
+    assert (not (phys_equal (fst first) (fst second)));
+    B.Expert.Var.set members (Int.Map.of_alist_exn [ 1, 10; 2, 0 ]);
+    let updated = cycle () in
+    assert (phys_equal (fst first) (fst (cell updated 1)));
+    assert (phys_equal (fst second) (fst (cell updated 2)));
+    fire (cell updated 1);
+    B.Expert.Var.set members (Int.Map.singleton 2 0);
+    let retained = cycle () in
+    assert (phys_equal (fst second) (fst (cell retained 2)));
+    fire first;
+    fire second;
+    B.Expert.Var.set members (Int.Map.of_alist_exn [ 1, 20; 2, 0 ]);
+    let revisited = cycle () in
+    let fresh = cell revisited 1 in
+    assert (not (phys_equal (fst first) (fst fresh)));
+    fire first;
+    fire fresh;
+    B.Expert.Var.set columns Int.Map.empty;
+    ignore (cycle () : _ Int.Map.t);
+    fire fresh;
+    fire second;
+    B.Expert.Var.set columns (Int.Map.singleton 0 ());
+    let reinserted = cycle () in
+    assert (not (phys_equal (fst fresh) (fst (cell reinserted 1))));
+    assert (not (phys_equal (fst second) (fst (cell reinserted 2))));
+    fire fresh;
+    fire second;
+    fire (cell reinserted 1);
+    fire (cell reinserted 2);
+    print_s [%sexp (optimize : bool), (List.rev !calls : (int * int) list)];
+    B.Expert.Var.set members Int.Map.empty;
+    ignore (cycle () : _ Int.Map.t);
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect
+    {|
+    (false ((1 10) (2 0) (1 20) (1 20) (2 0)))
+    (true ((1 10) (2 0) (1 20) (1 20) (2 0)))
+    |}]
+;;
+
+let%expect_test "hiding the containing branch retires lifetimes even with unchanged keys" =
+  List.iter [ false; true ] ~f:(fun optimize ->
+    let shown = B.Expert.Var.create true in
+    let calls = ref 0 in
+    let component graph =
+      let open B.Let_syntax in
+      match%sub B.Expert.Var.value shown with
+      | false -> B.return Int.Map.empty
+      | true ->
+        Rows.assoc
+          (module Int)
+          (B.return (Int.Map.singleton 1 ()))
+          ~f:(fun _ _ lifetime graph ->
+            let count, bump =
+              B.state_machine0
+                ~default_model:0
+                ~sexp_of_model:Int.sexp_of_t
+                ~apply_action:(fun _ count () -> count + 1)
+                graph
+            in
+            let%arr count = count
+            and bump = bump
+            and lifetime = lifetime in
+            ( count
+            , lifetime
+            , Rows.Lifetime.guard
+                lifetime
+                (E.Many [ E.of_thunk (fun () -> Int.incr calls); bump () ]) ))
+          graph
+    in
+    let driver =
+      Bonsai_driver.create
+        ~optimize
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        component
+    in
+    let cycle () =
+      Bonsai_driver.flush driver;
+      Bonsai_driver.trigger_lifecycles driver;
+      Bonsai_driver.flush driver;
+      Bonsai_driver.result driver
+    in
+    let count, old_lifetime, old_action = Map.find_exn (cycle ()) 1 in
+    assert (count = 0);
+    Bonsai_driver.schedule_event driver old_action;
+    let count, _, _ = Map.find_exn (cycle ()) 1 in
+    assert (count = 1 && !calls = 1);
+    B.Expert.Var.set shown false;
+    assert (Map.is_empty (cycle ()));
+    Bonsai_driver.schedule_event driver old_action;
+    assert (Map.is_empty (cycle ()) && !calls = 1);
+    B.Expert.Var.set shown true;
+    let count, new_lifetime, new_action = Map.find_exn (cycle ()) 1 in
+    assert (count = 0 && not (phys_equal old_lifetime new_lifetime));
+    Bonsai_driver.schedule_event driver old_action;
+    let count, _, _ = Map.find_exn (cycle ()) 1 in
+    assert (count = 0 && !calls = 1);
+    Bonsai_driver.schedule_event driver new_action;
+    let count, _, _ = Map.find_exn (cycle ()) 1 in
+    assert (count = 1 && !calls = 2);
+    B.Expert.Var.set shown false;
+    assert (Map.is_empty (cycle ()));
+    Bonsai_driver.schedule_event driver new_action;
+    assert (Map.is_empty (cycle ()) && !calls = 2);
+    print_s [%sexp (optimize : bool), (!calls : int)];
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect
+    {|
+    (false 2)
+    (true 2)
+    |}]
+;;
+
+let%expect_test "stateless activation can retire immediately without reviving its guard" =
+  List.iter [ false; true ] ~f:(fun optimize ->
+    let shown = B.Expert.Var.create true in
+    let calls = ref 0 in
+    let captured = ref [] in
+    let component graph =
+      let open B.Let_syntax in
+      match%sub B.Expert.Var.value shown with
+      | false -> B.return Int.Map.empty
+      | true ->
+        Rows.assoc
+          (module Int)
+          (B.return (Int.Map.singleton 1 ()))
+          ~f:(fun _ _ lifetime graph ->
+            let action =
+              B.map lifetime ~f:(fun lifetime ->
+                Rows.Lifetime.guard lifetime (E.of_thunk (fun () -> Int.incr calls)))
+            in
+            let on_activate =
+              let%arr lifetime = lifetime
+              and action = action in
+              E.Many
+                [ action
+                ; E.of_thunk (fun () ->
+                    captured := (lifetime, action) :: !captured;
+                    B.Expert.Var.set shown false)
+                ]
+            in
+            B.Edge.lifecycle ~on_activate graph;
+            B.return ())
+          graph
+    in
+    let driver =
+      Bonsai_driver.create
+        ~optimize
+        ~clock:(Bonsai.Time_source.create ~start:Time_ns.epoch)
+        component
+    in
+    let settle () =
+      Bonsai_driver.flush driver;
+      Bonsai_driver.trigger_lifecycles driver;
+      Bonsai_driver.flush driver
+    in
+    for visit = 1 to 4 do
+      B.Expert.Var.set shown true;
+      settle ();
+      (* Activation hid its own branch before the first model actions settled. *)
+      assert (Map.is_empty (Bonsai_driver.result driver));
+      settle ();
+      assert (!calls = visit && List.length !captured = visit);
+      let newest, _ = List.hd_exn !captured in
+      List.iter (List.tl_exn !captured) ~f:(fun (previous, _) ->
+        assert (not (phys_equal newest previous)));
+      List.iter !captured ~f:(fun (_, action) ->
+        Bonsai_driver.schedule_event driver action);
+      settle ();
+      assert (!calls = visit)
+    done;
+    print_s [%sexp (optimize : bool), (!calls : int)];
+    Bonsai_driver.Expert.invalidate_observers driver);
+  [%expect
+    {|
+    (false 4)
+    (true 4)
+    |}]
+;;

@@ -223,6 +223,16 @@ impl UndoManager {
         }
     }
 
+    /// A bridge-owned composition was restored to its pre-composition draft.
+    /// Its provisional edits must not create an undo entry or absorb later edits.
+    pub(super) fn discard_bridge_composition(&mut self) {
+        debug_assert!(self.transaction_depth <= 1);
+        self.transaction_depth = 0;
+        self.pending = None;
+        self.pending_intent = None;
+        self.coalescing_boundary = true;
+    }
+
     pub(super) fn commit_transaction(&mut self) {
         if self.transaction_depth == 0 {
             return;

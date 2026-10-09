@@ -10,6 +10,28 @@ use objc2::{
 };
 use std::sync::{OnceLock, Weak};
 
+pub(super) fn install_text_input_reset(window: &mut Window) {
+    window.on_text_input_reset(|window| {
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        let Ok(handle) = HasWindowHandle::window_handle(window) else {
+            return;
+        };
+        let RawWindowHandle::AppKit(handle) = handle.as_raw() else {
+            return;
+        };
+        // SAFETY: GPUI invokes this on its main thread with a live NSView and
+        // no installed input handler. The previous client's marked range has
+        // already been cleared. AppKit owns the returned input context.
+        unsafe {
+            let view = handle.ns_view.cast::<AnyObject>().as_ref();
+            let context: *mut AnyObject = msg_send![view, inputContext];
+            if !context.is_null() {
+                let _: () = msg_send![context, discardMarkedText];
+            }
+        }
+    });
+}
+
 fn native_window(
     window: &Window,
 ) -> Result<Retained<objc2_app_kit::NSWindow>, gpuio_protocol::window::Error> {

@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/Users/dakotamurphy/gpuio/scripts/measure_streaming_typing.py", line 314, in <module>
+    main()
+    ~~~~^^
+  File "/Users/dakotamurphy/gpuio/scripts/measure_streaming_typing.py", line 291, in main
+    report['presentation'] = presentation_report.validate(
+                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        log.read_text(), [('streaming', report['workload']['interval'])], enabled=args.presentation)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dakotamurphy/gpuio/scripts/presentation_report.py", line 161, in validate
+    result = interval(data, cpu, background=background, idle=phase == 'idle')
+  File "/Users/dakotamurphy/gpuio/scripts/presentation_report.py", line 105, in interval
+    observation(value, background=background)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dakotamurphy/gpuio/scripts/presentation_report.py", line 61, in observation
+    require(value['active'], 'Foreground window became inactive')
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/dakotamurphy/gpuio/scripts/presentation_report.py", line 18, in require
+    raise ValueError(message)
+ValueError: Foreground window became inactive

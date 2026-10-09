@@ -4,6 +4,17 @@ use crate::canvas_state::{Navigation, PointerMode};
 use gpui::{Hitbox, HitboxId, MouseButton, Pixels};
 use gpuio_protocol::canvas_view::Viewport;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum InputRejection {
+    Closed,
+    Disabled,
+    InactiveWindow,
+    NotPrepared,
+    UnavailablePlacement,
+    PublicationPending,
+    PointerDisabled,
+}
+
 type Shared = Rc<RefCell<State>>;
 pub(super) struct Input {
     pub focus: gpui::FocusHandle,
@@ -48,24 +59,40 @@ impl State {
             native.cancel();
         }
     }
+    pub(super) fn input_rejection(&self, window: &Window, pointer: bool) -> Option<InputRejection> {
+        use InputRejection::*;
+        if self.closed {
+            Some(Closed)
+        } else if self.config.disabled {
+            Some(Disabled)
+        } else if !window.is_window_active() {
+            Some(InactiveWindow)
+        } else if self.ready.is_none() {
+            Some(NotPrepared)
+        } else if !self.input.gate.borrow().allows(self.node) {
+            Some(UnavailablePlacement)
+        } else if !self
+            .native
+            .as_ref()
+            .zip(self.lease.as_ref())
+            .is_some_and(|(native, lease)| Arc::ptr_eq(native.snapshot(), &lease.snapshot()))
+        {
+            Some(PublicationPending)
+        } else if pointer
+            && !self.session.upgrade().is_some_and(|session| {
+                session
+                    .borrow()
+                    .tree(self.window)
+                    .is_some_and(|tree| pointer_enabled(tree, self.node))
+            })
+        {
+            Some(PointerDisabled)
+        } else {
+            None
+        }
+    }
     pub(super) fn input_allowed(&self, window: &Window, pointer: bool) -> bool {
-        !self.closed
-            && !self.config.disabled
-            && window.is_window_active()
-            && self.ready.is_some()
-            && self.input.gate.borrow().allows(self.node)
-            && self
-                .native
-                .as_ref()
-                .zip(self.lease.as_ref())
-                .is_some_and(|(native, lease)| Arc::ptr_eq(native.snapshot(), &lease.snapshot()))
-            && (!pointer
-                || self.session.upgrade().is_some_and(|session| {
-                    session
-                        .borrow()
-                        .tree(self.window)
-                        .is_some_and(|tree| pointer_enabled(tree, self.node))
-                }))
+        self.input_rejection(window, pointer).is_none()
     }
     pub(in crate::host) fn flush_canvas_frame(&mut self, window: &Window, cx: &mut App) {
         if self.input.pending.is_none() {
@@ -251,7 +278,7 @@ pub(super) fn prepaint(state: &Shared, bounds: Bounds<Pixels>, window: &mut Wind
     hitbox
 }
 pub(super) fn paint(state: &Shared, hitbox: Hitbox, window: &mut Window) {
-    let (token, focus, gate, node, eligible) = {
+    let (token, focus, gate, node, eligible, bounds) = {
         let state = state.borrow();
         (
             state.input.token.clone(),
@@ -259,10 +286,16 @@ pub(super) fn paint(state: &Shared, hitbox: Hitbox, window: &mut Window) {
             state.input.gate.clone(),
             state.node,
             state.input_allowed(window, false),
+            state.input.bounds,
         )
     };
-    gate.borrow_mut()
-        .record(node, focus.clone(), eligible, focus.is_focused(window));
+    gate.borrow_mut().record(
+        node,
+        focus.clone(),
+        eligible,
+        focus.is_focused(window),
+        bounds,
+    );
     let down = state.clone();
     let down_token = token.clone();
     let down_hit = hitbox.clone();

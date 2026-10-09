@@ -257,7 +257,7 @@ let check_invalid_launch () =
 
 let print_package package =
   let contents = package |> Or_error.ok_exn |> Gpuio.Desktop_package.contents in
-  Eio_main.run (fun env -> Eio.Flow.copy_string contents (Eio.Stdenv.stdout env))
+  Eio_main.run (fun env -> Gpuio_eio.Output.write (Eio.Stdenv.stdout env) contents)
 ;;
 
 let () =

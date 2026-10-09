@@ -5,11 +5,24 @@ use std::time::Instant;
 
 pub(super) struct State {
     origin: Instant,
+    #[cfg(feature = "native-tests")]
+    test_now: Option<std::time::Duration>,
     motion: navigation_motion::State,
     axis: gpuio_protocol::carousel::Axis,
 }
 
 impl State {
+    fn now(&self) -> std::time::Duration {
+        #[cfg(feature = "native-tests")]
+        if let Some(now) = self.test_now {
+            return now;
+        }
+        self.origin.elapsed()
+    }
+    #[cfg(feature = "native-tests")]
+    pub(super) fn advance_test_time(&mut self, elapsed: std::time::Duration) {
+        self.test_now = Some(self.now() + elapsed);
+    }
     pub(super) fn previewing(&self) -> bool {
         self.motion.previewing()
     }
@@ -22,7 +35,7 @@ impl State {
             .expect("admitted carousel preview");
     }
     pub(super) fn finish_preview(&mut self, immediate: bool) {
-        self.motion.finish_preview(self.origin.elapsed(), immediate);
+        self.motion.finish_preview(self.now(), immediate);
     }
 }
 
@@ -61,7 +74,7 @@ impl View {
                     });
                 if let Some(state) = self.navigation.get(id) {
                     let mut state = state.borrow_mut();
-                    let now = state.origin.elapsed();
+                    let now = state.now();
                     if state.axis != axis {
                         state.motion.settle(now);
                         state.axis = axis;
@@ -91,6 +104,8 @@ impl View {
                         *id,
                         Rc::new(RefCell::new(State {
                             origin: Instant::now(),
+                            #[cfg(feature = "native-tests")]
+                            test_now: None,
                             axis,
                             motion: navigation_motion::State::new(
                                 &node.children,
@@ -116,7 +131,7 @@ impl View {
         let state = self.navigation[&node.id].clone();
         let sample = {
             let mut state = state.borrow_mut();
-            let now = state.origin.elapsed();
+            let now = state.now();
             if (cx.reduce_motion() && !state.motion.previewing())
                 || !self.focus.borrow().visible(node.id)
             {
@@ -157,12 +172,14 @@ impl View {
                 page = page.hidden();
             }
             let body = if Some(*id) != selected {
+                let identity = ((id.generation() as u64) << 32) | id.slot() as u64;
+                let identity = ("gpuio-inactive-page", identity).into();
                 if let Some(carousel) = node.parent.and_then(|parent| self.carousels.get(&parent))
                     && layer.is_some()
                 {
-                    carousel::input::inert_page(body, carousel)
+                    carousel::input::inert_page(body, carousel, identity)
                 } else {
-                    crate::semantics::Inert(body).into_any_element()
+                    crate::semantics::InteractionShield::inert(body, identity).into_any_element()
                 }
             } else {
                 body
@@ -189,7 +206,7 @@ impl View {
                         let Some(state) = state.upgrade() else { return };
                         let mut state = state.borrow_mut();
                         if !gate.borrow().visible(owner) {
-                            let now = state.origin.elapsed();
+                            let now = state.now();
                             state.motion.settle(now);
                             return;
                         }

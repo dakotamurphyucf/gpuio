@@ -1,0 +1,12 @@
+(library
+ (name gpuio_editor_viewport_tests)
+ (libraries core gpuio gpuio.protocol eio_main)
+ (inline_tests
+  (deps
+   editor-viewport-read.hex
+   editor-viewport-scroll.hex
+   editor-viewport-events.hex))
+ (preprocess
+  (pps ppx_jane)))
+
+(copy_files ../fixtures/editor-viewport-*.hex)

@@ -81,7 +81,7 @@ fn unavailable(route: &Route, source: bool) -> Option<CancelReason> {
             None => return Some(CancelReason::Removed),
         }
     };
-    if disabled {
+    if disabled || route.gate.borrow().disabled(route.node) {
         return Some(CancelReason::Disabled);
     }
     if !route.gate.borrow().visible(route.node) {

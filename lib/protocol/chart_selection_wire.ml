@@ -7,7 +7,7 @@ module Span = struct
     ; first : int64
     ; last : int64
     }
-  [@@deriving bin_io, equal, sexp_of]
+  [@@deriving bin_io, compare, equal, sexp_of]
 
   let valid t =
     Int64.(
@@ -26,7 +26,7 @@ module Aggregation = struct
     | Exact
     | Sum
     | Mean
-  [@@deriving bin_io, equal, sexp_of]
+  [@@deriving bin_io, compare, equal, sexp_of]
 end
 
 type t =
@@ -46,7 +46,7 @@ type t =
       }
   | Node of int64
   | Edge of int64
-[@@deriving bin_io, equal, sexp_of]
+[@@deriving bin_io, compare, equal, sexp_of]
 
 let valid = function
   | Cartesian { series; span; aggregation } ->

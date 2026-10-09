@@ -22,7 +22,12 @@ module Snapshot = Gpuio.List_paging.Snapshot
     Give this controller a conversation/application scope when loads should
     survive row deactivation. Viewport changes do not cancel tasks. [reset],
     [cancel], [close] and parent-scope cancellation cancel affected producers
-    and suppress their queued completions. At most two producers are active.
+    and suppress their queued completions. Two lazily allocated reusable workers
+    bound concurrent producers, including cancellation cleanup. A worker becomes
+    reusable only after its producer exits and returns through the UI inbox.
+    Only the latest request per boundary waits behind occupied workers; rapid
+    resets do not grow the queue. Idle workers block without polling and remain
+    charged to the owning Scope task quota until the controller closes.
     Do not create or mutate controllers during Incremental graph evaluation. *)
 type ('key, 'data, 'cmp) t
 
@@ -38,7 +43,13 @@ val create
 val items : ('key, 'data, 'cmp) t -> ('key, 'data, 'cmp) Gpuio.List_collection.t
 val snapshot : ('key, 'data, 'cmp) t -> ('key, 'data, 'cmp) Snapshot.t
 val status : (_, _, _) t -> Direction.t -> Status.t
+
+(** Repeated requests while loading, failed or at end are no-ops. A new request
+    can wait behind cancelling workers. Immediate worker-admission errors return
+    directly and publish Failed; later worker/producer failures publish Failed.
+    Failures require explicit [retry]; scrolling does not repeatedly retry. *)
 val request : (_, _, _) t -> Direction.t -> unit Or_error.t
+
 val retry : (_, _, _) t -> Direction.t -> unit Or_error.t
 val cancel : (_, _, _) t -> Direction.t -> unit
 
@@ -50,6 +61,11 @@ val reset
   -> unit Or_error.t
 
 val set : ('key, 'data, _) t -> key:'key -> data:'data -> unit Or_error.t
+
+(** Idempotently cancel this controller's workers and queued requests, unregister
+    its cleanup hook and publish the final cancelled-boundary snapshot to [value].
+    Retained data remains readable. No [on_change] callback runs on closure;
+    parent-scope cancellation has the same behavior. Other scoped tasks survive. *)
 val close : (_, _, _) t -> unit
 
 (** Reactive snapshots published on the UI domain. The optional [on_change]

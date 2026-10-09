@@ -1,0 +1,102 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "d25de2f906422ee7d653cbddd8aed0a901ebddfbc1f81f51e67fdb6e40ffac59",
+  "bytes": 121552,
+  "files": [
+    {
+      "path": "source/lib/core/animation.ml",
+      "sha256": "fc6446c75c92a19365d0a3574b4f2d0d18696ea7874f55583f974f4e3a6ffc7c",
+      "bytes": 13536
+    },
+    {
+      "path": "source/lib/core/animation.mli",
+      "sha256": "8f9505e4b3dc04ef46d8ee200a0074a6118821c062d22e94194e15798c7d57eb",
+      "bytes": 8325
+    },
+    {
+      "path": "source/lib/protocol/animation_wire.ml",
+      "sha256": "34dc0416f5dd5f318a376f5892ab1d5b44e3bafd21c492e6509a43c5361c4d65",
+      "bytes": 1757
+    },
+    {
+      "path": "source/lib/protocol/animation_wire.mli",
+      "sha256": "a257b8abf321a2c7f66378180dfe11edc83985b143c18062a62bcab97d8d8595",
+      "bytes": 1727
+    },
+    {
+      "path": "source/lib/protocol/carousel_track_wire.ml",
+      "sha256": "88906a2de1a84600e40af2cae3fcfd1e9ad21c02593ed0669e8c8a2e2b0fdccf",
+      "bytes": 4301
+    },
+    {
+      "path": "source/rust/protocol/src/animation.rs",
+      "sha256": "a9490cde2490beec15b5fc805d2890d61991f5acf3d5bf160f28a87ac7897612",
+      "bytes": 6012
+    },
+    {
+      "path": "source/rust/protocol/src/decode/animation_program.rs",
+      "sha256": "4e64d50dff9dd17cdc03054f8f09b6e6f4b37d9d2ae75a19ae8bb4af93afef4c",
+      "bytes": 3035
+    },
+    {
+      "path": "source/rust/protocol/tests/animation.rs",
+      "sha256": "406bc24ca4ee548dd78ccc0138b8321e7e8403d77a8c966d5b7e5ba406e0c3c0",
+      "bytes": 8918
+    },
+    {
+      "path": "source/rust/native/tests/motion.rs",
+      "sha256": "c57a9e164c369820df2428df359f643eced0a574251b9f0430625529e336148f",
+      "bytes": 9733
+    },
+    {
+      "path": "source/test/view_api/animation_test.ml",
+      "sha256": "bb7684bf79f5dcd59c332652a3ba9122b4cb3a9e62dd2d886fb78285d9642dd7",
+      "bytes": 11673
+    },
+    {
+      "path": "source/test/fixtures/animation-cubic-easing.tsv",
+      "sha256": "6762c1dca6e62489069068d5eb839099643c991abd82d141e1f8df73985c280a",
+      "bytes": 151
+    },
+    {
+      "path": "source/examples/gallery/motion_page.ml",
+      "sha256": "a76c86c61af8e6ac588a614c1d2c86b4962ee79848e1a139575060839cec2cc4",
+      "bytes": 9596
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "sha256": "dd309cc4a42c9f071fcc1b9bdf945b35738067ff5d6842876eae59815254645f",
+      "bytes": 322742
+    },
+    {
+      "path": "validation/piecewise-cubic-validation.json",
+      "sha256": "ba3c88455d2f98c1e070892549a6d556e20154d93431c52e25f64b74b3666d5c",
+      "bytes": 1672
+    },
+    {
+      "path": "validation/piecewise-cubic-protocol.log",
+      "sha256": "07a6ce8b9dc383ae4377ed79f77ed1896642fd585a9f048ff66230d7da98b584",
+      "bytes": 684
+    },
+    {
+      "path": "validation/piecewise-cubic-native.log",
+      "sha256": "8f3cac98fe16b33fc18b7ffb94e927dbbd96c726abe14bec0f24cf0fe648e8a1",
+      "bytes": 589301
+    },
+    {
+      "path": "validation/piecewise-cubic-clippy.log",
+      "sha256": "d2ddee96e1206c3179260c21e80ff08940ab71d1baf682cc8ab071975c4d8730",
+      "bytes": 137
+    },
+    {
+      "path": "validation/piecewise-cubic-gallery-build.log",
+      "sha256": "35776c3124263ff51ce15edf94b8e76a5032b2c762b638f0f3675cf2e2e7e6f4",
+      "bytes": 100172
+    },
+    {
+      "path": "validation/piecewise-cubic-ocaml.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

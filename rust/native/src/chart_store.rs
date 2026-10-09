@@ -28,7 +28,10 @@ const FIXED_CHARGE: usize = 4096;
 const _: () = assert!(
     FIXED_CHARGE
         + chart_data::MAX_TEXT_BYTES
-        + chart_data::MAX_POINTS * (size_of::<chart_data::Candle>() + 256)
+        + chart_data::MAX_POINTS
+            * (size_of::<chart_data::Candle>() + size_of::<chart_data::Category>() + 256)
+        + chart_data::MAX_POINTS
+            * (size_of::<chart_data::BarBackground>() + size_of::<chart_data::BarBaseline>())
         + 2048 * 256
         < DECODE_WORKSPACE_BYTES
 );
@@ -205,6 +208,20 @@ fn data_charge(data: &Data) -> usize {
                     })
                     .sum::<usize>()
         }
+        Contents::Categorical(categories, layers) => {
+            categories.capacity() * size_of::<Category>()
+                + categories.iter().map(|c| c.label.capacity()).sum::<usize>()
+                + layers.capacity() * size_of::<CategoricalLayer>()
+                + layers
+                    .iter()
+                    .map(|l| {
+                        let s = l.series();
+                        s.name.capacity()
+                            + s.points.capacity() * size_of::<CategoricalPoint>()
+                            + s.points.iter().map(|p| p.label.capacity()).sum::<usize>()
+                    })
+                    .sum::<usize>()
+        }
         Contents::Pie(slices) => {
             slices.capacity() * size_of::<Slice>()
                 + slices.iter().map(|s| s.label.capacity()).sum::<usize>()
@@ -228,7 +245,11 @@ fn data_charge(data: &Data) -> usize {
                 + edges.capacity() * size_of::<Edge>()
         }
     };
-    FIXED_CHARGE + size_of::<Data>() + dynamic
+    FIXED_CHARGE
+        + size_of::<Data>()
+        + dynamic
+        + data.bar_backgrounds.capacity() * size_of::<chart_data::BarBackground>()
+        + data.bar_baselines.capacity() * size_of::<chart_data::BarBaseline>()
 }
 impl Work {
     pub fn run(mut self) -> Completion {

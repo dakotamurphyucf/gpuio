@@ -179,3 +179,67 @@ let%expect_test "native remount re-seeds the draft and fences old command replie
     (Ok (Single 2024-02-29))
     |}]
 ;;
+
+let preset ?(label = "Leap day") ?(selection = value) id =
+  P.Preset.create ~id:(Choice.Id.of_string id |> ok) ~label ~selection |> ok
+;;
+
+let%expect_test "presets are bounded complete selections with stable distinct IDs" =
+  let leap = preset "leap" in
+  let clear = preset ~label:"Clear" ~selection:C.Selection.empty "clear" in
+  let presets = P.Preset.Collection.create [ leap; clear ] |> ok in
+  assert (List.equal P.Preset.equal (P.Preset.Collection.to_list presets) [ leap; clear ]);
+  let invalid label selection =
+    Result.is_error
+      (P.Preset.create ~id:(Choice.Id.of_string "test" |> ok) ~label ~selection)
+  in
+  List.iter
+    [ ""; "\000"; "\255"; String.make 4097 'x' ]
+    ~f:(fun label -> assert (invalid label value));
+  assert (invalid "Partial" (C.Selection.range_start (day "2024-02-28") |> ok));
+  assert (Result.is_error (P.Preset.Collection.create [ leap; leap ]));
+  let maximum =
+    List.init P.Preset.Collection.max_presets ~f:(fun i -> preset (Int.to_string i))
+  in
+  assert (Result.is_ok (P.Preset.Collection.create maximum));
+  assert (Result.is_error (P.Preset.Collection.create (leap :: maximum)));
+  print_endline "32 complete presets; order preserved; labels and duplicate IDs validated";
+  [%expect {| 32 complete presets; order preserved; labels and duplicate IDs validated |}]
+;;
+
+let%expect_test "preset availability follows current mode, constraints and policy" =
+  let leap = preset "leap" in
+  let constraints = C.Constraints.create ~disabled_dates:[ day "2024-02-29" ] () |> ok in
+  let constrained = C.Config.create ~constraints ~label:"Date" () |> ok in
+  let readonly = C.Config.create ~read_only:true ~label:"Date" () |> ok in
+  let disabled = C.Config.create ~disabled:true ~label:"Date" () |> ok in
+  List.iter [ single; span; constrained; readonly; disabled ] ~f:(fun config ->
+    print_s [%sexp (P.Preset.validate leap ~config : (unit, P.Error.t) Result.t)]);
+  let range =
+    C.Range.create ~first:(day "2024-02-28") ~last:(day "2024-03-01")
+    |> ok
+    |> C.Selection.range
+  in
+  let range = preset ~selection:range "range" in
+  List.iter [ C.Range_policy.Every_day; Endpoints_only ] ~f:(fun range_policy ->
+    let constraints =
+      C.Constraints.create ~disabled_dates:[ day "2024-02-29" ] ~range_policy () |> ok
+    in
+    let config = C.Config.create ~mode:Range ~constraints ~label:"Dates" () |> ok in
+    print_s [%sexp (P.Preset.validate range ~config : (unit, P.Error.t) Result.t)]);
+  assert (
+    Result.is_ok
+      (P.Preset.validate
+         (preset ~selection:C.Selection.empty "clear")
+         ~config:constrained));
+  [%expect
+    {|
+    (Ok ())
+    (Error Wrong_mode)
+    (Error Disallowed_selection)
+    (Error Read_only)
+    (Error Disabled)
+    (Error Disallowed_selection)
+    (Ok ())
+    |}]
+;;

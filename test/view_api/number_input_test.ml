@@ -513,3 +513,152 @@ let%expect_test "numeric reconciliation keeps owner identity and historical obse
   [%expect
     {| latest callbacks, history domain, monotonic revisions, atomic duplicate failure, remount and close fences |}]
 ;;
+
+let%expect_test "application step codecs preserve guarded owner-bound requests" =
+  let request : W.Step_request.t =
+    { id = 11L; direction = Increase; source = Stepper; snapshot = settled }
+  in
+  let event = W.Event.Step_requested request in
+  let public = N.Expert.event_of_wire ~window ~node event |> ok in
+  let request =
+    match public with
+    | Step_requested request -> request
+    | _ -> assert false
+  in
+  assert (
+    N.Snapshot.equal
+      (N.Step_request.snapshot request)
+      (N.Expert.snapshot_of_wire ~window ~node settled |> ok));
+  assert (Numeric.Direction.equal (N.Step_request.direction request) Increase);
+  let apply = N.Command.Resolve_step (request, Apply (N.Value.of_float 4.5 |> ok)) in
+  let decline = N.Command.Resolve_step (request, Decline) in
+  Eio_main.run (fun env ->
+    let fs = Eio.Stdenv.fs env in
+    List.iter
+      [ "number-step-request.hex", encode [%bin_writer: W.Event.t] event
+      ; ( "number-step-apply.hex"
+        , encode [%bin_writer: W.Command.t] (N.Expert.command_to_wire apply) )
+      ; ( "number-step-decline.hex"
+        , encode [%bin_writer: W.Command.t] (N.Expert.command_to_wire decline) )
+      ]
+      ~f:(fun (file, bytes) ->
+        assert (
+          String.equal (hex bytes) (Eio.Path.load Eio.Path.(fs / file) |> String.strip))));
+  print_endline
+    "independent request/apply/decline bytes; opaque request retains editor identity";
+  [%expect
+    {| independent request/apply/decline bytes; opaque request retains editor identity |}]
+;;
+
+let%expect_test
+    "step intents at unchanged revisions dispatch once and preserve token history across \
+     callback updates"
+  =
+  let r = Reconciler.create window in
+  let view value =
+    View.number_input
+      ~controller:(Key.of_string_exn "step")
+      ~config
+      ~initial:N.Value.empty
+      ~on_event:(fun _ -> value)
+      ()
+  in
+  let mount value =
+    let change = Reconciler.prepare r ~theme:Theme.default (Some (view value)) |> ok in
+    Reconciler.accept r change |> ok;
+    Reconciler.message change
+  in
+  let node, handler =
+    match mount 1 with
+    | Some (Apply tx) ->
+      List.find_map_exn tx.operations ~f:(function
+        | Wire.Op.Create (node, Number_input, _, Some handler) -> Some (node, handler)
+        | _ -> None)
+    | _ -> assert false
+  in
+  let dispatch event =
+    Reconciler.dispatch
+      r
+      (Wire.Event.Number_input_event (window, node, handler, 1L, event))
+  in
+  let request id revision =
+    W.Event.Step_requested
+      { id; direction = Increase; source = Stepper; snapshot = { settled with revision } }
+  in
+  assert (
+    Option.equal Int.equal (dispatch (Observed { settled with revision = 0L })) (Some 1));
+  assert (Option.equal Int.equal (dispatch (request 1L 0L)) (Some 1));
+  assert (Option.is_none (dispatch (request 1L 0L)));
+  ignore (mount 2 : Wire.Message.t option);
+  assert (Option.is_none (dispatch (request 1L 0L)));
+  assert (Option.equal Int.equal (dispatch (request 2L 0L)) (Some 2));
+  assert (
+    Option.equal Int.equal (dispatch (Changed { settled with revision = 1L })) (Some 2));
+  assert (Option.is_none (dispatch (request 3L 0L)));
+  assert (Option.equal Int.equal (dispatch (request 3L 1L)) (Some 2));
+  assert (Option.is_none (dispatch (request 0L 99L)));
+  assert (Option.equal Int.equal (dispatch (request 4L 1L)) (Some 2));
+  Reconciler.close r;
+  assert (Option.is_none (dispatch (request 5L 1L)));
+  print_endline
+    "same revision intents retained; duplicate tokens, stale revisions, invalid ids and \
+     closure fenced";
+  [%expect
+    {| same revision intents retained; duplicate tokens, stale revisions, invalid ids and closure fenced |}]
+;;
+
+let%expect_test "application mode is an independent retained policy operation" =
+  let mode_config step_mode =
+    N.Config.create ~domain ~label:"Number" ~step_mode () |> ok
+  in
+  let config = mode_config Native in
+  let app_config = mode_config Application in
+  assert (
+    W.Config.equal (N.Expert.config_to_wire config) (N.Expert.config_to_wire app_config));
+  let r = Reconciler.create window in
+  let view config =
+    View.number_input
+      ~controller:(Key.of_string_exn "number")
+      ~config
+      ~initial:N.Value.empty
+      ~on_event:Fn.id
+      ()
+  in
+  let change config =
+    let update = Reconciler.prepare r ~theme:Theme.default (Some (view config)) |> ok in
+    Reconciler.accept r update |> ok;
+    match Reconciler.message update with
+    | Some (Apply tx) -> tx.operations
+    | None -> []
+    | Some _ -> assert false
+  in
+  ignore (change config : Wire.Op.t list);
+  (match change app_config with
+   | [ Set_number_step_mode (_, Application) ] -> ()
+   | _ -> assert false);
+  assert (List.is_empty (change app_config));
+  (match change config with
+   | [ Set_number_step_mode (_, Native) ] -> ()
+   | _ -> assert false);
+  let fixture =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Set_number_step_mode (node, Application)
+          ; Set_number_step_mode (node, Native)
+          ]
+      }
+  in
+  Eio_main.run (fun env ->
+    assert (
+      String.equal
+        (hex (Wire.Message.encode fixture |> ok))
+        (Eio.Path.load Eio.Path.(Eio.Stdenv.fs env / "number-step-mode.hex")
+         |> String.strip)));
+  print_endline
+    "mode-only updates retain native editor/config bytes; independent Op83 fixture";
+  [%expect
+    {| mode-only updates retain native editor/config bytes; independent Op83 fixture |}]
+;;

@@ -1,0 +1,120 @@
+{
+  "archive_sha256": "40d92b966a8b77c27baa7f14a85f6608ef698538ba57d044b90d502f9184308b",
+  "files": [
+    {
+      "path": "ax-cost-after-003.log",
+      "bytes": 592056,
+      "sha256": "c2ce19bd30b62d71b44dfcbd9d792b8d625c3a2f1b7350ead7bd9c707c77cc8e"
+    },
+    {
+      "path": "ax-cost-after-004.log",
+      "bytes": 589943,
+      "sha256": "4efd629c7b0eee689b9eaa82b4650b2004048fdeb944a2f5fc45cc6e6a4e88bb"
+    },
+    {
+      "path": "ax-cost-after-isolated-005.log",
+      "bytes": 588744,
+      "sha256": "158e025f2b5253e33a464d19c2df8530a91ab32532a6b6b0f003320ce559e6c1"
+    },
+    {
+      "path": "ax-cost-before-001.log",
+      "bytes": 589170,
+      "sha256": "f14d8dd2047b6e7ef18d0083f32e883345ed29b39879ec2d670806ce23dfac26"
+    },
+    {
+      "path": "ax-cost-before-002.log",
+      "bytes": 588809,
+      "sha256": "5f522c372a0b00d0460414041b19cc687c68bc3063da8a547acf8e3e30d3deaa"
+    },
+    {
+      "path": "ax-cost-clippy-008.log",
+      "bytes": 588624,
+      "sha256": "a149afcdbfafa24abd442c3aa7bd3d6c994c2f2211fafdaea6dc9f60e11caea4"
+    },
+    {
+      "path": "ax-cost-desktop-010.log",
+      "bytes": 590701,
+      "sha256": "1c3d4a9f742f451367b57e90a9062ab151112c54f28b41107b61f65ebcaaa66d"
+    },
+    {
+      "path": "ax-cost-dune-012.log",
+      "bytes": 705832,
+      "sha256": "d295847535d93f8c5257b4969c0782b085fe9e484b6cf2d782478b1f8f60f9e8"
+    },
+    {
+      "path": "ax-cost-fmt-013.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "ax-cost-indexed-006.log",
+      "bytes": 589057,
+      "sha256": "254a72a452719db63029f149976a941dd5c471c69e19c1b0a8fda9d9f48b4527"
+    },
+    {
+      "path": "ax-cost-metadata.json",
+      "bytes": 3141,
+      "sha256": "13a66e065df24c49db1ba2ae448b7da14adbede9dda688bb583360cb2aa86143"
+    },
+    {
+      "path": "ax-cost-native-007.log",
+      "bytes": 711424,
+      "sha256": "eac4055e15c22fd5b37f33de545848c892fe73bbdf1a8c82437a5b9b4d520291"
+    },
+    {
+      "path": "ax-cost-reconstruction-009.log",
+      "bytes": 6752,
+      "sha256": "076d46fc38754826e876f43ace9e130b742f98867581cbd9bbe94eedc5eb092f"
+    },
+    {
+      "path": "ax-cost-reconstruction.json",
+      "bytes": 64,
+      "sha256": "9c071adb48a3395d69d6b18213120e4f2e40f032f869e80e7bccc3944ff2dc8c"
+    },
+    {
+      "path": "ax-cost-restored-checks.json",
+      "bytes": 1103,
+      "sha256": "2b5df0c92892745843dc9b1e22cf86309169edbc3a27fbe52aaa9c47eedda2f4"
+    },
+    {
+      "path": "ax-cost-restored-checks.py",
+      "bytes": 1427,
+      "sha256": "037ad13c40aa7e92d99bd41fdbb09f3881e2f753a143707317f0dafd04174ffc"
+    },
+    {
+      "path": "ax-cost-shutdown-check.json",
+      "bytes": 290,
+      "sha256": "59d555e4440c91d3ecbc2dc4ec086f4e44a7ea348863d21f09336327de953f9b"
+    },
+    {
+      "path": "ax-cost-shutdown-check.py",
+      "bytes": 789,
+      "sha256": "8708d4a1a3cd6b88f478bb4a67cf502ad99308bf47fd87e5403c1703b4a4293e"
+    },
+    {
+      "path": "ax-cost-shutdown-driver.log",
+      "bytes": 164,
+      "sha256": "99423232a2037bb904ac26adf4bcb1fcc2b116f2108c8fcc55d5f9e44edee641"
+    },
+    {
+      "path": "ax-cost-shutdown.json",
+      "bytes": 2401,
+      "sha256": "91ddcb939911a05aa73ada112d03ba9411dbd5d652d4e3f720e7cc74241a385a"
+    },
+    {
+      "path": "ax-cost-shutdown.log",
+      "bytes": 52,
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46"
+    },
+    {
+      "path": "ax-cost-sources.tar.gz",
+      "bytes": 176754,
+      "sha256": "9ffeedbafb0e9b55cccb1df373ff194ec19fdd5298f15e1e6d38afa3667954fb"
+    },
+    {
+      "path": "ax-cost-workspace-011.log",
+      "bytes": 783032,
+      "sha256": "4a7c0bb57ecfdcb7a84cf76d611559e5097b443c85f6b0b39927a29355b84930"
+    }
+  ]
+}

@@ -1,0 +1,499 @@
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -1372,6 +1372,13 @@
+ 
+ impl Drop for MacWindow {
+     fn drop(&mut self) {
++        // The adapter retains the content view, which owns the GPUI view and
++        // its Arc<MacWindowState>. Break that cycle while the platform window
++        // still owns its native window. Release outside the state lock because
++        // Objective-C teardown may reenter view callbacks.
++        let adapter = self.0.lock().accesskit_adapter.take();
++        drop(adapter);
++
+         let mut this = self.0.lock();
+         this.renderer.destroy();
+         let window = this.native_window;
+--- a/src/gpui_macos.rs
++++ b/src/gpui_macos.rs
+@@ -9,6 +9,7 @@
+ mod display_link;
+ mod events;
+ mod keyboard;
++mod menu_actions;
+ mod pasteboard;
+ mod system_notifications;
+ 
+--- /dev/null
++++ b/src/menu_actions.rs
+@@ -0,0 +1,126 @@
++//! Actions live only as long as their installed menu owner. AppKit may retain an
++//! old item after replacement, so tags are never reused or shared between owners.
++use std::collections::BTreeMap;
++
++pub(super) struct MenuActions<T> {
++    next_tag: Option<i64>,
++    bar: BTreeMap<i64, T>,
++    dock: BTreeMap<i64, T>,
++}
++
++impl<T> Default for MenuActions<T> {
++    fn default() -> Self {
++        Self {
++            next_tag: Some(0),
++            bar: BTreeMap::new(),
++            dock: BTreeMap::new(),
++        }
++    }
++}
++
++impl<T> MenuActions<T> {
++    pub(super) fn replace_bar(&mut self) -> MenuActionBuilder<'_, T> {
++        self.bar.clear();
++        MenuActionBuilder {
++            next_tag: &mut self.next_tag,
++            actions: &mut self.bar,
++        }
++    }
++
++    pub(super) fn replace_dock(&mut self) -> MenuActionBuilder<'_, T> {
++        self.dock.clear();
++        MenuActionBuilder {
++            next_tag: &mut self.next_tag,
++            actions: &mut self.dock,
++        }
++    }
++
++    pub(super) fn get(&self, tag: i64) -> Option<&T> {
++        self.bar.get(&tag).or_else(|| self.dock.get(&tag))
++    }
++}
++
++/// The platform lock covers the whole replacement. A failed tag allocation
++/// leaves the item disabled; it must never alias an older command on overflow.
++pub(super) struct MenuActionBuilder<'a, T> {
++    next_tag: &'a mut Option<i64>,
++    actions: &'a mut BTreeMap<i64, T>,
++}
++
++impl<T> MenuActionBuilder<'_, T> {
++    pub(super) fn insert(&mut self, action: T) -> Option<i64> {
++        let tag = (*self.next_tag)?;
++        *self.next_tag = tag.checked_add(1);
++        self.actions.insert(tag, action);
++        Some(tag)
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use std::sync::Arc;
++
++    #[test]
++    fn replacements_release_payloads_and_never_alias_stale_items() {
++        let mut registry = MenuActions::default();
++        let dock = Arc::new(());
++        let dock_weak = Arc::downgrade(&dock);
++        let dock_tag = registry.replace_dock().insert(dock).unwrap();
++        let mut previous = None;
++        for _ in 0..1000 {
++            let owner = Arc::new(());
++            let weak = Arc::downgrade(&owner);
++            let tag = registry.replace_bar().insert(owner).unwrap();
++            if let Some((old_tag, old_weak)) = previous {
++                assert!(registry.get(old_tag).is_none());
++                assert_eq!(std::sync::Weak::strong_count(&old_weak), 0);
++                assert!(tag > old_tag);
++            }
++            assert_eq!(weak.strong_count(), 1);
++            assert_eq!(dock_weak.strong_count(), 1);
++            assert!(registry.get(dock_tag).is_some());
++            previous = Some((tag, weak));
++        }
++        registry.replace_bar();
++        assert_eq!(previous.unwrap().1.strong_count(), 0);
++        registry.replace_dock();
++        assert_eq!(dock_weak.strong_count(), 0);
++    }
++
++    #[test]
++    fn dock_replacement_preserves_bar_and_retires_all_nested_actions() {
++        let mut registry = MenuActions::default();
++        let bar = registry.replace_bar().insert("bar").unwrap();
++        let (dock, nested) = {
++            let mut builder = registry.replace_dock();
++            (
++                builder.insert("dock").unwrap(),
++                builder.insert("nested").unwrap(),
++            )
++        };
++        let replacement = registry.replace_dock().insert("new").unwrap();
++        assert_eq!(registry.get(bar), Some(&"bar"));
++        assert_eq!(registry.get(replacement), Some(&"new"));
++        assert!(registry.get(dock).is_none());
++        assert!(registry.get(nested).is_none());
++        assert!(registry.get(-1).is_none());
++    }
++
++    #[test]
++    fn exhausted_tags_fail_closed_without_wrapping_or_retaining_payload() {
++        let mut registry = MenuActions {
++            next_tag: Some(i64::MAX),
++            ..Default::default()
++        };
++        assert_eq!(registry.replace_bar().insert(Arc::new(())), Some(i64::MAX));
++        let owner = Arc::new(());
++        let weak = Arc::downgrade(&owner);
++        assert!(registry.replace_dock().insert(owner).is_none());
++        assert_eq!(weak.strong_count(), 0);
++        assert!(registry.get(i64::MAX).is_some());
++        registry.replace_bar();
++        assert!(registry.get(i64::MAX).is_none());
++        assert!(registry.replace_bar().insert(Arc::new(())).is_none());
++    }
++}
+--- a/src/platform.rs
++++ b/src/platform.rs
+@@ -1,7 +1,11 @@
+ use crate::{
+     BoolExt, MacActivity, MacDispatcher, MacDisplay, MacKeyboardLayout, MacKeyboardMapper,
+-    MacWindow, events::key_to_native, ns_string, pasteboard::Pasteboard, renderer,
+-    set_active_window_cursor_style,
++    MacWindow,
++    events::key_to_native,
++    menu_actions::{MenuActionBuilder, MenuActions},
++    ns_string,
++    pasteboard::Pasteboard,
++    renderer, set_active_window_cursor_style,
+ };
+ use anyhow::{Context as _, anyhow};
+ use block2::RcBlock;
+@@ -185,7 +189,7 @@
+     menu_command: Option<Box<dyn FnMut(&dyn Action)>>,
+     validate_menu_command: Option<Box<dyn FnMut(&dyn Action) -> bool>>,
+     will_open_menu: Option<Box<dyn FnMut()>>,
+-    menu_actions: Vec<Box<dyn Action>>,
++    menu_actions: MenuActions<Box<dyn Action>>,
+     open_urls: Option<Box<dyn FnMut(Vec<String>)>>,
+     finish_launching: Option<Box<dyn FnOnce()>>,
+     dock_menu: Option<id>,
+@@ -250,7 +254,7 @@
+         &self,
+         menus: &Vec<Menu>,
+         delegate: id,
+-        actions: &mut Vec<Box<dyn Action>>,
++        actions: &mut MenuActionBuilder<'_, Box<dyn Action>>,
+         keymap: &Keymap,
+     ) -> id {
+         unsafe {
+@@ -291,7 +295,7 @@
+         &self,
+         menu_items: Vec<MenuItem>,
+         delegate: id,
+-        actions: &mut Vec<Box<dyn Action>>,
++        actions: &mut MenuActionBuilder<'_, Box<dyn Action>>,
+         keymap: &Keymap,
+     ) -> id {
+         unsafe {
+@@ -313,7 +317,7 @@
+     unsafe fn create_menu_item(
+         item: &MenuItem,
+         delegate: id,
+-        actions: &mut Vec<Box<dyn Action>>,
++        actions: &mut MenuActionBuilder<'_, Box<dyn Action>>,
+         keymap: &Keymap,
+     ) -> id {
+         static DEFAULT_CONTEXT: OnceLock<Vec<KeyContext>> = OnceLock::new();
+@@ -426,9 +430,11 @@
+                     }
+                     item.setEnabled_(if *disabled { NO } else { YES });
+ 
+-                    let tag = actions.len() as NSInteger;
+-                    let _: () = msg_send![item, setTag: tag];
+-                    actions.push(action.boxed_clone());
++                    let tag = actions.insert(action.boxed_clone());
++                    if tag.is_none() {
++                        item.setEnabled_(NO);
++                    }
++                    let _: () = msg_send![item, setTag: tag.unwrap_or(-1)];
+                     item
+                 }
+                 MenuItem::Submenu(Menu {
+@@ -1055,8 +1061,8 @@
+         unsafe {
+             let app: id = msg_send![APP_CLASS, sharedApplication];
+             let mut state = self.0.lock();
+-            let actions = &mut state.menu_actions;
+-            let menu = self.create_menu_bar(&menus, NSWindow::delegate(app), actions, keymap);
++            let mut actions = state.menu_actions.replace_bar();
++            let menu = self.create_menu_bar(&menus, NSWindow::delegate(app), &mut actions, keymap);
+             drop(state);
+             app.setMainMenu_(menu);
+         }
+@@ -1071,8 +1077,8 @@
+         unsafe {
+             let app: id = msg_send![APP_CLASS, sharedApplication];
+             let mut state = self.0.lock();
+-            let actions = &mut state.menu_actions;
+-            let new = self.create_dock_menu(menu, NSWindow::delegate(app), actions, keymap);
++            let mut actions = state.menu_actions.replace_dock();
++            let new = self.create_dock_menu(menu, NSWindow::delegate(app), &mut actions, keymap);
+             if let Some(old) = state.dock_menu.replace(new) {
+                 CFRelease(old as _)
+             }
+@@ -1457,10 +1463,14 @@
+         let mut lock = platform.0.lock();
+         if let Some(mut callback) = lock.menu_command.take() {
+             let tag: NSInteger = msg_send![item, tag];
+-            let index = tag as usize;
+-            if let Some(action) = lock.menu_actions.get(index) {
+-                let action = action.boxed_clone();
+-                drop(lock);
++            let action = lock
++                .menu_actions
++                .get(tag)
++                .map(|action| action.boxed_clone());
++            // Missing/stale tags must release the lock too, before restoring the
++            // callback below. Otherwise a late AppKit query deadlocks the UI.
++            drop(lock);
++            if let Some(action) = action {
+                 callback(&*action);
+             }
+             platform.0.lock().menu_command.get_or_insert(callback);
+@@ -1475,10 +1485,14 @@
+         let mut lock = platform.0.lock();
+         if let Some(mut callback) = lock.validate_menu_command.take() {
+             let tag: NSInteger = msg_send![item, tag];
+-            let index = tag as usize;
+-            if let Some(action) = lock.menu_actions.get(index) {
+-                let action = action.boxed_clone();
+-                drop(lock);
++            let action = lock
++                .menu_actions
++                .get(tag)
++                .map(|action| action.boxed_clone());
++            // Missing/stale tags must release the lock too, before restoring the
++            // callback below. Otherwise a late AppKit query deadlocks the UI.
++            drop(lock);
++            if let Some(action) = action {
+                 result = callback(action.as_ref());
+             }
+             platform
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -50,7 +50,7 @@
+ metal = { version = "0.33" }
+ objc = { version = "0.2" }
+ objc2 = { version = "0.6" }
+-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSAlert", "NSApplication", "NSButton", "NSControl", "NSDraggingItem", "NSGraphics", "NSImage", "NSOpenPanel", "NSPanel", "NSPasteboard", "NSResponder", "NSSavePanel", "NSScreen", "NSView", "NSWindow", "NSWorkspace", "block2", "objc2-core-foundation"] }
++objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSAlert", "NSApplication", "NSButton", "NSControl", "NSDraggingItem", "NSGraphics", "NSImage", "NSImageRep", "NSBitmapImageRep", "NSOpenPanel", "NSPanel", "NSPasteboard", "NSResponder", "NSSavePanel", "NSScreen", "NSView", "NSWindow", "NSWorkspace", "block2", "objc2-core-foundation"] }
+ objc2-foundation = { version = "=0.3.2", default-features = false, features = ["NSArray", "NSAttributedString", "NSBundle", "NSCoder", "NSData", "NSDate", "NSDictionary", "NSEnumerator", "NSError", "NSGeometry", "NSNotification", "NSNull", "NSObjCRuntime", "NSObject", "NSProcessInfo", "NSRange", "NSRunLoop", "NSSet", "NSString", "NSURL", "NSUndoManager", "NSValue", "objc2-core-foundation", "std"] }
+ objc2-screen-capture-kit = { version = "=0.3.2", default-features = false, features = ["block2", "objc2-core-graphics", "SCShareableContent", "std"] }
+ objc2-user-notifications = { version = "0.3" }
+--- a/src/gpui_macos.rs
++++ b/src/gpui_macos.rs
+@@ -10,6 +10,7 @@
+ mod events;
+ mod keyboard;
+ mod menu_actions;
++mod menu_icon;
+ mod pasteboard;
+ mod system_notifications;
+ 
+--- /dev/null
++++ b/src/menu_icon.rs
+@@ -0,0 +1,33 @@
++//! Materialize an already decoded, shape-checked template in AppKit-owned storage.
++use gpui::MenuIcon;
++use objc2::{AnyThread, rc::Retained};
++use objc2_app_kit::{NSBitmapFormat, NSBitmapImageRep, NSDeviceRGBColorSpace, NSImage};
++use objc2_foundation::NSSize;
++
++pub(super) fn image(icon: &MenuIcon) -> Option<Retained<NSImage>> {
++    let width = icon.width() as isize;
++    let height = icon.height() as isize;
++    // Null planes request AppKit-owned storage. MenuIcon validates dimensions and
++    // the exact interleaved RGBA8 byte count before reaching this boundary.
++    let bitmap = unsafe {
++        NSBitmapImageRep::initWithBitmapDataPlanes_pixelsWide_pixelsHigh_bitsPerSample_samplesPerPixel_hasAlpha_isPlanar_colorSpaceName_bitmapFormat_bytesPerRow_bitsPerPixel(
++            NSBitmapImageRep::alloc(), std::ptr::null_mut(), width, height,
++            8, 4, true, false, NSDeviceRGBColorSpace,
++            NSBitmapFormat::AlphaNonpremultiplied, width * 4, 32,
++        )
++    }?;
++    let data = bitmap.bitmapData();
++    if data.is_null()
++        || bitmap.bytesPerRow() != width * 4
++        || bitmap.pixelsWide() != width
++        || bitmap.pixelsHigh() != height
++    {
++        return None;
++    }
++    // Fresh unshared representation owns height * bytesPerRow writable bytes.
++    unsafe { std::slice::from_raw_parts_mut(data, icon.rgba().len()) }.copy_from_slice(icon.rgba());
++    let image = NSImage::initWithSize(NSImage::alloc(), NSSize::new(16., 16.));
++    image.addRepresentation(&bitmap);
++    image.setTemplate(true);
++    Some(image)
++}
+--- a/src/platform.rs
++++ b/src/platform.rs
+@@ -279,6 +279,10 @@
+                 let menu_item = NSMenuItem::new(nil).autorelease();
+                 menu_item.setTitle_(menu_title);
+                 menu_item.setSubmenu_(menu);
++                if let Some(image) = menu_config.icon.as_ref().and_then(crate::menu_icon::image) {
++                    let _: () =
++                        msg_send![menu_item, setImage: objc2::rc::Retained::as_ptr(&image) as id];
++                }
+                 application_menu.addItem_(menu_item);
+ 
+                 if menu_config.name == "Window" {
+@@ -331,6 +335,7 @@
+                     os_action,
+                     checked,
+                     disabled,
++                    icon,
+                 } => {
+                     // Note that this is intentionally using earlier bindings, whereas typically
+                     // later ones take display precedence. See the discussion on
+@@ -355,16 +360,20 @@
+                         })
+                         .map(|binding| binding.keystrokes());
+ 
+-                    let selector = match os_action {
+-                        Some(gpui::OsAction::Cut) => selector("cut:"),
+-                        Some(gpui::OsAction::Copy) => selector("copy:"),
+-                        Some(gpui::OsAction::Paste) => selector("paste:"),
+-                        Some(gpui::OsAction::SelectAll) => selector("selectAll:"),
++                    // An explicit disabled state must survive AppKit's automatic
++                    // validation, including native edit selectors. Route those
++                    // items through our delegate with no registered action.
++                    let selector = match (disabled, os_action) {
++                        (true, _) => selector("handleGPUIMenuItem:"),
++                        (false, Some(gpui::OsAction::Cut)) => selector("cut:"),
++                        (false, Some(gpui::OsAction::Copy)) => selector("copy:"),
++                        (false, Some(gpui::OsAction::Paste)) => selector("paste:"),
++                        (false, Some(gpui::OsAction::SelectAll)) => selector("selectAll:"),
+                         // "undo:" and "redo:" are always disabled in our case, as
+                         // we don't have a NSTextView/NSTextField to enable them on.
+-                        Some(gpui::OsAction::Undo) => selector("handleGPUIMenuItem:"),
+-                        Some(gpui::OsAction::Redo) => selector("handleGPUIMenuItem:"),
+-                        None => selector("handleGPUIMenuItem:"),
++                        (false, Some(gpui::OsAction::Undo | gpui::OsAction::Redo) | None) => {
++                            selector("handleGPUIMenuItem:")
++                        }
+                     };
+ 
+                     let item;
+@@ -429,8 +438,16 @@
+                         item.setState_(NSVisualEffectState::Active);
+                     }
+                     item.setEnabled_(if *disabled { NO } else { YES });
+-
+-                    let tag = actions.insert(action.boxed_clone());
++                    if let Some(image) = icon.as_ref().and_then(crate::menu_icon::image) {
++                        let _: () =
++                            msg_send![item, setImage: objc2::rc::Retained::as_ptr(&image) as id];
++                    }
++
++                    let tag = if *disabled {
++                        None
++                    } else {
++                        actions.insert(action.boxed_clone())
++                    };
+                     if tag.is_none() {
+                         item.setEnabled_(NO);
+                     }
+@@ -441,6 +458,7 @@
+                     name,
+                     items,
+                     disabled,
++                    icon,
+                 }) => {
+                     let item = NSMenuItem::new(nil).autorelease();
+                     let submenu = NSMenu::new(nil).autorelease();
+@@ -450,6 +468,10 @@
+                     }
+                     item.setSubmenu_(submenu);
+                     item.setEnabled_(if *disabled { NO } else { YES });
++                    if let Some(image) = icon.as_ref().and_then(crate::menu_icon::image) {
++                        let _: () =
++                            msg_send![item, setImage: objc2::rc::Retained::as_ptr(&image) as id];
++                    }
+                     item.setTitle_(ns_string(name));
+                     item
+                 }
+--- a/src/events.rs
++++ b/src/events.rs
+@@ -25,6 +25,61 @@
+ pub(crate) const ESCAPE_KEY: u16 = 0x1b;
+ const TAB_KEY: u16 = 0x09;
+ const SHIFT_TAB_KEY: u16 = 0x19;
++
++#[cfg(test)]
++mod scroll_phase_tests {
++    use super::*;
++    use core_graphics::event::CGEvent;
++    use foreign_types::ForeignType;
++
++    unsafe extern "C" {
++        fn CGEventCreateScrollWheelEvent2(
++            source: *const c_void,
++            units: u32,
++            wheel_count: u32,
++            wheel1: i32,
++            wheel2: i32,
++            wheel3: i32,
++        ) -> *mut core_graphics::sys::CGEvent;
++    }
++
++    #[test]
++    fn appkit_scroll_phases_preserve_cancellation_and_zero_terminal_deltas() {
++        objc::rc::autoreleasepool(|| {
++            for (cg_phase, expected) in [
++                (1, TouchPhase::Started),
++                (2, TouchPhase::Moved),
++                (4, TouchPhase::Ended),
++                (8, TouchPhase::Cancelled),
++            ] {
++                for (dx, dy) in [(-200, 0), (0, -200), (0, 0)] {
++                    // CoreGraphics phase flags differ numerically from AppKit's.
++                    // Exercise the real NSEvent conversion, then our production
++                    // adapter; no WindowServer injection or OS focus is needed.
++                    let raw = unsafe {
++                        CGEventCreateScrollWheelEvent2(std::ptr::null(), 0, 2, dy, dx, 0)
++                    };
++                    assert!(!raw.is_null());
++                    let event = unsafe { CGEvent::from_ptr(raw) };
++                    event.set_integer_value_field(99, cg_phase);
++                    let native =
++                        unsafe { NSEvent::eventWithCGEvent_(cocoa::base::nil, raw.cast()) };
++                    assert!(!native.is_null());
++                    let Some(PlatformInput::ScrollWheel(converted)) =
++                        (unsafe { platform_input_from_native(native, Some(px(400.))) })
++                    else {
++                        panic!("AppKit scroll was not converted to a scroll input");
++                    };
++                    assert_eq!(converted.touch_phase, expected, "CG phase {cg_phase}");
++                    let ScrollDelta::Pixels(delta) = converted.delta else {
++                        panic!("Precise AppKit scroll lost its pixel units");
++                    };
++                    assert_eq!(delta, point(px(dx as f32), px(dy as f32)));
++                }
++            }
++        });
++    }
++}
+ 
+ pub fn key_to_native(key: &str) -> Cow<'_, str> {
+     use cocoa::appkit::*;
+@@ -261,6 +316,7 @@
+                         TouchPhase::Started
+                     }
+                     NSEventPhase::NSEventPhaseEnded => TouchPhase::Ended,
++                    NSEventPhase::NSEventPhaseCancelled => TouchPhase::Cancelled,
+                     _ => TouchPhase::Moved,
+                 };
+ 

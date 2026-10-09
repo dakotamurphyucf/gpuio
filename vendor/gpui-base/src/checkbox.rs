@@ -370,6 +370,11 @@ impl RenderOnce for Checkbox {
         let on_change = self.on_change;
 
         self.base
+            // Native controls own their pointer interaction inside selectable
+            // documents; bubbling still delivers activation and focus.
+            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                crate::GlobalState::suppress_text_selection(cx);
+            })
             .test_support()
             .when_some(self.role.resolve(|| Role::CheckBox), |this, role| {
                 this.role(role)

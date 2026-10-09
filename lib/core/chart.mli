@@ -6,6 +6,8 @@ module Error : sig
     | Unavailable_data
     | Render_limit
     | Native_failure
+    | Invalid_config
+    (** Source-dependent configuration conflict, such as mismatched stacked-area curves. *)
   [@@deriving equal, sexp_of]
 end
 
@@ -91,6 +93,13 @@ module Config : sig
 end
 
 module Expert : sig
+  (** Supplies metadata for the ordinary retained children emitted by [View.chart]. *)
+  val with_radar_labels : Config.t -> _ Chart_radar_labels.t -> Config.t
+
+  (** Supplies metadata for [View.chart]'s retained inspection children.
+      Binding preserves the configuration's data owner. *)
+  val with_inspection_content : Config.t -> _ Chart_inspection_content.t -> Config.t
+
   val to_wire
     :  Config.t
     -> owner:Chart_resource.Expert.Owner.t option

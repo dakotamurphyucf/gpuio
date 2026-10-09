@@ -1,0 +1,278 @@
+{
+  "application_revision": "b891868ad1bf1da20801ade6e4748bcf0392002c",
+  "executable_sha256": "0d8c9451c48088ab72653cb6b64d6155217cf9c5c911009a81b0b406dbfb925c",
+  "platform": "macOS 14.5 arm64 / M1 Max / built-in display",
+  "voiceover": "Owner hold; untouched",
+  "runs": [
+    {
+      "command": "python3 scripts/test_gallery.py --section numbers --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/numbers-installed-a0cf6b9/run-1-images",
+      "session": 72296,
+      "exit_code": 0,
+      "qualification": "behavior assertions passed; visual duplicate-slot defect found"
+    },
+    {
+      "command": "python3 scripts/test_gallery.py --section numbers --executable scratch/agents/root-20261004-resumed/gallery-installed-number-slots/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/numbers-installed-a0cf6b9/run-2-images",
+      "session": 87894,
+      "exit_code": 0,
+      "qualification": "scoped walkthrough passed"
+    },
+    {
+      "command": "python3 scripts/test_gallery.py --section otp --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/otp-installed-a0cf6b9/run-1-images",
+      "session": 96196,
+      "exit_code": 0,
+      "qualification": "scoped walkthrough passed"
+    },
+    {
+      "command": "python3 scripts/test_gallery.py --section otp --executable scratch/agents/root-20261004-resumed/gallery-installed-number-slots/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/otp-installed-a0cf6b9/run-2-images",
+      "session": 76198,
+      "exit_code": 0,
+      "qualification": "scoped walkthrough passed"
+    }
+  ],
+  "build": {
+    "command": "GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace scratch/agents/root-20261004-resumed/gallery-installed-number-slots",
+    "session": 8815,
+    "exit_code": 0
+  },
+  "native_tests": {
+    "before_compile_session": 99422,
+    "before_compile_exit": 101,
+    "before_behavior_session": 31523,
+    "before_behavior_exit": 101,
+    "after_session": 98246,
+    "after_exit": 0,
+    "after_summary": "930 passed / 2 existing ignores",
+    "before_command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests --lib number_frame_retains_editor_composition_and_routes_auxiliary_actions_through_current_policy",
+    "after_command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests,native-canvas-tests --lib"
+  },
+  "checks": [
+    {
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j2 -p gpuio-native --features native-image-tests,native-canvas-tests --lib --tests -- -D warnings",
+      "session": 17802,
+      "exit_code": 0
+    },
+    {
+      "command": "GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @fmt",
+      "session": 53833,
+      "exit_code": 0
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "session": 55346,
+      "exit_code": 0
+    }
+  ],
+  "driver_scope": "Final drivers at b891868 are archived. Initial numeric run preceded exact-one-prefix/passive-glyph assertions; its visual failure is not acceptance.",
+  "archive": "local-validation.tar.gz",
+  "sha256": "8f6862455e376bdb7ac89c226d19d2316498d3f611259766238092c539d47432",
+  "files": [
+    {
+      "path": "drivers/gallery_numbers.py",
+      "sha256": "e999c6b0d9d86b6197348805048482a8d1ba6a2313c1af92cba3223b24ae80b4"
+    },
+    {
+      "path": "drivers/gallery_otp.py",
+      "sha256": "26aa0e95f4c6b5c125305250990e765f2d0811ecbbdcc3323a0dc49408ac4c77"
+    },
+    {
+      "path": "metadata.json",
+      "sha256": "a3a687129612de662a4dd45dc302d083903b0222a51304a051e0d1ec44cc7db6"
+    },
+    {
+      "path": "native-repair.patch",
+      "sha256": "f78a38287eee0af7064118cf669d508531e2bb2f7fd5e03b9c2044862587434d"
+    },
+    {
+      "path": "numbers/clippy.log",
+      "sha256": "31dcb764e02bc81551f9325df3c7ae3d6c98572d3dcda70d558b1fc9943cba25"
+    },
+    {
+      "path": "numbers/consumer-build.log",
+      "sha256": "846246a3637f35798f4c3de23517a1575d62f8c6277a818bc0ca9d47fbc62119"
+    },
+    {
+      "path": "numbers/format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "numbers/native-after.log",
+      "sha256": "d7a049fa9272bb85238cfe982c87d0ea7fd429f43ab5a4724ba434934176acda"
+    },
+    {
+      "path": "numbers/native-before-behavior.log",
+      "sha256": "2ffdc4871201c0dc9ddf396c6a8889196b139586459c171cad3284070a3a73e7"
+    },
+    {
+      "path": "numbers/native-before.log",
+      "sha256": "ab8202d5a2110a0f3baccc4e379ec6bce7c8e133741904f6cb50300f28227298"
+    },
+    {
+      "path": "numbers/run-1-images/Light-frame-custom-Stacked-controls.png",
+      "sha256": "68493aa56cf025168663da1eb2af8318ff93f12b0a5ad0d52b1b03b104312255"
+    },
+    {
+      "path": "numbers/run-1-images/number-layout-samples.json",
+      "sha256": "3c79640c97ee1eb3aaae702bea25b5a3b8b7db1a64e7631adcd76f3e15cfb318"
+    },
+    {
+      "path": "numbers/run-1.log",
+      "sha256": "eda86804f1f2d092d633a491256fefea10f7f5c78f12c5f64ec97dd60d11ce1e"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-frame-custom-Keyboard-only.png",
+      "sha256": "cfe032a41a07143fc6edb12582bf56bba284c1ad69037387ca6bbf5d0a2985cf"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-frame-custom-Side-controls.png",
+      "sha256": "22df88aa9109057cd856e9041fbbc055c4e5ece6c0e83c1a977492c21e8155e4"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-frame-custom-Stacked-controls.png",
+      "sha256": "6c7850a3711231df89e481d96b31e8ae33cf6ed8e8a1193265761f942df402c4"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-frame-default-Keyboard-only.png",
+      "sha256": "cfe032a41a07143fc6edb12582bf56bba284c1ad69037387ca6bbf5d0a2985cf"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-frame-default-Side-controls.png",
+      "sha256": "5eff8ce4306ba84f9fe6292fb0e2d0853373561d829b2f0493d075db848432e4"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-frame-default-Stacked-controls.png",
+      "sha256": "854992a731602b45b3281fe0d0a3130abde0d85e310bdf99793fcba3f78e74d8"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-plain-custom-Keyboard-only.png",
+      "sha256": "e57b8091fb22239689c863a7991b59f65ba9e4e6f43c7f0ec4fdab42af72ed58"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-plain-custom-Side-controls.png",
+      "sha256": "26556017b9c81962adddf25cafac4383a3dcab977305bb8b6d8b471df5e8a051"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-plain-custom-Stacked-controls.png",
+      "sha256": "fa4b3a459c9d3045d5c34b8e4eac76e4526368a7aab5a135bfdc5a492d145f72"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-plain-default-Keyboard-only.png",
+      "sha256": "f77fcae9e69ff3e3b334bdcc649744e73c995b92f61e812cd600ab98cdae0858"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-plain-default-Side-controls.png",
+      "sha256": "7018afe20ad71fc5dfc0dc1930bbd4049c6b6f736a26178940b6422bc2dc84fe"
+    },
+    {
+      "path": "numbers/run-2-images/Dark-plain-default-Stacked-controls.png",
+      "sha256": "1df149bd4b887c15020d241de093e46d31276f810ccf2b227fa2d94ec18ec741"
+    },
+    {
+      "path": "numbers/run-2-images/Light-frame-custom-Keyboard-only.png",
+      "sha256": "394ba9bfcf1c4445b50c643747a13a25d69083117070a427862bc33ec4835216"
+    },
+    {
+      "path": "numbers/run-2-images/Light-frame-custom-Side-controls.png",
+      "sha256": "024438cb3d21bfdd5858d83cd1271a990f18e6e46ff0ae0555ebd836b2999631"
+    },
+    {
+      "path": "numbers/run-2-images/Light-frame-custom-Stacked-controls.png",
+      "sha256": "0f1625593089f5d4aaf3e40395a625cb42639e1e8de5e330354a5bd7bcd79c2f"
+    },
+    {
+      "path": "numbers/run-2-images/Light-frame-default-Keyboard-only.png",
+      "sha256": "394ba9bfcf1c4445b50c643747a13a25d69083117070a427862bc33ec4835216"
+    },
+    {
+      "path": "numbers/run-2-images/Light-frame-default-Side-controls.png",
+      "sha256": "6ed5acf19a2911f3685bde26b4c441208023e220948cb30b7f7715df341bbbc5"
+    },
+    {
+      "path": "numbers/run-2-images/Light-frame-default-Stacked-controls.png",
+      "sha256": "801798e71be2915ab5f6ae2bcb97db61e0134315f7870ec92cf07592b1279783"
+    },
+    {
+      "path": "numbers/run-2-images/Light-plain-custom-Keyboard-only.png",
+      "sha256": "c9d51e76709511e6a27e437610927729a0d8e7c904f94daed77cef1070f3847a"
+    },
+    {
+      "path": "numbers/run-2-images/Light-plain-custom-Side-controls.png",
+      "sha256": "f0ddec8e8e3c7846e36ea177b149db107fee0e6b7d71dba5e3462a6feab44e6d"
+    },
+    {
+      "path": "numbers/run-2-images/Light-plain-custom-Stacked-controls.png",
+      "sha256": "35d637119efd4d202deb40a0511de56991deb893158a975a8c1d515832c7e7bf"
+    },
+    {
+      "path": "numbers/run-2-images/Light-plain-default-Keyboard-only.png",
+      "sha256": "c9d51e76709511e6a27e437610927729a0d8e7c904f94daed77cef1070f3847a"
+    },
+    {
+      "path": "numbers/run-2-images/Light-plain-default-Side-controls.png",
+      "sha256": "f0ddec8e8e3c7846e36ea177b149db107fee0e6b7d71dba5e3462a6feab44e6d"
+    },
+    {
+      "path": "numbers/run-2-images/Light-plain-default-Stacked-controls.png",
+      "sha256": "1f5d73fa4f49f5c6b7e791fb89c1a38df43393aca8cc2fff72839dfee6f1f9af"
+    },
+    {
+      "path": "numbers/run-2-images/number-layout-samples.json",
+      "sha256": "d38dafd38a93b4d73a92bab5729d0a140f799068bd2d3064af3518ef60f2eca0"
+    },
+    {
+      "path": "numbers/run-2.log",
+      "sha256": "eda86804f1f2d092d633a491256fefea10f7f5c78f12c5f64ec97dd60d11ce1e"
+    },
+    {
+      "path": "otp/run-1-images/otp-Dark-True-True.png",
+      "sha256": "796e8e393ed002ecad5300a808bb17ff8245be258acb58f3b12277c1e2e98139"
+    },
+    {
+      "path": "otp/run-1-images/otp-presentation-samples.json",
+      "sha256": "19eba74e0fa825d948ca33c2eb4316904848d7b90a406508c42e75d4e9225c2a"
+    },
+    {
+      "path": "otp/run-1.log",
+      "sha256": "7677e86bd0423cec70533588ae0783e0196d258fd613bfb2fe0939beb045d4e4"
+    },
+    {
+      "path": "otp/run-2-images/otp-Dark-False-False.png",
+      "sha256": "ba32da848331f5bb2d017a6ffa9e32524b2e8ad65082e4ad0ac67c598424ee44"
+    },
+    {
+      "path": "otp/run-2-images/otp-Dark-False-True.png",
+      "sha256": "eec92821896b04ab8ef40b9599c7bc207a3336f463bc89cad733bc823e41c415"
+    },
+    {
+      "path": "otp/run-2-images/otp-Dark-True-False.png",
+      "sha256": "4eeff7317e3768d848b9519c1a9dfab224cd3d0a8e3caac2233198e9a6206356"
+    },
+    {
+      "path": "otp/run-2-images/otp-Dark-True-True.png",
+      "sha256": "796e8e393ed002ecad5300a808bb17ff8245be258acb58f3b12277c1e2e98139"
+    },
+    {
+      "path": "otp/run-2-images/otp-Light-False-False.png",
+      "sha256": "aff1ea9e8dbecbc70278967ed299db781c1a22247823fd2ee0871db8f3856de3"
+    },
+    {
+      "path": "otp/run-2-images/otp-Light-False-True.png",
+      "sha256": "f0d3127afe99198620798992da69f870cb8515c08e5e41056a7dc7fd797f0119"
+    },
+    {
+      "path": "otp/run-2-images/otp-Light-True-False.png",
+      "sha256": "e1947df30cde79e81bd190119f7c1594f8c4ed04f6d6646e25911d3370505489"
+    },
+    {
+      "path": "otp/run-2-images/otp-Light-True-True.png",
+      "sha256": "6f2fdead5b5080661ebd57fb91b214c742a5481877053768128ecbe040ee6eb5"
+    },
+    {
+      "path": "otp/run-2-images/otp-presentation-samples.json",
+      "sha256": "19eba74e0fa825d948ca33c2eb4316904848d7b90a406508c42e75d4e9225c2a"
+    },
+    {
+      "path": "otp/run-2.log",
+      "sha256": "7677e86bd0423cec70533588ae0783e0196d258fd613bfb2fe0939beb045d4e4"
+    }
+  ]
+}

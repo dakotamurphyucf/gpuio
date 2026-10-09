@@ -1,5 +1,10 @@
 # Revisioned display documents (OCH-14)
 
+The [pinned document catalog audit](../catalog/documents-review.md) distinguishes
+these implemented baseline contracts from remaining OCH-41 public format,
+selection/clamp, internal styling and static renderer/plugin integration. Baseline
+Markdown/code/diff support is not complete catalog acceptance.
+
 OCaml owns canonical content; Rust owns display copies, parsing, layout and
 selection. A document outlives its mounted views and belongs to an application
 or conversation scope. Offscreen row eviction releases presentation resources,
@@ -43,6 +48,16 @@ Public interfaces live in `lib/core/{text_source,document}.mli` and
 `lib/eio/document.mli`. The [M4 evidence ledger](../evidence/agent-workspace-m4.md)
 records tested behavior, measurements and platform limits.
 
+## Document appearance
+
+Each document's light/dark appearance supplies a coherent native text, code,
+table and border palette independently of Base's application-wide theme. Table
+bodies have an explicit opaque surface (dark `#111318`, light `#ffffff`); headers
+keep the document code-background color. Appearance changes preserve the source
+and native presentation. The native adapter passes this surface through the
+existing table style refinement, so both wrapping and horizontal-scroll renderer
+paths use it without changing application-global colors.
+
 ## Syntax implementation
 
 Pinned Syntect 5.3.0 with Two Face 0.5.2+bat-0.26.1 supplies grammars using the
@@ -76,6 +91,17 @@ these units are not measured allocator RSS. Source snapshots have a separate
 results only install into the matching request serial. Native shutdown waits
 for the two worker fences. No idle document polling is installed.
 
+An active rich-document worker reserves its conservative worst-case output,
+which can exceed half the shared allowance even for a short source. If that
+temporary reservation prevents another request from fitting, the scheduler keeps
+the latest request pending and scans for other work that fits. Completion already
+wakes the service and retries admission after the first worker shrinks its
+charge; no timer or extra worker is introduced. Superseded waiting requests never
+run, and dropping a waiting view cancels its admission. If no worker remains and
+retained content still leaves insufficient capacity, the request reports the
+existing resource-limit fallback. The 64 MiB budget and per-source limits remain
+unchanged. See [worker-pressure evidence](../evidence/document-worker-pressure-och17.md).
+
 Rich Markdown is limited to64KiB, 4096 AST nodes, depth32, 256 top-level blocks
 and16KiB lines. Exceeding a parser/highlighter limit retains the full canonical
 source and shows an explicit source fallback. Source pages contain at most64KiB,
@@ -90,7 +116,7 @@ huge-document mode; the source API remains available for application-owned range
 Literal full-source search runs over rope chunks in the worker using a bounded
 KMP matcher. It counts all non-overlapping matches and retains at most4096
 navigable ranges. The UI labels that limit. Navigating a match opens its source
-page; Markdown can switch back to rendered content. Markdown raw HTML is literal
+page; Markdown/HTML can switch back to rendered content. Markdown raw HTML is literal
 text, and images resolve only through registered decoded assets. Source copy,
 rendered Markdown selection, fenced-code copy and table-source copy are distinct
 native operations.
@@ -110,6 +136,42 @@ acceptance. The reference app also exercises native document expansion through
 macOS accessibility; toolbar actions have explicit accessible names. Code/source
 uses the native platform monospace family. See the [M4 evidence ledger](../evidence/agent-workspace-m4.md)
 for measurements and consolidated platform validation. Linux GUI remains deferred.
+
+### Unified-diff metadata
+
+The native diff parser preserves every source byte, including partial trailing
+hunks, while recording file-local line and hunk ranges. A hunk ends before the
+next file's header, including rename-only and binary sections. Native gutter
+folding therefore cannot consume the following file's metadata. Files with the
+same label remain distinct sections within an installed snapshot.
+
+Each body row retains both optional one-based old/new coordinates and the UTF-8
+payload range. That range excludes the diff marker and one LF or CRLF ending;
+an extra carriage return or a final standalone carriage return remains payload.
+No-final-newline annotations have no old/new coordinates. These annotations
+count as body rows alongside context, added and removed lines; file and hunk
+headers do not. This supplies the metadata needed for the pending line-limit
+and richer event APIs, without changing the existing navigation event yet.
+
+Path labels are at most4096 UTF-8 bytes and contain no NUL. They never cause
+filesystem access. Header labels remove the conventional `a/` or `b/` prefix;
+explicit rename/copy labels retain their full names. Deleted files use the old
+label; other files prefer the new label. Quoted Git labels remain literal quoted
+strings, without C-escape decoding. Ambiguous unquoted names are left unknown
+until explicit file headers or rename metadata identify them. Rows share path
+storage with their file rather than allocating a full path per line.
+
+Diff preparation remains bounded to256KiB, 8192 source lines and16KiB per line,
+with cancellation between lines and source fallback on limit overflow. Hunk
+coordinates whose final line would exceed the supported positive signed-32-bit
+range are rejected. File metadata is native preparation data; per-file collapse,
+show-more controls and paired old/new line callbacks are still pending public
+API work, tracked by OCH-41.
+
+The pending [diff controls design](diff-controls.md) specifies managed/controlled
+ownership, visible-source projection, selection transfer and event provenance.
+Its native projection tests are foundation evidence, not mounted public API
+acceptance.
 
 ## Native document accessibility actions
 
@@ -137,3 +199,20 @@ new text did not add a line. Paginated source metadata likewise describes the
 installed snapshot and remains present while newer preparation is pending.
 Actual content growth, Markdown interpretation and explicit expand/collapse can
 still change row height; this does not freeze document layout or tail following.
+
+A generation reset restores the configured initial collapse state when the new
+content installs, unless the user has explicitly expanded or collapsed that
+generation in the meantime. Record that interaction against the current source
+lease generation, including when preparation has not yet caught up. Delayed
+preparation cannot overwrite the newer interaction. An append retains collapse
+state; a subsequent reset without a new interaction restores the initial value.
+
+The standalone [HTML reader](document-html.md) uses `Document.Mode.Html`, bounded
+worker parsing and the same registered image/navigation model. HTML selected
+content copies plain text and source replacement clears its selection. Markdown
+embedded HTML remains literal.
+
+[Link activation metadata](document-link-activation.md) accompanies queued
+navigation from both rich reader modes. Applications receive the URL, input source,
+mouse button and release modifiers, and decide how to route it. The public Link
+payload is now a record; legacy wire events retain unknown input metadata.

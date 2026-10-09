@@ -1,1049 +1,443 @@
 # Implementation status
 
-Current checkpoint: milestones 1–6 are merged. Milestone 5's
-[PR #13](https://github.com/dakotamurphyucf/gpuio/pull/13) merged at `936fb7d` after
-[required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36312697654)
-passed on `473407c`; all twelve tickets are Done.
-
-Milestone 6's [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14) merged at
-`bdbae672c97b046fca5d7e0a0f5bb779e24cfd01` after
-[required macOS/Linux CI](https://github.com/dakotamurphyucf/gpuio/actions/runs/36432631460)
-passed on `a7a514aa6a8162142be5e6e384797d8c9bd58657`. Source, CI merge-ref and
-merged main have the same tree. All four M6 tickets are Done.
-The [Linear project](https://linear.app/ochat/project/gpuio-8bd4e30f319d) records
-ticket completion against those gates. Its four deliverables are:
-
-- OCH-27: typed desktop identity/packaging, readiness-aware link routing,
-  native document metadata, OS file open/reveal and Linux private-bus arbitration.
-- OCH-28: application-scoped OS notifications, explicit permission/capability
-  queries, owned receipts, replacement/dismissal and stale-safe actions.
-- OCH-40: seven native chart families and mixed layers, revisioned bounded
-  datasets/preparation, explicit sampling, native interaction and an accessible
-  original-data table. Native windows/list retention and 10k/100k streaming are
-  measured separately from the combined application.
-- OCH-29: Signal Studio combines a public OCaml canvas, chart and independently
-  packaged native component with documents, links and notifications. Responsive
-  input, Full/Reduce motion, installed-library consumer builds and repeated
-  command/resource/window lifetimes pass locally.
-
-Consolidated local format, Dune/Rust tests (719 Rust tests), strict lint, all 18 M6
-native/build/private-bus/OS stages, and a fresh public consumer's self-test and
-complete workload pass on macOS 14.5 arm64. Required hosted macOS/Linux build,
-unit tests and lint passed in the first
-[consolidated run](https://github.com/dakotamurphyucf/gpuio/actions/runs/36377185296).
-That run found test setup/sampling failures; the evidence ledgers record their
-locally validated fixes. Use PR #14 for final hosted gate results, not that initial
-run or local passes alone. The [M6 delivery matrix](milestone-6.md) links
-current contracts, examples and evidence. Linux GUI/compositor validation is not
-implied by compilation or private-bus fixtures.
-
-Owner decision, 2026-09-28: milestone 07 is now a macOS-first v1 release. OCH-41
-retains the full component gallery/catalog; OCH-17 retains macOS validation,
-performance/resource budgets, documentation and clean-machine distribution.
-Linux builds/unit/private-bus/consumer checks remain required and graphical
-smoke remains informational. Full Linux desktop qualification has moved to
-[OCH-47](https://linear.app/ochat/issue/OCH-47/qualify-linux-x11wayland-desktop-behavior-and-distribution-after-macos)
-in deferred milestone 07b; it does not block M7, M8 or ongoing feature work.
-Read the [platform release policy](platform-release-policy.md). No remote Linux
-machine or local VM is required now. Earlier references below assigning full
-Linux release acceptance to OCH-17 are superseded by this decision.
-
-The entries below preserve earlier implementation checkpoints. Their pending-work
-statements are historical; use the delivery record above for current status.
-
-Updated 2026-09-26. Milestones 01 and 02 are merged, including native text editing,
-controls/interactions and declarative animations. [PR #10](https://github.com/dakotamurphyucf/gpuio/pull/10)
-merged at `17e863279bff25253edf47f449c04cd9aee5e867` after the required macOS and
-Linux checks passed. Milestone 03 / OCH-13 implements keyed collections, paging and managed virtual
-lists in [PR #11](https://github.com/dakotamurphyucf/gpuio/pull/11). See the [managed-list design](design/managed-lists.md)
-and [local acceptance evidence](evidence/managed-lists-och13.md). The managed
-component, paging, native interactions and full-history retention tests pass
-locally and in hosted validation at `2c2063b`. See PR #11 for the final checked
-head and merge. CI run 36056171245 also passes X11 list checks; Wayland stops
-at the existing combobox clipboard failure before reaching them. Final review
-adds a second complete OCaml 100,000-row traversal, also passing locally.
-
-Milestone04 is implemented in [PR #12](https://github.com/dakotamurphyucf/gpuio/pull/12): revisioned
-streaming documents and native Markdown/code/diff; independent windows, retained
-tabs and split panes; and a polished agent-chat reference application. The app's
-public integration and external macOS AX/keyboard/picker scenarios pass locally.
-See the [M4 evidence ledger](evidence/agent-workspace-m4.md),
-[ownership design](design/agent-workspace.md), and [runnable demo](../examples/agent_chat/README.md).
-The full consolidated local build, suites, native regressions, Clippy and format
-checks pass. The evidence ledger records hosted results; PR #12 records the final
-checked head and merge status. Full Linux GUI acceptance remains OCH-17.
-
-OCH-46's combined macOS workload now passes with 100k source nodes, 100k table
-rows, canvas and native extension mounted in four windows during streaming.
-Native keyboard input, bounded accessible rows/cells, painted animation without
-additional OCaml transactions, and repeated window/canvas cleanup are measured.
-Read-only runtime diagnostics distinguish serialized traffic and owned resources
-from clock polling and total/native memory. Full/Reduce responsive checks also
-cover settings-sheet resize, saved values and nested Escape/focus restoration.
-See the [combined evidence](evidence/agent-chat-m5.md#combined-streaming-large-artifacts-and-cleanup).
-Consolidated local Dune/Rust suites, native checks, all 15 chat walkthroughs and
-a fresh staged extension consumer now pass. [PR #13](https://github.com/dakotamurphyucf/gpuio/pull/13)
-records required hosted macOS/Linux results, the checked head and merge state.
-The [milestone handoff](milestone-5.md) maps all delivered families and ownership
-contracts to current source and evidence.
-
-OCH-37 now has compiled and locally tested Core models for bounded navigation
-history, single/multiple disclosure and pagination. Tests cover route replacement,
-back/forward/branching, disabled and stale requests, collection/page-count shrink,
-128-entry navigation, 4,096-item disclosure and 10,430 bounded pagination partitions.
-Core/Bonsai panel/disclosure/accordion bindings and initial native macOS checks now
-pass keyboard/expanded accessibility state, nested focus restoration, retained and
-unmounted editors, marked-text isolation and hidden focus-scope cleanup. A small
-vendored patch to the unchanged accesskit_macos 0.26.3 exposes expanded state;
-both native backend build paths use it. Public breadcrumb/pagination compositions
-now pass bounded-model/reconciliation tests and native AppKit current descriptions,
-keyboard/AX actions and focus retention. The Navigation Lab also verifies retained
-Unicode drafts, independent lazy Bonsai lifecycle and Eio data-scope cleanup.
-The initial sidebar adds grouped/nested destinations, independent expansion,
-icon/offcanvas modes, scoped icons, context commands and current-link semantics.
-Local public macOS AX checks and screenshots cover its collapse modes; native
-regressions also cover custom disclosure headers and retained hidden popup scopes.
-Native sidebar width transitions now pass public macOS geometry, interruption and
-reduced-motion checks. Retained offcanvas content now slides out on either side
-while inert: native input/AX access stops immediately, editors survive, and nested
-animations/popup scopes suspend. GPU and public screenshot evidence verifies paint
-continues during exit. Navigation now has tested bounded native transition state
-and a mounted Core/Bonsai presenter, including reversal from painted positions,
-retained native controls, destination focus, outgoing GPU paint and immediate
-removal. Native nested/modal, IME, pointer/keyboard exit gating and a full 128-page
-workload with resize also pass, alongside the public example. Four retained editors
-fit within unchanged editor quotas; history bounds do not exempt native resources.
-Four-edge sheets and alert-dialog adapters now share the existing modal focus and
-asynchronous dismissal infrastructure. Native macOS checks cover edge geometry,
-clamping/resize, late hover styles, editor identity, focus restoration and nested
-alert backdrop blocking. The public Navigation Lab includes drawer/confirmation
-flows; its latest validation is recorded in the evidence ledger.
-Interactive hover cards now expose a separate nonmodal Dialog role while reusing
-native tooltip timing, retained content and placement. Local native tests cover
-Tab/pointer/IME/Escape, accepted controlled close, anchor restoration and timer
-cancellation; the Navigation Lab includes a contributor preview. Existing tooltips
-retain their separate help semantics and grace clock.
-Carousel now has a tested Core selection model, paired envelopes, Core/Bonsai
-constructors, bounded default pagination and native admission/request dispatch.
-Mounted horizontal/vertical presentation reuses retained pages; local macOS checks
-cover GPU transition geometry, retained editors and focus preservation/handoff.
-Native keyboard and auto-advance scheduling now pass local tests for child-editor
-key isolation, pause/resume, clipping/window activation, one pending proposal,
-no idle frames and teardown. Native wheel bursts now pass axis/cancellation,
-momentum fencing after accepted selection, missing-end fallback, nested scrolling,
-reduced-motion input and disposal checks. Native pointer/GPU checks now cover
-axis locking, two-page preview, capture/rebinding, snap/accepted retargeting,
-in-flight grabs, child-control priority and lifecycle/foreign-capture cancellation.
-The public Navigation Lab now verifies native requests through Eio/Bonsai, AX/current
-metadata, native auto-advance and explicit unmount leases while Bonsai/data remain
-alive. Native marked-text and nested-popup checks now pass focus handoff, hidden
-input rejection, IME-first Escape, editor key isolation, popup focus/hover pause
-outside the carousel bounds and full scope/timer disposal. Shared overlays now
-register their visible panel bounds with the existing focus manager. Local OCH-37
-component acceptance is complete; navigation bit `274877906944` is advertised
-(current aggregate `2199023255551`). Consolidated hosted checks and merge remain,
-followed by final ticket completion. The chat showcase stays in OCH-46.
-See [navigation design](design/navigation-components.md) and
-[foundation evidence](evidence/navigation-components-och37.md).
-
-OCH-38 now has a pure Core `Tree` collection with stable typed IDs, validated flat
-forest topology, revisioned replacement, parent/ancestor/sibling metadata and
-O(log n) payload updates sharing topology. Expect tests exercise malformed graphs,
-100,000-node traversal/reorder, depth/metadata limits and distinct incarnation/
-child revisions for future lazy-load admission. `Tree_state` now adds separate
-incarnation-checked expansion/selection preferences, cached visible order, logical
-cursor repair, single/multiple/range selection and pure tree keyboard reduction.
-Tests cover hidden/disabled/reordered/reincarnated nodes, 100,000 selections and
-application-payload collection. Core/Eio lazy loading now provides generation-
-checked requests, 64 queued branches, four reusable workers, atomic child pages,
-explicit retry and bounded error detail retention. Local runtime tests cover
-cancellation without concurrency overshoot, queued-result reset, inbox backpressure,
-shutdown and preservation of unrelated tasks. `Tree_rows` now projects item and
-lazy-boundary records into keyed list data, with compact generation/incarnation-
-checked identity, point invalidation and no historical key registry. Core tests
-cover 100,000-node updates, 200,000 logical item/boundary rows, depth 128,
-collapse/reopen and old-payload collection. The Bonsai tree-row primitive now
-mounts only viewport/pinned rows, checks source-instance/reset identity, preserves
-coalesced invalidation and retires old controller effects. Eio controls drive
-capacity-limited visible demand, explicit retry and collapse cancellation; local
-combined runtime tests distinguish view unmount from application data lifetime.
-Tree metadata now reaches the native managed-list root and one focus-owning item
-per row. Paired codec/Core/Bonsai tests and actual macOS AppKit checks cover
-hierarchy, selection, expansion, disabled state, updates/removal and teardown.
-The pinned macOS accessibility adapter adds reproducible disclosure getters.
-A pure `Tree_interaction` reducer now checks source/node identity, preserves ordered
-relative requests, separates activation, opens ancestors for logical reveal and
-returns application-approved move proposals with approval-time revalidation.
-Opt-in native keyboard/pointer requests now travel through monotonic list identity
-to current Core/Bonsai handlers. Local macOS checks cover ordered arrows/modifiers,
-AppKit focus/select, child editor/IME isolation and pointer priority. Explicit
-reveal now hands focus to a stable row after asynchronous mounting, with bounded
-pending state and cancellation on retirement, blur, deactivation or scrolling
-away. Native tests cover a one-row budget and actual window activation changes.
-Unicode typeahead now supports canonical accents, case folding, repeated-prefix
-cycling and current-label search, with an event-driven native expiry clock and
-bounded Core prefix. Codec, reducer, queued Bonsai and actual native key-dispatch
-tests pass; a 100,000-node Core benchmark is recorded separately from native
-workload acceptance. Per-row AppKit selection and expansion/disclosure setters now
-carry explicit desired states, preserving ordered requests before rerender. The
-public Bonsai widget now integrates preferences, ordered native/controller requests,
-default row presentation and deferred reveal/focus. Its Eio filesystem example
-passes actual directory loading, native focus retention, selection and stale-command
-retirement after reset on macOS. Opt-in native dragging now emits typed move
-proposals through current row identities, with native lifecycle cancellation and
-Core/Bonsai endpoint validation. Local GPUI tests cover all placements, cancellation,
-preview cleanup and embedded-editor isolation. The public editable outline passes
-actual AppKit drag, confirmation and context-menu moves. Native GPU checks cover
-actual focus/blur and all drop indicators above opaque rows, including changed
-foreground and hover exit. Full traversal and revisit now pass separately through
-Bonsai and native GPUI at 100,000 rows/depth 128, with 256 transient rows and weak
-probes proving model/resource release. Native source reorder/window isolation,
-deactivation/close, and public deep reveal, resize, loading/retry/cancellation and
-window-scope cleanup now pass. Paint-time focus schedules one follow-up redraw to
-publish its pin while OCaml is idle. Local OCH-38 component acceptance is complete;
-managed-tree bit `549755813888` is advertised (aggregate `2199023255551`).
-Consolidated hosted gates and merge remain before ticket closure. See the
-[managed-tree design](design/managed-trees.md).
-
-OCH-39 now has a tested Core column schema with stable keys, finite widths,
-resize clamping, left pinning and keyed multi-level header groups. Tests cover
-4,160 moves at the 64-column limit, invalid schemas and user restrictions. An
-isolated styled DataTable candidate compiles against the unchanged GPUI pin after
-a one-line macro crate-name fallback. Its native macOS probe renders at most
-80 distinct body cells across four sampled positions in a 100,000-row/64-column
-table. This is candidate evidence, not production integration or full-history
-acceptance. Core data/paging and a scoped Eio adapter now pass 100,000-row order
-and paged workloads, retired-row/query checks, saturated inbox delivery and
-100 rapid resets while cancellation cleanup holds both worker slots. Producer
-concurrency stays at two; old results are discarded and unrelated scoped work
-survives explicit close. The selected native adapter now lives in `rust/table`,
-with upstream provenance, existing base helpers and per-instance appearance.
-Its macOS test reproduces the four virtualization samples, preserves selection
-through row/column reorder, clears removed selections without event echoes, and
-verifies native entity release on close. Native pointer tests now exercise keyed
-double/context/sort/resize/reorder events and suppress obsolete frame input and
-drags after schema refresh. Keyed pixel anchors survive native row/column reorder
-and prepend; unchanged schemas preserve resize/reorder gestures through row
-arrivals. The bridge, public widget, full paging/query reconciliation and native
-keyboard/accessibility/cache/lifecycle acceptance remain.
-Paired bounded table payload codecs and the pure Core `Table.Config` now pass
-independent byte fixtures and invalid-input/budget tests. Transaction/event
-envelopes now feed native tree admission, cell/schema byte accounting, ordered
-command admission and live session input validation. Query resets retire viewport
-handlers, and dirty cell edits revalidate table ownership. The retained native
-host now renders real cell Views, publishes bounded viewport demand, executes
-commands, shares focus retention and captures input routes at event creation.
-A local background-window test passes a sparse 100,000-row source, row-height
-anchor changes, single/empty data and entity release. The Core managed table View
-now constructs bounded keyed cells, generates accepted schema revisions, routes
-typed input through current query/schema/policy checks and emits ordered commands.
-The public Bonsai presenter and Eio paging controls now connect bounded cell
-lifetimes, membership-aware commands, query resets and current selection. Local
-tests traverse all 100,000 rows twice and release retired cell payloads. The public
-Table Lab passes native keyed scrolling/anchors, streaming, query retirement,
-failure/retry and window cleanup. Native pointer/key dispatch and OS clipboard
-checks now pass exact Unicode/quoted TSV, unavailable-selection preservation,
-Tab exit, toolbar Copy, child-editor priority and hidden/disabled gating.
-The public table now applies its style to one native root while separate
-source identity preserves reset semantics. GPU checks pass alpha/gradient surfaces,
-border/padding/corner clipping, inherited text, state precedence, pinned-column
-paint and readable selected cells/rows. The styled Table Lab retains selection
-and anchors through light/dark changes. Actual macOS accessibility now passes
-logical counts/indices, Unicode cell values, selected-descendant focus, ordered
-selection setters, separate sorting, selection-mode restrictions and retired
-hidden/disabled objects. The vendored Cocoa adapter has a reproducible table
-metadata/selection patch. The native table now passes two complete 100,000-row
-traversals with at most 128 active rows/512 cells, actual horizontal sweeps and
-zero retired text payloads retained at batch checks. This exposed a pinned Taffy
-measurement-context retirement issue; a reproduced, documented two-line patch
-at the same version fixes it in both backend paths. Unmount/window release and
-intentional failure cleanup pass. The public example now also preserves anchors
-and selection through accepted resize/reorder during a pending Eio page and
-sorts while obsolete producer cleanup is held; late results do not alter the
-new query. Shared controls/editor/list/tree/table regressions, Rust workspace
-tests and strict Clippy pass. AppKit keyboard and embedded-editor composition now
-pass through targeted OS events and the native text-input client. The public
-example also passes pointer/keyboard inspection, guarded context actions, reveal,
-focus restoration and native window closure. Selectable text now exposes its
-content label to macOS accessibility. The [local acceptance audit](evidence/data-tables-och39-audit.md)
-maps the live requirements to code and native evidence. Managed tables advertise
-bit 40 (`1099511627776`), with shared mask `2199023255551`. Showcase integration,
-hosted macOS/Linux gates and merge remain pending.
-See [table design](design/data-tables.md) and
-[evidence](evidence/data-tables-och39.md).
-
-OCH-46 is now in progress. The chat's Explore workspace inspector integrates the
-separate native counter package through its generated backend, with real property,
-event and acknowledged-command flows. Local macOS pointer/keyboard, hide/reopen,
-draft preservation and theme checks pass; both existing M4 chat acceptance suites
-remain green. The native package's duplicate Space activation was fixed. Actual
-light/dark screenshots were inspected and the controls refined. The inspector
-also includes a lazily registered run diagram and bounded artifact history.
-Native selection/keyboard movement, pointer drag, pan/zoom/reset, stage activation,
-back/forward/replacement/breadcrumbs, preserved window state and themed screenshots
-now pass locally. The new expect tests and existing review/M4 regressions remain
-green. These are integrated flows, not completion of the full component matrix or simultaneous
-workload. See [M5 integration evidence](evidence/agent-chat-m5.md).
-
-The chat's source explorer also passes local macOS acceptance through the public
-managed-tree/Eio APIs: lazy failure/retry, keyboard range/typeahead, drag and
-context move approval/cancel, reveal, collapse cancellation, empty/reset and the
-explicit 100,000-node fixture. The last-source viewport exposes 9 native AX rows
-within its 24-row budget. Window-owned data/preferences survive inspector page
-changes; fixture construction uses an Eio worker domain. Native theme tokens now
-follow the chat palette, and all prior inspector/M4 acceptance suites remain green.
-Actual source screenshots and scoped ownership evidence are recorded in the same
-ledger.
-
-The results inspector now passes its own local native walkthrough: full-query
-sort/filter, paging/failure/retry/cancellation, cell/context/reveal/Unicode copy,
-actual column resize/reorder, pin/reset and preferences across page unmounts.
-The opt-in 100,000-row fixture exposes 7 AX rows / 32 cells at the last record,
-within its 24-row / 96-cell budget. Shared fixture work is bounded to one running
-producer and one latest replacement per window/fixture. Actual light/dark captures
-led to corrected selection/hover contrast; GPU regressions verify both themes.
-A held-pointer row-focus AX crash is fixed in the table adapter and protected by
-a native intermediate-frame test. The full component matrix, combined workload,
-consolidated hosted gates and merge remain pending.
-
-The first settings pages now pass local macOS integration: a modal sheet with
-window-owned stream chunk-size/pacing preferences, inclusive score-range filtering
-of the actual results query, and an explicitly simulated six-digit connection.
-Native numeric partial/invalid drafts, Return/Escape, three stepper presentations,
-slider keyboard/AX edits and pointer preview cancellation, accepted-value remounts,
-nested reset confirmation, OTP paste/clear, themes and composer preservation pass.
-No native draft is replaced by an observation; closing discards uncommitted numeric
-drafts and stale callbacks are fenced by the settings generation. Model tests
-verify real fake-backend chunking/delays and score bounds. Existing results and M4
-public/AppKit regressions pass. Date/color settings now also implement civil-date
-review filtering/pagination, simulated confirmed follow-ups and concrete RGBA
-annotations on the actual diagram. Local native keyboard/AX checks cover partial
-and disabled dates, focus restoration, color validation/cancellation and retained
-values across themes. Remaining presentation/navigation, motion/responsive and
-combined-workload acceptance are still pending; see the M5 evidence ledger.
-
-The review workspace also has local run feedback: ordered native rating requests,
-retained private-note disclosure, single/multiple guidance accordion, and an
-interactive contributor hover card linking to Sources. Local AppKit validation
-covers keyboard/AX, pointer hover, focus restoration, note/rating retention across
-route and inspector remounts, themes and composer preservation. Contributor initials
-are shown initially; a local SVG portrait and actual unavailable-image decode/fallback
-fixture can now be selected inside the preview. Existing
-review extension and original M4 public/AppKit regressions remain passing.
-
-The workspace tour uses a public native carousel of four attachment cards with
-real destination actions. Local normal/reduced-motion runs verify keyboard and
-control navigation, current semantics, focus/hover/hidden pauses and native
-opt-in auto-advance. Contributor portraits reuse two window-scoped registrations;
-actual native decoding failure shows initials, and switching back restores the
-SVG image. The demo accepts `--reduced-motion` without changing OS preferences.
-Remaining full M5 integration, combined workload and hosted/merge gates stay open.
-
-The chat now has grouped public Sidebar destinations sharing inspector routes and
-history, with independent branch expansion, SVG icon collapse and retained
-offcanvas hiding/restoration. Local macOS pointer/keyboard/current-link and
-light/dark walkthroughs pass; screenshots and source links are in the
-[showcase evidence](evidence/agent-chat-m5.md). Public message/bubble/tool-result
-cards, removable query tags, loading skeleton/shimmer/spinners, status and error
-recovery now pass the Full/Reduce local presentation walkthrough, including exact
-Unicode code/diff copy. Stage-context springs, ordered destination reveals and
-shared response activity are integrated; local Full/Reduce geometry/interruption,
-hidden context and response-input checks pass. The responsive inspector now passes
-local Full/Reduce pointer/keyboard resizing, close/reopen geometry, Unicode draft
-retention, hidden-alternative accessibility and independent-window checks at
-1000–1360-pixel desktop widths. Native split tests also preserve marked IME text
-and editor identity when the sibling pane closes. Combined workload and
-hosted/merge acceptance stay open. Native documents now expose labelled groups
-and dispatch toolbar/Markdown copy accessibility actions directly. The chat
-regression verifies exact Unicode copy from a retained offscreen toolbar without
-misrouting a click to another visible control, in Full and Reduce modes.
-
-Streaming transcript jitter is also fixed: already installed documents no longer
-insert/remove an Updating line for each pending parse, and initial preparation
-does not paint a dummy source editor that disappears with the first Markdown
-result. A failing native geometry
-regression now passes in Flow/Viewport layouts, and the actual chat probe changed
-from repeated 29-pixel rebounds to no downward steps while the composer stayed
-fixed. See the [streaming evidence](evidence/agent-chat-m5.md#streaming-transcript-geometry-regression).
-
-Milestone 05 is in progress on `milestone-5-ui-extensions`. OCH-23 static native
-components pass local acceptance; OCH-24 has validated geometry, a bounded scene
-codec, native resource ownership and a tested OCaml/Rust upload bridge. The
-pure typed scene API, scoped Eio registration, bounded native geometry/job
-preparation and GPUI worker/mesh painting are implemented. Hidden-window macOS
-GPU tests pass for shapes, curves, clipping, pan/zoom, resizing and cleanup.
-Native interaction state now covers selection, drag previews/cancellation,
-position ownership, viewport policies and commands; GPU checks validate its
-effective transforms through direct state calls. Bounded native text/raster/SVG
-painting now passes GPU clipping, zoom, retired-source and deferred-work checks.
-The typed canvas view, owner-aware reconciliation, bounded native tree admission
-and revision-checked event bridge now have local regression coverage. Mounted
-retained-tree GPU rendering passes publication, hide/show, command retention,
-preparation failure/recovery, generation reset and repeated disposal checks.
-Native-dispatch input checks now pass focus, drag/selection pixels, keyboard,
-pan/zoom, wheel coalescing and cancellation, including actual window deactivation.
-Native macOS object accessibility now passes label/selection/focus, separate
-activation, transformed bounds, offscreen reveal, disabled/hide/removal checks.
-The public OCaml Canvas Lab passes command/update/reset lifecycle checks with
-184 and 19,024 items, plus external macOS AX/keyboard interaction checks.
-The maximum mounted workload also passes with 20,000 marks, 2,048 interactive
-objects, 4,096 accessibility nodes and zero retained accounting after each of
-three update/resize/disposal cycles. Local canvas acceptance is complete and the
-full canvas capability is advertised; consolidated hosted gates remain pending. See the
-[extension](evidence/extensions-och23.md) and [canvas](evidence/canvas-och24.md)
-evidence for exact completed scope. Its scope includes OCH-23–26 and OCH-33–39, followed by
-[OCH-46](https://linear.app/ochat/issue/OCH-46/showcase-milestone-05-features-in-the-polished-agent-chat-reference):
-showcase the completed feature families in the polished agent-chat application.
-OCH-46 is part of milestone completion and covers feature mapping, interactive
-flows, light/dark and responsive-layout polish, accessibility, reduced motion,
-streaming/performance regression checks and updated screenshots/documentation.
-Its [component coverage and flow plan](design/agent-chat-m5-showcase.md) is
-versioned; its unimplemented rows and combined acceptance remain required work.
-OCH-25 now has validated public spring parameters, an independent OCaml/Rust
-parameter fixture and a tested analytic native spring trajectory. Typed programs,
-a bounded codec and compiled finite sequence timelines also pass local tests.
-The retained owner and bounded shared-clock registry now pass deterministic
-lifetime, playback, phase and stale-paint tests. Atomic session admission and
-compiled-storage quotas, GPUI rendering, and `View.animate_program` with bounded
-stage-event batches are wired. Public Bonsai/Eio and expanded native macOS checks pass, including retained-list
-and hidden-panel timing, deferred overlays, two-window clock lifetimes, spring
-retarget controls and a 1,024-visible-owner workload with input and complete disposal.
-The advanced-program capability is now advertised; hosted gates remain pending. See
-[advanced animation evidence](evidence/animation-programs-och25.md) and
-[design](design/animation-programs.md).
-OCH-26 now connects typed container rules through retained views, bounded
-selection events and native assigned-size layout. Local macOS checks pass resize
-selection, keyed identity, nested/dialog/virtualized queries, hidden motion,
-AppKit accessibility and IME isolation, pointer cancellation, fractional/scale
-boundaries, observer/config lifetimes and a 256-query workload. The public
-Bonsai/Eio example verifies retained editors and lifecycle behavior. Container
-queries are advertised and final local capability checks pass. Consolidated
-hosted macOS/Linux gates and merge remain pending.
-See [container query design](design/container-queries.md) and
-[acceptance evidence](evidence/container-queries-och26.md).
-OCH-33 now implements bounded semantic metadata, native form associations and
-stateless presentation/card helpers with public Core/Bonsai/Eio usage. Local
-OCaml/Rust tests and macOS editor/AX/keyboard checks pass, including metadata
-updates during IME composition and corrected light/dark card layouts. Avatar
-image/fallback now passes actual GPU/AX, source lifetime, SVG resize recovery,
-synthetic density and idle checks, with a public example covering ready/failure/
-initials. Rating now provides controlled request reduction, native hover/stars,
-keyboard and AX slider actions with read-only/disabled and modal/pointer policies.
-Local acceptance passes, including 228 constrained-content combinations. The
-presentation capability is enabled; consolidated hosted gates and merge remain. Native skeleton/shimmer/
-spinner leaves now pass local reduced/static/ancestor-hidden idle, resume,
-accessibility and disposal checks; the public example exercises all three.
-See [presentation evidence](evidence/presentation-components-och33.md) and
-the [Component Studio example](../examples/presentation/README.md).
-OCH-34 has begun with validated shared numeric domains, min-anchored stepping,
-and draft classification, with independent OCaml/Rust fixtures and boundary tests.
-Slider contracts, bounded codec and native interaction state now pass local
-checks. Retained slider views, tree admission and observation routing are implemented;
-native single/range rendering and initial macOS pointer/keyboard/AX checks now pass.
-Correlated commands and the public Bonsai/Eio slider controller/example pass local integration.
-Slider foreground/focus styling now passes local GPU pixel checks for both axes,
-light/dark palettes, display densities and constrained layouts. The public example
-shows single/range and linear/logarithmic modes, all now exercised by external
-macOS keyboard/AX automation. Decorated pointer geometry, capture loss,
-minimize/restore and independent-window/close lifetimes also pass locally.
-A three-cycle, 1,024-owner native workload passes bounded event/coalescing, idle
-and owner-disposal checks; debug timing and batching limits are documented.
-Number_input Core/wire contracts and bounded native codecs now cover draft/value
-separation, historical domains, UTF-8 selection/IME ranges and guarded commands;
-independent cross-language fixtures and semantic validation tests pass locally.
-The native numeric policy model now validates commit/cancel/step, pending-edit
-guards, composition/configuration preservation and revision/fault behavior with
-deterministic state tests. Its callbacks now connect to one native InputState.
-Retained numeric view descriptions, strict tree admission, owner/revision event
-routing and byte-accounted change coalescing now pass local bridge tests.
-Mounted numeric editing, basic step buttons, correlated commands and the Eio
-controller are implemented. Initial macOS native checks pass keyboard commit/
-cancel/step, clipboard, undo/redo, revision guards, retained configuration, marked
-text composition and disposal. Native step-button hold-repeat now passes local
-Sides/Stacked, cancellation, real window deactivation and idle-task disposal
-checks. Actual AppKit numeric/text values, focus/edit/step/button actions in all
-three stepper layouts, draft feedback, application metadata and IME/read-only/
-disabled/hidden policies now pass locally. The public numeric example now passes
-three-layout command/event, draft/history/selection, revision/lease/policy and
-remount/close integration checks. Numeric GPU light/dark, density, focus and
-constrained-layout checks now pass, with a stacked-button overflow fixed. External
-macOS AX/OS keyboard tests also pass through the public example. Retained IME and
-history through configuration changes, hidden/modal gates, independent-window
-close during a held repeat, and three 256-editor workload/disposal cycles now pass.
-OCH-34 local acceptance is complete for sliders, numeric editors/steppers and OTP.
-OTP now has public Core/Bonsai/Eio controllers, bounded paired codecs, retained
-native editing and correlated commands. Native key/clipboard/NSTextInputClient,
-AppKit value/action/masking, public OS keyboard/AX, GPU light/dark/density/preedit,
-managed-list pins, hidden/modal/capture cleanup and independent-window lifetimes
-pass locally. Three 256-owner workloads verify bounded history/coalescing, idle
-behavior and complete disposal. Capability `34359738368` advertises the family
-(current aggregate `2199023255551`). Consolidated hosted gates and merge remain pending.
-See [OTP contracts](design/otp-inputs.md).
-See [numeric design](design/numeric-inputs.md) and
-[foundation evidence](evidence/numeric-inputs-och34.md).
-OCH-35 now has tested civil-date/month/selection/constraint models, typed locale
-configuration, commands/observations, bounded paired codecs and a native calendar
-policy owner. Partial ranges, historical selection validity, focus callback
-failure and revision exhaustion have model coverage. Gregorian-cycle, daily
-reference, malformed-wire and maximum-config checks pass locally. Retained calendar
-views, bounded tree admission, seed/history semantics, revision-checked event routes
-and atomic completion mailbox admission now pass paired-codec/Core/native tests.
-The mounted GPUI calendar now passes initial macOS day/month/year keyboard/pointer,
-single/range event ordering, retained historical state, hidden/read-only/disabled
-focus, pair-overload and disposal checks. Four initial light/dark GPU readbacks were
-visually reviewed. Public correlated controllers now pass local real-window checks
-for commands, revision/lease guards, admission limits, policy changes and close
-ordering. Hidden focus cleanup now reports actual platform focus. A public popup
-picker now separates application values from native drafts, with explicit
-Apply/Cancel, revision/session guards and external-value invalidation. Local
-macOS AX/OS-input checks cover popup selection, dismissal and focus behavior.
-Inline AppKit values/cursor/selection and OS keyboard/Tab navigation also pass,
-with native civil endpoints, leap clamping and locale retention checks. Calendar
-rendering now passes 192 GPU theme/density/font/constrained-layout cases; long
-labels use ellipses and caller font overrides are honored. Native modal/pointer
-gates, managed-row pins, independent windows and three 64-owner idle/disposal
-cycles also pass locally. Single/range popup mode changes, nested-dialog dismissal/
-focus, actual panel bounds and right-edge placement also pass. OCH-35 local
-acceptance is complete; capability `68719476736` is advertised (aggregate
-`2199023255551`). Consolidated hosted gates and merge remain pending.
-See [calendar design](design/calendar.md) and [model evidence](evidence/calendar-och35.md).
-OCH-36 now has concrete Core/Rust RGBA/HSLA conversion and bounded hex-draft
-models, separate from theme references. The pure native policy now tests
-preview/commit/cancel, draft/composition handling, hue memory, guarded Set/Reset,
-stale callbacks, configuration history and revision/fault lifetimes. Core control
-contracts and bounded standalone Rust/OCaml codecs now pass independent byte
-fixtures and malformed/maximum-payload checks. Retained descriptions, tree seed/
-history semantics, revision-checked routing and atomic bounded event batches now
-pass local bridge tests. Initial mounted channel/palette checks now pass native
-keyboard/Tab, pointer preview/commit/Escape, configuration-during-drag, disabled
-isolation and disposal. Native Hex/HSLA text fields now pass draft/commit/cancel,
-composition, history/configuration preservation, bounded storage and child
-disposal checks, including actual AppKit marked-text/insertion delegates. Runtime
-controllers and a public Color Studio example now pass real-window correlated
-command, revision/lease, policy, request-limit, remount and close checks. Popup
-selection now passes public session/policy/Apply/Cancel integration and actual
-macOS AX/OS keyboard, dismissal, focus restoration, nested-dialog and clamped
-placement checks. OCH-36 local acceptance is complete: GPU checks cover 64
-light/dark/density/font/constrained-layout cases and transparent/opaque/empty
-swatches; native tests cover composition/managed-row pins, hidden/modal/pointer
-gates, independent-window deactivation/close and three 64-owner/320-editor
-workload/disposal cycles. A short-height clipping bug was fixed and channel
-fields now use available width without rounding native values. Color capability
-`137438953472` is advertised (aggregate `2199023255551`). Consolidated hosted
-macOS/Linux gates and merge remain pending. See [color design](design/color-inputs.md)
-and [foundation evidence](evidence/color-inputs-och36.md).
-No milestone-05 completion or hosted acceptance is claimed yet.
-
-The [milestone acceptance ledger](evidence/milestones-01-02.md) maps every ticket
-to its implementation and evidence. The first consolidated hosted run passed all
-macOS checks and Linux build/unit tests; one Linux-only native-test lint issue was
-corrected for final-head verification. Linux GUI remains informational. See
-[theme/scale review](evidence/theme-scale-och11.md) and
-[animation contracts](design/animations.md). Checkpoints below describe the state
-at the time and preserve earlier validation findings.
-
-Repository: `dakotamurphyucf/gpuio`, public, Apache-2.0, default branch `main`.
-These settings were selected by the owner on 2026-09-11.
-
-Platform priority updated by the owner on 2026-09-11: macOS is the primary
-functional acceptance platform during implementation. Linux builds/unit tests
-remain required, but graphical checks are informational and full Linux GUI
-validation is deferred to OCH-17. Linux remains an intended platform. Earlier
-design documents requiring native GUI acceptance on both OSes before advancing
-are superseded by this priority; native GUI coverage must still be reported honestly.
-
-- OCH-18 complete: remote scaffold, standards/design import and fresh-clone checks.
-- OCH-19 complete: pinned OCaml/Rust closure, reconstructed
-  native Bonsai sources and patches, codec/lifecycle checks.
-- OCH-20 complete: isolated bootstrap and contributor tools.
-- OCH-21 complete: source-built Dune/Cargo smoke app and
-  two-window native identity/lifetime scenario.
-- OCH-22 complete: required builds/tests, macOS native checks, informational Linux
-  graphical checks, retained evidence and protected main branch.
-- OCH-6 setup gate complete, merged in PR #1 at `81f6b581c784d448a8948d4cb55e73af9db4b86c`.
-- OCH-7 complete, merged in PR #2 at `e6471b4ec88e6847f950da30576b6d2a6639d930`.
-  CI run34650637422 passed on both OSes, including production 50-revision/
-  two-window/rollback/panic smoke on macOS, X11 and Wayland.
-- OCH-8 complete, merged in PR #3 at `8f7fd9f357a0b8df3e9dfe31c2a7217925c8846d`: typed views/styles/themes, keyed reconciliation, pure Bonsai
-  adapter, native button/selection behavior and GPUIX style mapping. Local macOS
-  tests and both required CI jobs passed in run 34654290650. X11 passed all GUI
-  checks; Wayland passed the typed bridge but failed the new hover-reset test.
-  That informational limitation remains tracked in OCH-17.
-- OCH-9 public Bonsai/Eio runtime merged in PR #4 at
-  `02558d8d393c49e5e159812394dd9061820c39fc`. Both required CI jobs passed in
-  run 34740866262, including all macOS runtime/measurement scenarios. Linux GUI
-  exposed a default quit-policy difference, fixed in PR #5 at
-  `88cc9287db49cd27c0b78a6f19eea17fc4c1069e`. Final run 34741216419 passed both
-  required jobs and all OCH-9 scenarios on macOS, X11 and Wayland. X11 passed
-  the full GUI suite; the existing Wayland hover-reset issue remains under OCH-17. See [runtime](design/runtime.md) and [measurements](evidence/runtime-och9.md).
-
-## Local evidence
-
-macOS arm64, stock OCaml 5.3.0, Dune 3.24.2, Rust 1.97.1. The separate
-`.opam-root/gpuio` was created from the pinned opam repository; the existing Ochat
-switch and default toolchain selections were not modified.
-
-- Core/PPX expect tests and native Bonsai lifecycle tests pass, including
-  optimized/unoptimized graphs, unchanged views, keyed retention, cleanup and a
-  dedicated OCaml domain.
-- The OCaml and Rust codec checks independently construct, encode and decode the
-  same 96-byte fixture with full byte consumption.
-- The actual GPUI window self-test passes: 50 checked commits, 1525 command bytes,
-  native input-handler probes, stale event rejection, Rust panic containment,
-  balanced 23/23 row activation/deactivation, Eio cancellation and clean shutdown.
-- Two actual windows pass distinct identity, independent editor state, stale
-  window rejection and continued use of the surviving window after closing the
-  first. Both close and return through the FFI.
-- First-party Rust passes Clippy with warnings denied. GPUI's transitive `block`
-  0.1.6 reports a future-compatibility notice; it does not fail the pinned build.
-
-`docs/evidence/macos-arm64-packages.txt` is the actual isolated package inventory.
-Historical research documentation is preserved under `docs/design` and is not
-an assertion of current production API functionality.
-
-## Hosted evidence and remaining platform validation
-
-PR run [34646959232](https://github.com/dakotamurphyucf/gpuio/actions/runs/34646959232)
-passed on macOS ARM64 and Ubuntu 24.04 x86-64. The informational Linux GUI report
-also records X11 and Wayland success: both asserted the intended backend and
-passed the 50-commit native/lifecycle/input-handler example and two-window
-identity/cleanup scenario. X11 used Xvfb/Openbox; Wayland used nested Weston;
-Mesa software Vulkan supplied rendering. This is actual backend window coverage,
-distinct from the earlier accidental headless X11 attempt. Both pinned language servers have passed hover and
-go-to-definition checks; evidence is in `docs/evidence/*-lsp-navigation.json`.
-Main requires PRs and both `foundation (macos-15)` and `foundation (ubuntu-24.04)`
-checks with an up-to-date branch. Force pushes and branch deletion are disabled.
-Linux GUI outcomes remain informational and do not alter this development gate.
-No full OS IME automation, accessibility or production multi-window Bonsai API is
-claimed by the bootstrap smoke tests. Those remain in their owning v1 tickets.
-
-## Typed API validation (OCH-8)
-
-The pure API tests cover callback-only refresh, keyed reorder/replacement, invalid
-plans, theme changes, style composition/reset and bounded incremental output.
-OCaml and Rust independently agree on every expanded style tag in `style-v1.hex`.
-Native tests validate malformed styles, rollback and nested memory accounting.
-The actual macOS window test passes grid bounds, hover/pressed/focus, Enter/Space,
-Tab/Shift-Tab, pointer policy, Unicode select/copy, replacement and inherited reset.
-The public OCaml example passes 20 acknowledged native commits and theme changes.
-The [typed API contract](design/typed-ui.md) records all GPUIX style mappings and
-functional limits. Linux graphical execution remains informational under OCH-17.
-
-## Milestone 02
-
-OCH-10 implements native input/composer ownership, stable Bonsai/Eio controllers,
-revisioned commands, native composition and grapheme editing, undo/redo selection,
-auto-grow and basic accessibility. [PR #6](https://github.com/dakotamurphyucf/gpuio/pull/6)
-and [its evidence report](evidence/native-editor-och10.md) record implementation
-and platform validation. Hosted run 34745383026 passed Linux build/tests/lint and
-macOS editor/input/accessibility checks. X11 passed the complete GUI suite;
-Wayland passed public editor commands but its clipboard-based native test failed
-before insertion, tracked in OCH-17. These checks do not claim physical IME
-candidate-panel or complete screen-reader coverage.
-
-Current OCH-11 summary: the controls/commands/focus/overlays, pointer capture,
-file-dialog bridge and drag/drop behaviors below are implemented and validated
-locally. Drag/drop includes actual AppKit handoff/reentry/cancel/unmount and held-
-gesture close/shutdown checks. Raster/SVG assets, bounded caches and foreground-tinted icons now pass local
-integration checks. Decorative button/command-button icon slots also pass local
-checks. Nested transcript/code/composer/popup/modal scrolling and scroll-owner
-disposal also pass local native checks. Remaining work includes theme/scale and
-native-state audit, basic transitions and aggregate lifetime review. Consolidated macOS/Linux CI and merge
-remain. The chronological checkpoints below distinguish earlier partial states
-from later validation; they do not all describe the latest remaining scope.
-
-OCH-11 is in progress: controlled checkboxes/switches and disabled buttons merged
-in PR #7 (`0ef2c7dc5b71235c090d4dc6373f505db69624e5`); CI 34747606484 passed both
-required jobs and control windows on macOS, X11 and Wayland. The existing Wayland
-editor clipboard limitation remains under OCH-17. Radio groups in PR #8 pass
-both required jobs in CI34748629291, including actual control windows on macOS,
-X11 and Wayland. PR #8 merged as `5448842ffd9bff9e249071698a294a3afc3ffb42`.
-Select PR #9 merged as `8a9167cf227a290f967452c051f0b4c7dde19461` after both required
-jobs in CI34750240273 passed. Its adapter adds native popup navigation/cancellation, current-frame
-positioning and virtualized options. Local macOS window/accessibility checks,
-4096-option navigation, OCaml/Rust tests, full build/format and Clippy passed.
-Choice appearance adds theme-aware popup/option/empty styles, configurable uniform
-row geometry and localized empty text while retaining native focus/open state.
-Local tests validate these changes; general overlay integration remains OCH-11 work. [Native controls](design/native-controls.md) records these families
-and the remaining ticket scope. OCH-12's declarative animation configuration and
-timing core and view/bridge/native integration now pass local tests; application
-motion policy and platform preference detection remain pending.
-Combobox is implemented on the local OCH-11 branch with native editor ownership,
-query filtering, exact selection snapshots, the editable accessibility role and
-shared popup appearance/virtualization. Local native control tests pass including
-macOS marked/committed text. The public controller smoke passes conditional
-replacement, stale revisions, undo and unmount; existing two-window editor commands
-also pass after sharing the controller implementation. OCaml/Rust tests and Clippy
-pass locally. Full build/format validation is recorded with the local change.
-Per owner instruction, remaining OCH-11 work stays local until the complete ticket
-is ready for a consolidated CI pass. No Combobox hosted acceptance is claimed.
-The broader component catalog is planned in OCH-33–45; vendoring GPUI Base does
-not expose all of those widgets through the OCaml API.
-
-Focus scopes are also implemented locally for OCH-11: native Tab trapping, nested
-entry/restoration, hidden/disabled traversal, empty-root fallback, command and
-accessibility gating, and bounded cleanup pass actual macOS control-window tests.
-The other remaining OCH-11 families are still in progress.
-No hosted acceptance is claimed for this local scope implementation.
-
-Dialog/Popover surfaces are implemented locally with application-controlled
-content lifetime, typed dismissal, native stacking/placement and accessibility
-semantics. Local macOS tests pass nested dialogs, restoration, choice-popup
-interaction beyond panel bounds, marked-text Escape and moving anchors. The
-public Bonsai/Eio overlay example passes native mount, editor commands, modal
-focus denial, stale unmount and close. OCaml/Rust tests, independent fixtures,
-full build/format and Clippy pass locally. No hosted acceptance is claimed;
-tooltips/menus/commands and the rest of OCH-11 remain in progress.
-
-Anchored placement is implemented locally: popovers accept preferred side,
-start/center/end alignment and signed offset, with current-frame edge flipping
-and viewport clamping. Local native checks retain focus while changing placement
-and moving the anchor; positioning/validation unit tests and independent protocol
-fixtures pass. The extension appends a new operation without changing earlier
-overlay records.
-
-Tooltips are implemented locally with managed or application-controlled visibility,
-retained arbitrary content, delayed hover, shared grace timing and keyboard
-opening/dismissal. Hidden content preserves native editor identity while denying
-focus and deactivating nested traps. Local macOS tests pass hover cancellation,
-interactive content, tooltip/popover hit routing, accessibility exposure and
-bounded timer/subscription disposal. The public Bonsai/Eio example passes retained
-editor commands, controlled visibility, stale unmount and shutdown. Independent
-protocol fixtures, OCaml/Rust tests, full build/format and Clippy pass locally.
-No hosted or full Linux GUI acceptance is claimed for this local checkpoint;
-menus/commands, feedback, pointer/desktop interactions and assets remain OCH-11 work.
-
-Shared command registries, command buttons and single-chord shortcuts are
-implemented locally. Native macOS tests pass scoped dispatch, native editing targets,
-keyboard/IME priority and two-window isolation, including closing one window and
-continuing in the other. Independent OCaml/Rust protocol fixtures pass. The public
-Bonsai/Eio example, full OCaml build/tests/format, Rust workspace tests and
-Clippy pass locally. Menu adapters are being validated locally as described below;
-the command palette and other OCH-11 requirements remain In Progress.
-
-
-Menus are implemented on the local OCH-11 branch: immutable command-reference
-models, dropdown/context/in-window/platform presentations, virtualized cascading
-popups and active-window macOS menu ownership. Targeted macOS native tests pass
-actual NSMenu and accessibility activation, right-click Copy/focus restoration,
-1000-entry wheel/keyboard navigation, popover integration, focused command scopes,
-hidden/stale actions and menu restoration after closing a second window. The
-activation test found and fixed menu ownership refresh when returning to an
-unchanged surviving window. Hidden triggers now close detached popup state and
-release focus. The combined native controls suite, public Bonsai/Eio example,
-Rust workspace tests and Clippy pass locally; the [menu evidence report](evidence/native-menus-och11.md)
-records coverage and limitations. No hosted or Linux GUI acceptance is claimed.
-
-
-The command palette is implemented on the local OCH-11 branch: ordered command
-references, native query/composition/history, virtualized results, shared command
-execution, modal focus and accessible activation. Local macOS tests pass a
-1000-command list, current-query/current-generation routing, native document Copy,
-hidden/nested-modal restoration and query disposal. Visibility-driven dismissal
-now runs before paint can discard focus ancestry. Full OCaml build/tests/format,
-Rust workspace tests, Clippy and the public Bonsai/Eio example pass locally. The
-[palette evidence report](evidence/native-palette-och11.md) records the checks and
-an unresolved intermittent tooltip-hover failure seen in an earlier combined run;
-the subsequent combined controls run passed. OCH-11 remains In Progress, with no
-hosted or Linux GUI acceptance claimed for this checkpoint.
-
-
-Progress indicators are implemented locally for OCH-11 with validated fractions,
-explicit indeterminate state, native animation, percentage accessibility and the
-existing root-style/theme API. Actual macOS tests pass painted dimensions/colors,
-noninteractive focus, animation without OCaml commits, and hidden/determinate/
-unmount cleanup. The public Bonsai/Eio example, combined controls suite, full
-OCaml build/tests/format, Rust workspace tests and Clippy pass locally. The
-[progress evidence report](evidence/native-progress-och11.md) records the scope;
-in-app notifications are described below and OCH-12 still owns general motion
-and reduced-motion integration. No hosted or Linux GUI acceptance is claimed.
-
-
-In-app notifications are implemented on the local OCH-11 branch with keyed
-terminal sessions, bounded stacks, explicit overflow, native active-time deadlines
-and hover/focus/hidden/modal pause. Local macOS tests pass close/accessibility/
-keyboard actions, native editor Escape priority, ordinary action content, expiry
-without OCaml commits and unmount cancellation. The public Bonsai/Eio example
-passes native dismissal delivery and keyed removal. Independent protocol fixtures,
-OCaml expect tests, Rust workspace tests and the combined native controls suite
-pass locally. The [notification evidence report](evidence/native-toasts-och11.md)
-records exact coverage and remaining validation. No hosted or Linux GUI acceptance
-is claimed. OCH-11 still includes pointer capture/drag-drop/file dialogs, assets/
-images/SVG/cache and theme-scale integration, remaining state/transition work,
-scrolling/lifetime checks, documentation and consolidated CI/merge.
-
-Captured pointer regions are implemented locally for OCH-11. Real macOS native
-tests pass out-of-bounds movement, redraw/reposition retention, cancellation,
-modal gating, nested ownership, native child-control precedence and pressed
-styling. The combined controls suite passes after final release-order review;
-Clippy and the full Dune build/tests/format also pass. Independent protocol/Core
-tests cover validation, callback lifetimes and motion coalescing. The public
-Bonsai/Eio resize example passes its lifecycle self-test. See the
-[pointer evidence report](evidence/native-pointer-och11.md) for precise coverage.
-Pointer capture remains distinct from drag/drop and file dialogs, which are still
-pending alongside assets/images/SVG/cache, theme-scale integration, remaining
-state/transitions, scrolling/lifetime checks and consolidated CI/merge. No hosted
-or Linux GUI acceptance is claimed for this checkpoint.
-
-File-dialog implementation has started with pure OCaml/Rust path and open/save
-configuration models. Focused Core expect tests, Rust protocol tests and Clippy
-pass, including exact non-UTF-8 path bytes, filename validation and selection
-limits. These constructors do not present dialogs. The
-[file-dialog design](design/file-dialogs.md) records the
-contracts, pinned-source findings and remaining acceptance work.
-
-The macOS Rust file-panel adapter now passes native sheet presentation, file and
-directory selection, exact save-path return without file creation, Busy,
-cancellation and owner disposal checks. Full Clippy, Rust workspace tests and
-Dune build/tests/format pass with its direct macOS dependencies. The
-[file-panel evidence](evidence/native-file-dialogs-och11.md) describes the actual
-AX-based test and its permission requirement. The bridge checkpoint below adds Runtime/Eio/Bonsai integration and application
-close cancellation. Capability reporting and Linux portal support remain pending;
-this is not a completed file-dialog feature or OCH-11 ticket.
-
-
-The OCH-11 file-dialog bridge now connects the OCaml configuration models to
-window-owned macOS panels through correlated Bonsai/Eio effects. Local native
-ownership tests and public close/shutdown tests pass; an end-to-end test selects
-the LICENSE file through real AppKit controls and reads it explicitly with Eio.
-Independent fixtures cover exact raw path bytes; result decoding and mailbox
-accounting enforce count/size bounds. See the updated
-[file-dialog evidence](evidence/native-file-dialogs-och11.md). Capability queries
-and the Linux portal backend remain pending (non-macOS currently returns
-Unsupported), so file dialogs and OCH-11 are not complete. No hosted CI or Linux
-GUI acceptance is claimed for this checkpoint.
-
-The Linux file-dialog protocol layer is now implemented in the new `gpuio-portal`
-workspace crate. Fourteen local D-Bus socket-peer tests pass for request/reply
-races, cancellation/cleanup, service identity/loss and bounded URI results. It
-reuses existing locked dependency versions. The crate is not yet connected to
-the native runtime: X11/Wayland parenting, cleanup barriers, capabilities and Linux
-validation remain pending. See the [portal design](design/linux-file-portal.md).
-No actual Linux portal GUI or completed OCH-11 support is claimed.
-
-The next local checkpoint connects the portal worker to X11 native requests.
-Window-close/shutdown cleanup now waits for background workers, including a
-response already being delivered. Quit cleanup runs before GPUI clears windows;
-ordinary lifecycle cleanup stays asynchronous. The shared ownership adapter's
-tests, full Rust/OCaml checks, actual macOS picker suite and public Bonsai/Eio
-close/selection/read regressions pass. See the updated
-[portal evidence](evidence/linux-file-portal-och11.md). Wayland exports, public
-capabilities and Linux build validation remain pending. OCH-11 stays In Progress.
-
-Wayland file-dialog parenting is now implemented locally with one shared guest
-registry per application display and separately owned surface exports. It uses
-GPUI's existing socket reader, bounded pending-export polling, cancellation and
-the native cleanup barrier. Full workspace Clippy/Rust and Dune checks pass on
-macOS; three new system-libwayland protocol tests compile but are explicitly
-ignored here and await Linux execution. Public capabilities and consolidated
-Linux/macOS CI remain pending. No Linux GUI or complete OCH-11 acceptance is
-claimed; see the [Wayland checkpoint evidence](evidence/linux-file-portal-och11.md).
-
-Public file-dialog capabilities are now implemented locally: a per-window typed
-snapshot reports single/multiple selection by mode and save support, with the
-same Not_ready/Busy/Closed lifecycle as pickers and no picker presentation.
-Local macOS native/public tests, independent OCaml/Rust fixtures, portal version/
-no-presentation tests, full build/format and Clippy pass. Existing real selection
-and Eio-read regressions pass after sharing the correlated query path. See the
-[file-dialog capability evidence](evidence/native-file-dialogs-och11.md). Linux
-build/unit verification (including three ignored-on-macOS Wayland tests), remaining
-OCH-11 feature families, consolidated CI and merge are still required.
-
-OCH-11 drag/drop now has validated OCaml/Rust payload, source and target models,
-plus bounded bin_prot codecs and independent byte fixtures. Text, raw Unix paths
-and opaque custom data retain distinct validation rules; desktop-file offering
-requires explicit directory metadata and native target acceptance uses an exact
-format allowlist. Full local workspace Clippy/Rust and Dune build/tests/format
-pass. These are data/configuration tests, with no native drag/drop interaction
-claimed yet. View/event/native ownership integration is next; see the
-[drag/drop design and remaining acceptance](design/drag-and-drop.md).
-
-The next OCH-11 drag/drop checkpoint integrates source/target views through
-reconciliation, protocol, native trees and Bonsai/Eio event routing. Local macOS
-native window-dispatch tests pass for nested acceptance, immutable gesture
-snapshots, cancellation/removal, raw incoming files, size limits and release of
-source/hover state. The public example's lifecycle test, independent operation/
-event fixtures, queue/ownership tests, full builds/format/Clippy and existing
-native pointer regressions pass. The bridge advertises drag/drop bit 1048576
-(required mask 2097151). See [integration evidence](evidence/drag-drop-och11.md).
-Actual OS file export/reentry, multi-window/focus/active-close checks and public
-gesture callback testing remain; this is not completed drag/drop or OCH-11
-acceptance. No hosted CI or Linux GUI acceptance is claimed.
-
-Actual AppKit mouse dragging now passes through the public Bonsai/Eio example:
-matching gesture identity/payload, accepted hover, result update, painted frame
-and clean shutdown. Expanded native checks pass focus-trap cancellation and
-second-window activation/recovery with late-release suppression. No production
-runtime patch was needed for the system-event test driver. Native Clippy, full
-Dune checks and the ordinary lifecycle example pass. See the updated
-[drag/drop evidence](evidence/drag-drop-och11.md). OS file export/reentry, live-close/
-shutdown and remaining OCH-11 families still require work; no hosted CI is claimed.
-
-Actual macOS file-session checks now pass through the public Bonsai/Eio API:
-second-window Desktop delivery with a distinct gesture ID and unknown metadata,
-source-window reentry restoring original identity/metadata, OS Escape without a
-drop, and source unmount suppressing late callbacks while the immutable OS offer
-remains receivable. The temporary source file remains unchanged. These are real
-AppKit sessions between child windows, not Finder/external-copy acknowledgement
-or Linux GUI coverage. See [drag/drop evidence](evidence/drag-drop-och11.md).
-Live-window close/shutdown while dragging and the aggregate lifetime review remain,
-as do the other OCH-11 families and consolidated CI/merge.
-
-Held-gesture close/shutdown validation now passes locally for both internal drags
-and OS-owned file sessions. AX confirms physical source-window removal; a surviving
-window paints after an explicit mouse-release handshake. App shutdown returns
-cleanly with no callbacks to disposed sources. The drag-specific ownership review
-found no reference cycle and records bounded snapshots/hover state separately from
-OS payload lifetime. Native Clippy, full Dune checks and transfer/unmount regressions
-pass. See [drag/drop evidence](evidence/drag-drop-och11.md). Remaining OCH-11 feature
-families and consolidated platform gates are unchanged; nothing has been pushed.
-
-Asset work has started with immutable OCaml/Rust source descriptors for the nine
-pinned GPUI format families. Constructors preserve opaque encoded bytes, enforce
-nonempty/16-MiB bounds and report format/length rather than dumping contents.
-Core expect tests, targeted Rust tests, protocol Clippy and full Dune build/tests/
-format pass. The [asset design](design/assets.md) records the required chunked
-transport under the existing 1-MiB envelope and the native ownership/cache plan.
-Registration, decoding and image/icon views are not implemented by this checkpoint;
-no asset capability is advertised yet.
-
-The native application session now owns a bounded encoded asset registry: ordered
-chunk staging, complete-data publication, generational IDs, retirement and terminal
-shutdown. Existing readers keep retired data valid and charged until they release
-it; retired handles cannot create new uses. Five registry tests and the session
-lifecycle test pass, along with the Rust workspace, native Clippy and full Dune
-checks. See [asset evidence](evidence/assets-och11.md). This registry is not yet
-connected to FFI upload commands or the OCaml runtime, and no image/icon rendering
-or new capability is claimed. Those integrations are the next OCH-11 work.
-
-Encoded assets now cross the FFI using bounded correlated Begin/Append/Finish/
-Release messages and reserved responses. Independent OCaml/Rust fixtures,
-mailbox-pressure tests, full Rust/Clippy and Dune checks pass locally. A windowless
-public Eio runtime example uploads >2 MiB and verifies release, stale IDs, invalid
-uploads, quota recovery and shutdown. The new capability 2097152 (aggregate
-4194303) advertises encoded registration only. Scoped public ownership, decoding,
-image/icon views and cache cleanup remain; see [asset evidence](evidence/assets-och11.md).
-
-Scoped encoded registration now uses `Gpuio_eio.Asset.register app ~scope source`.
-The adapter bounds queued source bytes/live metadata, suppresses cancelled user
-completions while accounting for late allocation replies, and reserves one request
-lane for upload/cleanup independent of raw traffic. The windowless native example
-passes public registration and scope retirement under saturated raw request lanes,
-with subsequent full-quota allocation proving reclamation. Deterministic scope tests
-exercise every upload cancellation boundary. Decoding and pure image/icon views are
-still pending; this is encoded ownership, not rendered-image acceptance.
-
-The native in-memory raster decoder now covers PNG/JPEG/WebP/GIF/BMP/TIFF/ICO/PNM,
-GPUI BGRA ordering, static EXIF orientation, GIF delays and complete-result failure
-on malformed frames. It checks dimensions and retained pixel/frame bounds. This
-helper is not yet scheduled from the host or exposed in views; SVG, aggregate
-worker/cache ownership and actual rendered-image acceptance remain pending.
-See [asset design](design/assets.md) for strict-output versus best-effort decoder
-allocation limits and [pixel-test evidence](evidence/assets-och11.md).
-
-The decoded-cache/work-ticket controller now reserves result output before native
-work dispatch, bounds live/queued/running/retired state, shares source decodes and
-keeps evicted pixels charged through their last reader. Worker/handle identities
-reject late or foreign results; mounted-owner disposal directly cancels work.
-Controller tests include an actual background-thread decode. The host does not
-yet schedule these tickets or perform per-window atlas evictions; SVG and image
-views are still pending. See [asset ownership design](design/assets.md).
-
-The production native host now initializes the image scheduler, launches admitted
-decodes on GPUI's background executor, refreshes windows, accounts for per-window
-image uploads and drains workers/atlas cleanup during shutdown. A local macOS test
-with focus disabled passes exact two-window GPU readback and verifies eviction by
-forcing a same-ID diagnostic reupload with different pixels. It also passes close,
-replacement and two-outstanding-job shutdown checks. The optional native-image-tests
-feature/CI target adds test-only readback support; no hosted run or Linux GPU result
-is claimed. Public OCaml image/icon views and SVG remain pending; see the
-[asset evidence](evidence/assets-och11.md).
-
-Declarative raster image views now work through the public scoped Asset/Bonsai/Eio
-path, with immutable application-specific handles, fit/description configuration,
-loading/ready/failure observations and native mounted leases. Pure owner/protocol/
-reconciliation tests, native tree validation, full Dune/Rust workspace checks and
-feature-enabled Clippy pass locally. A background macOS production-view test passes
-exact GPU pixels, retirement/restyle/replacement/disposal and AXImage label checks;
-the public example separately passes actual FFI event integration. See
-[asset design](design/assets.md) and [asset evidence](evidence/assets-och11.md).
-SVG/icons and the remaining OCH-11 families are still pending. CI definitions are
-updated, but hosted/Linux gates and merge remain deferred until local scope is done.
-
-
-SVG/icon rendering now passes local native GPU and public OCaml tests. SVG views
-preserve color; icons tint the alpha mask with inherited foreground. Native resize
-and hover select new size/density/fit/tint variants without an OCaml transaction,
-including after registration retirement. The background production-view test passes
-actual color/resize/tint pixels and immediate weak-binding cleanup; it uses synthetic
-GPUI hover dispatch and does not claim physical monitor-scale changes. Decoder/cache
-and cross-language Icon fixtures, full Rust workspace and Dune checks pass. Public
-raster/SVG/icon example modes all pass lifecycle and FFI state integration. See
-[SVG evidence](evidence/assets-och11.md#svgicon-integration--local-macos-continuation).
-Remaining image clipping/composition and the other OCH-11 acceptance/gates remain.
-
-
-Image corner propagation now passes an actual native regression: asymmetric raster
-corners and changing icon hover radii clip the pixels while preserving center color,
-image lifetime and AXImage semantics. See [clipping evidence](evidence/assets-och11.md#native-image-corner-clipping).
-Icon/control composition and the remaining OCH-11 acceptance/gates are still pending.
-
-
-Decorative leading/trailing button icons and labelled icon-only buttons now compose
-with existing native activation/focus/accessibility. Core identity tests, native atomic
-slot validation, actual GPU/AXButton and synthetic GPUI input/command-label checks pass.
-Public raster/SVG/icon example modes pass with the new button compositions. See
-[button icon evidence](evidence/button-icons-och11.md). OCH-11 remains in progress;
-remaining theme/state/transitions, scrolling/lifetimes and consolidated gates remain
-at that checkpoint.
-
-Nested container scrolling now passes local native acceptance for transcript,
-horizontal code, composer, Select popup and modal shielding. Same-node offsets
-survive updates, wheel input leaves the tree revision unchanged, and removed
-scroll owners dispose immediately. Native image/button and pointer regressions pass;
-see [scrolling evidence](evidence/scrolling-och11.md). OCH-11 still needs the remaining
-theme/state audit, basic transitions shared with OCH-12, aggregate lifetime review
-and consolidated macOS/Linux gates and merge.
-
-Native command routes now share immutable registry entries instead of cloning
-label/shortcut payloads per button/menu/palette route. A 1,024-route lifetime test
-checks sharing, stale-generation rejection and final-owner disposal; the full
-native controls and image/button suites pass locally. See
-[command lifetime evidence](evidence/command-lifetimes-och11.md). This closes the
-identified command-payload duplication concern; remaining OCH-11 scope and hosted
-gates are still pending.
-
-OCH-12 now has validated OCaml animation configuration and a deterministic Rust
-timing core. Tests cover delayed starts, paint-confirmed completion, interruption,
-repetition, hidden/reduced-motion state and prepared-frame invalidation. The numeric
-configuration has an independent OCaml/Rust binary fixture. No animation capability
-is advertised: View/reconciliation/transport, GPUI scheduling, platform motion
-preferences and actual native acceptance still need implementation. See
-[animation design and current evidence](design/animations.md).
-
-The OCH-12 view/bridge/rendering pipeline now passes local native and public checks.
-`View.animate` retains node/run identity, delivers typed endpoints, and applies
-Rust-computed values to GPUI. Actual native tests cover sidebar geometry without
-inner reflow, interruption, native repetition, whole-window idle/hidden/reduced
-behavior and delayed-task disposal. The public Bonsai/Eio example passes endpoints,
-theme change and shutdown. Platform preference detection, application policy,
-final capability advertisement and consolidated gates/merge remain pending; see
-[animation design](design/animations.md).
-
-Shared motion preferences now work through `App.run ~motion` and `App.set_motion`.
-macOS uses a live NSWorkspace observer; Linux has an event-driven XDG Settings
-adapter with bounded calls and documented unavailable-setting fallback. The native
-macOS animation suite passes policy changes and a real notification/disposal check;
-the public example passes immediate settling of a long animation under Reduce.
-Portal protocol tests pass using a private mock connection on macOS. Final
-capability/acceptance, hosted macOS/Linux gates and merge remain pending; see
-[animation policy](design/animations.md#application-motion-preferences).
-
-Consolidated local milestone 02 acceptance (2026-09-24): full Rust workspace,
-Dune `@all @runtest @fmt`, and all-target feature-enabled Clippy pass. Native
-animation, controls, progress, image/scale, drag/drop and AppKit file-dialog suites
-pass. Public animation, drag/drop and file-dialog lifecycle examples pass with the
-final capability mask. The animation test now activates its window: controlled
-activation proved that a fully occluded background window was waiting for its
-first frame. This change affects test reliability, not production window policy.
-Hosted macOS/Linux validation and merge remain pending.
+Current handoff: 2026-10-08. Milestone
+**07 — Expanded v1 macOS validation and release** is active. **OCH-41 and OCH-17
+remain In Progress.** OCH-48 example walkthrough acceptance is complete.
+The owner’s 2026-10-08 direction makes the next delivery a **developer preview**
+for real-user feedback. Broader qualification and signed-app distribution move
+to [OCH-164](https://linear.app/ochat/issue/OCH-164); see the closeout checklist.
+This page records current work; it does not certify release readiness.
+
+Start with the [milestone 07 closeout checklist](milestone-07-closeout.md) for
+the remaining work, dependencies, execution order and rules for reusing evidence.
+The detailed entries below are historical and scoped evidence, not a queue of
+new tasks to repeat.
+
+<a id="scope-and-platform-policy"></a>
+
+Earlier local repair: flow-layout document plugins now exclude controls clipped
+by their own scroll viewports from keyboard traversal. A failing regression and
+Comfortable/Large native walkthroughs verify the fix; see
+[focus-clipping evidence](evidence/document-profile-flow-focus-och17.md).
+Hosted validation of this batch remains pending.
+
+## Scope and working rules
+
+[Platform policy](platform-release-policy.md): the current preview checklist
+supersedes the earlier stable-release gate assignments. Linux build, unit,
+private-D-Bus and independent-consumer checks remain required. X11/Wayland GUI
+smoke is informational; full desktop qualification is OCH-47 in deferred **07b**
+and does not block milestone 07, milestone 08 or feature work. No VM is required.
+
+Use the isolated stock OCaml 5.3/Bonsai v0.17/Core/Eio toolchain. Follow
+[CONTRIBUTING](../CONTRIBUTING.md), [engineering standards](design/engineering-standards.md)
+and [development](development.md); do not mutate unrelated switches. Keep personal,
+per-ticket recovery notes under ignored `scratch/agents/<session>/`.
+
+Local foreground GUI/focus/IME testing is authorized; prefer background windows
+when appropriate. VoiceOver testing, configuration and automation are authorized
+again by the owner's 2026-10-05 revision; restore temporary settings afterward.
+Older records of a VoiceOver hold no longer apply. Filesystem/network access was
+restored on 2026-10-08; GitHub reads and Linear updates have been verified again.
+The preview remains unpublished pending final candidate checks and delivery.
+
+<a id="current-implementation-and-evidence"></a>
+
+## Latest delivered behavior and validation
+
+The [preview coverage reconciliation](catalog/preview-coverage.md) closes C1:
+41 required families and five accepted additions have public example routes and
+scoped behavior evidence. No new missing-family implementation blocker was found.
+The [list comparison](evidence/preview-list-comparison-och17.md),
+[scroll assessment](evidence/preview-scroll-assessment-och17.md) and
+[streaming/resource impact review](evidence/preview-performance-impact-och17.md)
+close P1/P2 for the focused preview: three full current list trials, measured
+instrumentation cost, and targeted checks supporting reuse of earlier full
+streaming/resource evidence. The original transient visual report remains a
+follow-up without an original-cause/fix claim. The source notice/artifact and installation handoffs are now complete for the
+preview; final candidate integration/publication remain open.
+
+Foundation `37805065605` is terminal: Linux and the fresh macOS extracted-app
+receiver pass; the macOS foundation's only failed steps are its two Metal timing
+probes. The [new classifier](evidence/hosted-metal-preview-och17.md) distinguishes
+complete all-zero clocks from failures and cross-checks the independent probes.
+Portable tests and Swift compilation pass; local mixed/invalid-clock cases are
+correctly rejected and retained. Run `37825342234` is terminal: Linux and fresh
+macOS extracted apps pass; macOS Foundation fails only the dates/colors final
+composer-draft assertion. Both hosted timing probes agree on unavailable timing;
+their gate passes without claiming presentation qualification. The
+[draft-observation follow-up](evidence/chat-draft-observation-och17.md) adds exact
+asynchronous-value checks and passes locally and in terminal run `37848090787`.
+That run passes Linux and fresh macOS consumers; macOS Foundation fails only
+point routing, popup radar focus and navigation resize. The
+[focused test synchronization changes](evidence/preview-native-test-readiness-och17.md)
+pass locally and in terminal run `37862430983`. That run passes the fresh macOS
+receiver but fails Linux collector Clippy and the macOS document-cleanup snapshot.
+The [two follow-up fixes](evidence/preview-document-cleanup-och17.md) pass locally
+and await batched CI; skipped consumer checks still need the repaired candidate.
+See the [CI record](evidence/milestone-07-ci.md). Final integration remains open.
+
+The [preview adoption guide](developer-preview.md) and GitHub feedback templates
+are ready. A fresh independent starter consumer build passes at `87b43c73`;
+the [installation/API handoff](evidence/preview-installation-och17.md) now closes R1.
+The [source payload review](evidence/preview-source-inputs-och17.md) repairs a
+retained example-font notice and verifies the assembled source archive, closing
+D1 for the source preview. Binary-distribution notice completion remains OCH-164.
+
+The [managed-scrollbar routing repair](evidence/managed-scrollbar-routing-och41.md)
+adds a reactive component argument that reaches native viewports inside Bonsai
+layout wrappers. All five adapter regressions and the full OCaml suite pass;
+the repository and freshly installed galleries each pass 18 scoped
+theme/size/owner input cases.
+Frame timing, VoiceOver and broader release acceptance remain separate.
+
+The [force-close cleanup repair](evidence/force-close-cleanup-och17.md) ensures
+raising cleanup cannot skip queued native close/shutdown work or leave the
+opening-window path unwoken. Regression tests cover first-failure propagation,
+reentrancy, delayed opening acknowledgments and cleanup; hosted validation remains.
+
+The [OCaml notice provenance audit](evidence/ocaml-notice-provenance-och17.md)
+verifies all 499 collected texts against original checksum-verified archives.
+The ten zero-text metadata classifications remain visible; embedded attribution
+and whole-release notice review are still open.
+
+The [loaded-list paint diagnostic](evidence/list-paint-geometry-och17.md) found no
+row overlap in 24,338 observed list paints, but the full attempt timed out with
+an inactive window before completion. This narrows the geometry investigation;
+it is neither a visual-jitter fix nor performance acceptance.
+
+Hosted run37789987337 is terminal: Linux and the separate macOS extracted-app
+receiver pass; the previously repaired scrollbar-preference and document-profile
+checks now pass too. macOS Foundation fails two carousel remount tests (now
+repaired locally) and both unresolved Metal presentation probes. All three
+receiver apps finish without reproducing the earlier Python trap. See
+[CI evidence](evidence/milestone-07-ci.md); later local changes still need hosted
+validation, and signed-release acceptance remains open.
+
+The [scope cancellation repair](evidence/scope-cancellation-och17.md) prevents a
+raising cleanup from stranding sibling scopes, producers or resource accounting.
+Deterministic regressions cover first-failure propagation, reentrancy, queued
+stream suppression and ancestor unregister ordering; full OCaml tests pass.
+
+The [scrollbar animated-width repair](evidence/scrollbar-input-macos-och41.md)
+keeps native ranges/focus alive when appearance changes narrow an animated track.
+The failing regression now passes alongside the full native suite. The ordinary
+viewport walkthrough checks pointer/key input and retained offsets separately
+from frame timing, VoiceOver and managed-owner release acceptance.
+
+The [carousel remount test repair](evidence/carousel-remount-harness-och41.md)
+reproduces two hosted page-return failures and adds the missing outer-page reveal
+before focus/editor queries. Both local and installed lifecycle/automatic checks
+pass without application changes or relaxed assertions; hosted revalidation remains.
+
+The [message-follow desktop walkthrough](evidence/message-follow-macos-och41.md)
+repairs a clipped Large-size follow button in the OCaml gallery. Repository and
+installed tests pass both themes/three sizes, native Space/pointer/wheel routing
+and settled reading anchors during message updates. Per-frame scrolling and
+VoiceOver qualification remain separate.
+
+The [searchable-list desktop matrix](evidence/selectable-list-macos-och41.md)
+passes both themes and three application sizes locally and in the installed
+consumer: native query typing, confirmation/context/cancel intents, hidden
+selection, fetched membership, retry, axis changes and source reset. It adds
+scoped evidence without a production change; broader pointer, VoiceOver and
+performance/resource acceptance remain separate.
+
+The [horizontal-card desktop follow-up](evidence/horizontal-list-macos-och41.md)
+fixes a clipped reaction button in the OCaml example through palette-scaled card
+and viewport sizing. Repository and installed tests pass both axes, themes and
+three application sizes, including pointer/Space, wheel geometry, surviving row
+state, edit anchors and follow-tail. This is separate from the reported benchmark
+jitter and does not qualify physical frame timing or VoiceOver.
+
+The [application teardown repair](evidence/application-teardown-och17.md) ensures
+pending desktop/notification/resource requests finish with Closed even if another
+completion raises. Deterministic regressions cover all six request families,
+reentrant disposal, rejected new work and ignored late responses. This extends
+the existing window-cleanup policy; OS-service and release acceptance remain separate.
+
+The [overlay desktop matrix](evidence/overlay-macos-och41.md) passes both themes
+and three application sizes locally and in the installed consumer. It verifies
+modal focus, live all-edge drawer insets, hover-card actions, fixed-point popup
+corners and page retirement. VoiceOver, motion timing and full resource/release
+acceptance remain separate.
+
+The pagination gallery follow-up exercises both themes and three application
+sizes, including billion-page chooser bounds, native input and model-change
+cancellation. It also repairs chooser buttons that used pale text on a pale
+accent in the dark theme. [Evidence](evidence/pagination-macos-och41.md) records
+repository/installed behavior, pixel checks and the distinct model/native lifetimes.
+
+
+The [disclosure desktop walkthrough](evidence/disclosure-macos-och41.md) passes
+six theme/size combinations in the repository and freshly installed galleries.
+It covers native draft/undo retention, hidden accessibility nodes, expansion
+policies, heading keys, disabled skipping/group state and fresh buffers after
+Unmount. Motion timing, VoiceOver and resource/release acceptance remain separate.
+
+The [inherited list-metrics repair](evidence/list-inherited-metrics-och17.md)
+fixes a reproduced 44-pixel movement from a 24-pixel wheel event after an
+ancestor line-height change. The production host now invalidates cached
+offscreen measurements when inherited metrics change. The deterministic native
+suite passes; this does not identify the cause of the separate benchmark overlap.
+The linked real-window follow-up also passes all three line-height cases using
+fresh painted-row bounds; its direct GPUI input is separate from OS trackpad
+delivery and presentation timing.
+
+The [notarization tooling follow-up](evidence/developer-id-tooling-och17.md#notarization-finalization-tooling--2026-10-08)
+adds a submission/recovery guide and a finalizer that binds acceptance to the
+original archive, staples a copy and verifies the final ZIP after extraction.
+Portable tests pass with simulated Apple tools. Actual service, signing and
+quarantined receiver acceptance remain pending; no artifact was submitted.
+
+The [navigation-history gallery follow-up](evidence/navigation-history-macos-och41.md)
+adds a modular public example for new visits, replacement, root/reset and explicit
+motion/retention policies. Six theme/motion combinations pass native keyboard/AX
+history and draft-lifetime checks locally and in a fresh installed consumer.
+Frame timing, VoiceOver and consolidated release acceptance remain separate.
+
+The [table-worker callback repair](evidence/api-boundaries-och17.md#obsolete-table-worker-notifications--2026-10-08)
+suppresses redundant application notifications from obsolete query completions
+while returning worker capacity to current requests. Deterministic full-inbox
+before/after evidence is recorded separately from native or performance acceptance.
+
+The [list-paging ownership repair](evidence/api-boundaries-och17.md#paging-ownership-repair--2026-10-08)
+keeps cancellation cleanup inside the two-producer bound and publishes final
+reactive state on closure. Deterministic before/after regressions and the native
+managed-conversation self-test pass. This does not resolve the separate visual
+scrolling report or qualify full-list performance.
+
+The [ARM Metal pacing follow-up](evidence/hosted-metal-diagnostic-och17.md#arm-sequential-and-startup-delay-follow-up--2026-10-08)
+retains two failed probes: sequential submission, with and without a fixed startup
+delay, stalls waiting for presentation callbacks. GPU completion is not presentation
+acceptance. Main probe behavior and release gates remain unchanged.
+
+The [scrollbar oracle repair](evidence/scrollbar-preference-och41.md#hosted-oracle-initialization-repair--2026-10-08)
+fixes a CI helper reading AppKit before automatic device policy initialized.
+Hosted phase probes reproduce the transition and validate the corrected helper;
+all three local gallery cases pass. Production snapshot behavior is unchanged,
+and the full corrected hosted gallery check remains pending.
+
+The [macOS focus-forwarding repair](evidence/window-focus-forwarding-och17.md)
+fixes application accessibility queries returning the window instead of its focused
+control. Twelve native carousel axis/theme/scale cases pass locally and in a fresh
+installed consumer, alongside two-window input/undo/remount checks. VoiceOver and
+full release acceptance remain separate.
+
+The [resource API review](evidence/api-boundaries-och17.md#resource-publication-and-recovery-review--2026-10-08)
+clarifies desired state versus native publication, resource limits and recovery
+after document/chart/canvas upload failures. Deterministic runtime tests cover
+fatal retirement and rejected retries; production behavior is unchanged. This
+is scoped contract evidence, not full API or release acceptance.
+
+The [split-group desktop walkthrough](evidence/split-group-macos-och41.md) passes
+pointer cancellation, keyboard/AX resizing, delivery into Bonsai, constrained
+serialled requests and retained editing through structural changes, locally and
+in the installed consumer. Full accessibility, paint/resource and release
+acceptance remain separate.
+
+The [native tabs walkthrough](evidence/tabs-macos-och41.md) passes retained panels,
+independent close/menu controls, explicit reveal and thirty geometry/keyboard
+cases across five variants, both themes and three scales, locally and in the
+installed consumer. Page remount also passes; motion/VoiceOver/resource and full
+workspace acceptance remain separate.
+
+The [macOS scroll phase repair](evidence/macos-scroll-phases-och41.md) preserves
+AppKit cancelled-scroll events instead of treating them as continued movement.
+An actual AppKit factory/converter regression fails before the fix and passes
+afterward. This does not establish hardware gesture delivery or resolve the
+separately reported loaded-list overlap.
+
+The [measured carousel desktop follow-up](evidence/carousel-track-macos-och41.md)
+passes native keys/editing, both axes/themes, clipped-neighbor pointer selection,
+reorder/resize retention and remount locally and in the installed gallery.
+Its automatic-policy follow-up also passes five pause conditions, fresh resumes
+and page-retired timers. Twenty OS pointer cases and native child text selection
+now pass locally and in the installed consumer, including observed drag previews
+and Escape cancellation. Discrete line-wheel navigation and vertical endpoint
+handoff also pass in both axes/themes. Twelve interrupted-drag cases pass for
+window deactivation, viewport resize and page retirement in each binary. Precise
+hardware trackpads, full focus/accessibility and resources remain open.
+
+The [sidebar desktop walkthrough](evidence/sidebar-macos-och41.md) passes
+branch policies, actual keyboard/pointer selection, twelve appearance cases,
+compact/offcanvas preferences and page remount in local and installed galleries.
+It adds scoped evidence without a production change; broader release gates remain.
+
+The [foreground input diagnostic](evidence/foreground-input-diagnostic-och17.md)
+now distinguishes quiet intervals from event-kind counts in opt-in runs. Quiet and
+four-mouse-movement checks validate collection. A subsequent full 10,000-row
+diagnostic completes sixty-second idle with zero draws, inputs and lost entries;
+its history journal is truncated and reported separately. These diagnostic runs
+cannot qualify performance or identify the earlier event producer. The reported
+visual overlap and full overhead comparison remain open.
+
+The [notification gallery follow-up](evidence/notification-gallery-och41.md)
+fixes restoration during an animated exit using fresh batch identities and stale
+dismissal guards in the OCaml example. Actual macOS placement, collapsed semantics,
+keyboard dismissal/restoration and page retirement pass alongside the gallery
+expect tests. Full toast motion/accessibility/resource and release acceptance remain.
+Its policy follow-up also passes real pointer expansion/collapse and hover/focus
+timeout pausing under Full/Reduced application preferences, locally and in the
+installed consumer. Presentation timing and VoiceOver remain separate.
+
+The [Developer ID tooling checkpoint](evidence/developer-id-tooling-och17.md)
+adds explicit certificate/team selection, hardened-runtime signing and strict
+verification before archiving or runtime extraction. Local portable checks and
+native rejection of an ad-hoc fixture pass; real Developer ID signing,
+notarization and release acceptance remain unqualified. The full isolated local
+expect-test and formatting aliases pass at `e58cec44`.
+
+The [form label and screen-point follow-up](evidence/form-label-point-routing-och17.md)
+fixes rich labels collapsing to zero width. The real 52-case form walkthrough
+and 21 exact system-wide AX control/overlay hits pass locally, with API tests
+and formatting. Hosted validation, full catalog and VoiceOver acceptance remain.
+
+The [nested native-popup follow-up](evidence/native-menu-icons-och41.md#nested-popup-artwork-follow-up--2026-10-07)
+qualifies root/submenu/nested disabled SVG artwork through the public Feedback
+example, both locally and in the staged-library consumer. Actual keyboard
+navigation, passive/disabled state and Save-to-Bonsai delivery pass. This adds
+scoped pixel evidence; full menu-family and release acceptance remain open.
+
+The [gallery header/consumer follow-up](evidence/gallery-header-layout-och41.md)
+fixes clipped header controls through ordinary OCaml wrapping styles. Both local
+and independently installed galleries pass 59 shell-layout cases and actual New
+window activation. The installed native menu-bar walkthrough also passes. These
+are scoped shell/public-API results, not full-gallery or release acceptance.
+
+The [full-suite menu fixture repair](evidence/native-menu-bar-icons-och41.md#full-suite-fixture-generations--2026-10-08)
+corrects retired-window generation reuse across the combined controls fixture.
+Both complete local controls and standalone menus pass, with strict lint and
+formatting. Production ownership checks are unchanged; hosted revalidation remains.
+
+The [native menu-bar artwork checkpoint](evidence/native-menu-bar-icons-och41.md)
+extends passive SVG item paths to platform bars. Actual AppKit and public gallery
+checks pass nested/disabled artwork, clear/restore, command delivery and window
+ownership. It also fixes AppKit validation re-enabling explicitly disabled rows.
+The native suite passes 1,187 tests (two existing skips), and strict Clippy and
+vendor reconstruction pass. The linked follow-up adds installed-consumer evidence; final-source hosted/Linux
+and consolidated release acceptance remain open.
+
+The [document worker-pressure repair](evidence/document-worker-pressure-och17.md)
+keeps short profile updates pending while an active worker holds temporary
+preparation capacity. The unchanged memory cap still rejects persistent
+exhaustion. The deterministic before-case fails; 22 job tests, 1,187 native tests
+(two existing skips) and both normal/Large actual profile walkthroughs pass.
+The prior-source hosted run passed Linux and the fresh macOS package receiver,
+but failed the document profile and both Metal presentation probes. Final-source
+hosted revalidation and presentation qualification remain open.
+
+The [native-menu retirement repair](evidence/native-menu-retirement-och41.md)
+fixes retained Rust commands after actual menu-bar/Dock replacement. Real AppKit
+checks pass 128 replacements, stale native-item rejection, current dispatch and
+independent Dock teardown. Three portable ownership regressions and the
+1,184-test native suite pass (two existing skips). That ownership checkpoint predates the separate artwork qualification above.
+
+The [rich-header sizing follow-up](evidence/table-header-fit-och41.md) fixes the
+public gallery's clipped Inspect label using ordinary OCaml button styles.
+Six theme/scale combinations pass actual glyph/rectangle fit, pointer/Space
+activation, fixed table geometry and page remount checks.
+
+The [hover-layout repair](evidence/hover-layout-och41.md) fixes stale hover paint
+when initial paint or a layout change puts a widget under a stationary pointer.
+Two original native cases fail. Five focused regressions and the full
+1,184-test native suite pass (two existing skips), including preserved
+hover-driven layout. The repaired real table walkthrough passes scoped
+paint/reset, fixed geometry and input across two themes and three scales. This is separate from the loaded-list scrolling report and does not
+establish full catalog, VoiceOver or performance acceptance.
+
+The [loaded-list scroll investigation](evidence/list-scroll-diagnostics-och17.md)
+distinguishes automated row jumps from ordinary wheel input. Eighty wheel steps
+showed no sampled row overlap; 524 retained-row comparisons matched their pixel
+deltas. This does not rule out a brief paint glitch. Full runs still failed, and
+controlled minimization reproduced a frame wait timeout. Failure-only diagnostics
+now retain window/viewport/runtime state; no list performance acceptance or
+rendering fix is claimed.
+
+The [rendered visual-line repair](evidence/rendered-visual-lines-och17.md) connects
+styled and Unicode fragments on the same painted line without joining paragraphs
+or table cells. Native reflow/scope tests and actual macOS paragraph line/range and
+character-point queries pass; the native suite reports 1,179 passed, 2 ignored.
+Broader geometry and VoiceOver reading/navigation remain open. VoiceOver scripting
+setup is awaiting the owner's macOS authorization; other milestone work continues.
+
+The [VoiceOver attribute-query repair](evidence/voiceover-attribute-query-och17.md)
+fixes a reproduced process crash in GPUIO's AccessKit compatibility patch. A
+read-only attribute query called a nonexistent superclass method. Actual OS
+mutability/selection/Copy checks now pass for rendered documents, code and editable
+text. VoiceOver speech capture remains unqualified. Native tree discovery/action
+checks and 200,000 history visits passed after isolating the no-input retention
+phase from foreground focus; the evidence records earlier failures and one
+required reactivation during the foreground focus phase.
+
+The [cached prepaint retry repair](evidence/cached-prepaint-retry-och17.md) fixes a
+reproduced panic after an aborted prepaint overwrote saved frame indices. Candidate
+ranges now commit only in paint; fresh unpainted state cannot be reused as a scene.
+Tests cover initial/retained caches, direct/deferred controls, repeated retries,
+unchanged render counters, stable semantic IDs and live actions. A real cached
+TextView also rejects stale selection requests after source replacement and
+publishes new text through normal invalidation.
+
+This follows [native text-selection cache replay](evidence/cached-text-selection-och17.md),
+[callback-owner cleanup](evidence/cached-accessibility-owners-och17.md),
+[semantic cache replay](evidence/cached-accessibility-replay-och17.md),
+[flow selection reveal](evidence/rendered-selection-flow-och17.md), and
+[real rendered-document selection dispatch](evidence/rendered-selection-dispatch-och17.md).
+These are completed scoped repairs, not newly unimplemented items to rediscover.
+
+At **2845f1c9**, local macOS arm64 validation passed:
+
+- **1,175 native tests, 2 ignored**, strict workspace/all-targets Clippy,
+  workspace and vendor formatting, Rust workspace tests and gallery rebuild.
+- Actual macOS editor/document tests, plus public-gallery heading/CJK/joined-emoji/
+  code range setters, exact Copy and caret checks. Owned windows closed normally;
+  clipboard restored and verified. VoiceOver was not operated in these checks.
+- Exact reconstruction of all 159 GPUI files (generated Cargo.lock excluded).
+  Base is unchanged from 968e423b, whose 243-file reconstruction passed.
+
+Exact commands, revisions, hashes, before/after failures and bundles are linked
+from the evidence above. The full incremental `dune runtest -j2` alias now passes
+on **88d3c3d8** with notice-only working changes; the
+[theme notice follow-up](evidence/syntect-themes-och17.md#original-author-notices)
+retains its log. This does not claim a clean rebuild or foreground native testing.
+Repeat required final checks on the release source. No direct upstream GPUI/Base
+unit-suite pass is claimed. Native fixtures
+exercise their production code; OS tests are separately scoped. Current-source
+hosted/Linux results still need acceptance; canceled runs are not passes.
+
+<a id="open-milestone-requirements"></a>
+
+## Remaining milestone acceptance
+
+The [preview checklist](milestone-07-closeout.md) and amended live tickets define
+current completion. The table below retains the broader qualification inventory;
+OCH-164 owns the explicitly deferred portions. Historical local
+passes apply to their recorded sources and coverage, not automatically to the
+current release candidate.
+
+| Requirement | Evidence and remaining work |
+| --- | --- |
+| OCH-41: complete component mapping | The [catalog](catalog/README.md) and [family ledger](catalog/families.json) map 41 v1 families, post-v1 docking and excluded development tooling. Finish nested-functionality review and consolidated meaningful behavior evidence for every required row; root-module presence alone is insufficient. Helpers belong to their owning APIs. Keep post-v1 grid editing/docking/editor/LSP boundaries explicit. |
+| OCH-41: public gallery and document/input contracts | Public OCaml examples and scoped installed-consumer/physical results exist. Complete the expanded gallery walkthrough, visual review, themes/scales, keyboard/accessibility and teardown acceptance. Preserve completed [form/editor admission](evidence/gallery-editor-admission-och41.md), [theme-file loading/cancellation](evidence/gallery-theme-files-och41.md), [two-window appearance](evidence/window-appearance-och41.md), [window lifecycle](evidence/window-lifecycle-och41.md), [input queries](evidence/window-input-query-och41.md), [window selection](evidence/window-selection-och41.md), [document profiles](evidence/document-profile-macos-och41.md) and [plugin scrolling](evidence/document-profile-scroll-och41.md). Do not redo these solely because an old checkpoint calls them untested. |
+| OCH-17: actual macOS native/accessibility acceptance | [Multiline and single-line Japanese IME](evidence/multiline-ime-cancellation-och17.md), source-editor selection/geometry and rendered-document selection have scoped evidence. Complete consolidated focus/clipboard/file-drop/OS accessibility coverage, real VoiceOver reading/tracking/navigation, rendered visual-line/character-geometry qualification. Representative point-based routing now passes for the two-window editors and [21 control/overlay points](evidence/form-label-point-routing-och17.md). Use [document accessibility](design/document-accessibility.md), [editor geometry](design/editor-accessibility-geometry.md), [window accessibility](evidence/window-accessibility-och17.md) and [gallery evidence](evidence/gallery-och41.md). Tree presence or TestPlatform success is not screen-reader acceptance. |
+| OCH-17: performance and resources | Owner direction on 2026-10-08 narrows mandatory timing to **10k variable-height lists** and **rapid streaming while typing**, with existing budgets/three valid trials and shared idle/resource/measurement-validity checks. See the [focused plan](design/performance-qualification.md#focused-v1-scope--owner-direction-2026-10-08) and P1/P2 in [closeout](milestone-07-closeout.md). Preserve the recorded three-trial table/document/typing and lifecycle evidence; review change impact rather than rerun all matrices. The loaded-list batch has two full passes and an unresolved 14-draw idle failure; interrupted later diagnostics and collector comparisons do not establish acceptance. No resource or current user-facing failure is waived. |
+| OCH-17: chart/startup findings | The historical 63,050.99ms chart publication delay, startup-bound failure and nonblack startup samples remain documented in [chart](evidence/chart-streaming-och40.md) and [startup evidence](evidence/window-startup-och17.md). Under the owner’s focused performance scope, unresolved original causes are follow-up diagnostics rather than independent release gates. Reproducible current user-facing stalls/blank windows remain defects to fix; old failures are not relabeled as passes. |
+| OCH-17: notices and reproducible distribution | [Bonsai reconstruction](evidence/bonsai-reconstruction-och17.md) covers all eight vendored roots. Finish [OCaml](evidence/ocaml-notices-och17.md)/[Rust](evidence/dependency-notices-och17.md) notice, asset and system review, current release-artifact qualification, platform minimums and the chosen signing/distribution workflow. Earlier internal ad-hoc archives pass on a separate hosted macOS receiver and locally with development paths denied; [package evidence](evidence/package-runtime-och17.md). That is not signed-release acceptance. Follow [distribution](distribution.md) and [fork maintenance](component-adapters.md). |
+| OCH-17: API, examples and release | The [application guide](getting-started.md), [compatibility/limits](api-compatibility.md), [installed starter](evidence/public-api-starter-och17.md) and [API boundary review](evidence/api-boundaries-och17.md) exist. Finish whole-surface API/limitations review, versioning, reviewed changes, required final checks and release publication. Maintain adjacent implementation walkthroughs and [the example inventory](../examples/coverage-guide.md); scratch is not a release dependency. |
+| Required Linux/hosted checks | [Run 37286788836](https://github.com/dakotamurphyucf/gpuio/actions/runs/37286788836) passed both foundation jobs and the separate macOS extracted-app receiver at the recorded older tree. The newer [run 37744396036](https://github.com/dakotamurphyucf/gpuio/actions/runs/37744396036) at `497236b7` passes Linux and the separate macOS receiver. macOS Foundation passes the repaired control fixture and full table-history traversal; only both Metal probes fail, with zero presentation timestamps in all 90 frames per GPUI window and all 120 calibration frames. The subsequent [run 37758529147](https://github.com/dakotamurphyucf/gpuio/actions/runs/37758529147) at `61944bfc` passes Linux but exceeds the macOS two-hour job limit during artifact upload. Scrollbar-preference and both Metal checks also fail; the receiver cannot obtain the incomplete upload. The macOS job allowance is now three hours, with individual test limits and acceptance thresholds unchanged. Current changes require their own accepted run. The [hosted Metal investigation](evidence/hosted-metal-diagnostic-och17.md) distinguishes ARM zero timestamps from a passing sequential Intel standalone API probe; the unchanged Intel GPUI probe fails on an initial two-second zero-timestamp interval. An idle-delay experiment still fails with one initial zero per window; a separately recorded active-warmup experiment also fails with one initial zero in its active window. A subsequent isolated Intel continuous-warm-up batch passes all three predeclared trials (90 positive presentations per window, zero measured losses/zeros); it retains warm-up zeros and does not qualify cold startup or replace the original Foundation gates. No gate is waived. Linux build/unit/private-bus/consumer remain mandatory; graphical failures stay informational in OCH-47. See [CI evidence](evidence/milestone-07-ci.md). |
+| Linear completion | Close OCH-41/OCH-17 only after their full acceptance criteria pass. No local summary, screenshot, test count or partial family review substitutes for that audit. |
+
+<a id="environment-constraints-and-next-action"></a>
+
+## Next action and history
+
+Follow the [closeout checklist](milestone-07-closeout.md): C1 is complete; prioritize the two core performance
+workloads and their measurement validity. Continue notices/API review while
+waiting for CI. Broader accessibility qualification is OCH-164. Fix named required defects; reuse valid evidence
+and retain failed trials. Batch coherent changes; required merge gates remain.
+
+The complete pre-consolidation status snapshot and older checkpoints are preserved
+in [status history](status-history.md). Use that history and individual evidence
+for provenance, not as a list of still-open tasks or current permissions. Durable
+designs live under `docs/design/`; current implementation claims need their own
+source and platform evidence.

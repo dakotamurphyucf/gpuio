@@ -1,0 +1,50 @@
+{
+  "commands.txt": {
+    "bytes": 1105,
+    "sha256": "c1df201aa5b7f097f7af58d463bc14c4d037ecdb7b01e689035a543ff7ce3fa6"
+  },
+  "custom/application.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "custom/custom-window.png": {
+    "bytes": 363491,
+    "sha256": "28d85b387495fd32eb3fcc6eb8e38a57a728c1b7b52516cfe9ef51daa0a1cd8f"
+  },
+  "custom/fullscreen.png": {
+    "bytes": 558939,
+    "sha256": "7593c4d061fc3c2a98b8562496b397ff33a2bd9a5231a5a6096bbb2a8ac287f7"
+  },
+  "custom/report.json": {
+    "bytes": 2401,
+    "sha256": "de9156a7d144bfa74278978c4f6088ab6b1b77fae08912ba746583911d51fca9"
+  },
+  "logs/window-placement-ax.log": {
+    "bytes": 103,
+    "sha256": "6273232de4d3ef7acd4ecafa5c86beeeb974f56586b21089a2990b3f72facbe6"
+  },
+  "logs/window-placement-custom.log": {
+    "bytes": 429,
+    "sha256": "636da2a78ac002cb8f065767b30922d59647d213fe4301160ec5e9ceaf0a50e0"
+  },
+  "logs/window-placement-standard.log": {
+    "bytes": 378,
+    "sha256": "d46f7e4929d0ba2bc2f2dbe5b3b061c651cc81023f6ee7e00fa0ec7314be6ad2"
+  },
+  "logs/window-placement-unit.log": {
+    "bytes": 107,
+    "sha256": "55df81c03b1fc09a739803668e8b10b1a1cd87ac7e716666dddb1c968f87bb76"
+  },
+  "source.patch": {
+    "bytes": 4261,
+    "sha256": "66203b82329194c16d9431846cb6d809915af6f603b2a5bace1a68f828dec675"
+  },
+  "standard/application.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "standard/report.json": {
+    "bytes": 1050,
+    "sha256": "823f4ea6589162d61be674700726c0533396c7b63788392c619404b07df08f49"
+  }
+}

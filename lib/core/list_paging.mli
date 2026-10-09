@@ -109,3 +109,9 @@ val set : ('key, 'data, _) t -> key:'key -> data:'data -> unit Or_error.t
     Preserves generation, scroll identity and pending older-history requests.
     Duplicate keys or an unknown latest boundary fail without changing state. *)
 val append : ('key, 'data, _) t -> ('key * 'data) list -> unit Or_error.t
+
+module Expert : sig
+  (** Producer adapters use this before entering a queued load and when deciding
+      which cancellation context to retire. Checks owner, generation and request. *)
+  val is_current : (_, _, _) t -> Request.t -> bool
+end

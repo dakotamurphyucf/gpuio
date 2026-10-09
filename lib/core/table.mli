@@ -25,6 +25,35 @@ module Selection_mode : sig
   [@@deriving equal, sexp_of]
 end
 
+module Boundary : sig
+  type t =
+    | Stop
+    | Wrap
+  [@@deriving equal, sexp_of]
+end
+
+module Appearance = Table_appearance
+
+module Column_viewport : sig
+  module Column : sig
+    type t [@@deriving equal, sexp_of]
+
+    val id : t -> Table_column.Id.t
+    val pin : t -> Table_column.Pin.t
+
+    (** The entire horizontal column band fits its clipped pane. This does not
+        imply every row/header is visible or account for overlapping content. *)
+    val fully_visible : t -> bool
+  end
+
+  type t [@@deriving equal, sexp_of]
+
+  (** Native display order, including partially visible pinned/scrolling columns.
+      No row-header gutter, group headers, fillers or render overscan. Empty data
+      still has column geometry. Cell allocation budgets remain unchanged. *)
+  val columns : t -> Column.t list
+end
+
 module Config : sig
   type t [@@deriving equal, sexp_of]
 
@@ -47,12 +76,18 @@ module Config : sig
     -> ?max_active_rows:int
     -> ?max_active_cells:int
     -> ?selection_mode:Selection_mode.t
+    -> ?appearance:Appearance.t
     -> ?column_selection:bool
+    -> ?row_header:bool
+    -> ?boundary:Boundary.t
+    -> ?selectable_headers:Table_column.Id.t list
     -> ?disabled:bool
     -> ?scrollbar:bool
     -> unit
     -> t Or_error.t
 
+  val appearance : t -> Appearance.t
+  val with_appearance : t -> Appearance.t -> t Or_error.t
   val columns : t -> Table_column.Collection.t
   val sort : t -> Sort.t option
   val row_height : t -> float
@@ -61,12 +96,30 @@ module Config : sig
   val max_active_cells : t -> int
   val selection_mode : t -> Selection_mode.t
   val column_selection : t -> bool
+
+  (** Row headers default to visible; this affects cell-selection modes only.
+      Boundary defaults to Wrap, preserving the native table's existing behavior.
+      Header eligibility defaults to all columns and only applies when global
+      column selection is enabled. A supplied whitelist must contain distinct
+      existing column IDs. It never disables cells, sorting or embedded controls.
+      With hidden row headers and both row/cell selection enabled, clicking the
+      already-selected cell selects its row (the native table convention). *)
+  val row_header : t -> bool
+
+  val boundary : t -> Boundary.t
+  val selectable_headers : t -> Table_column.Id.t list option
+  val header_selectable : t -> Table_column.Id.t -> bool
+  val with_row_header : t -> bool -> t
+  val with_boundary : t -> Boundary.t -> t
+  val with_selectable_headers : t -> Table_column.Id.t list option -> t Or_error.t
   val is_disabled : t -> bool
   val scrollbar : t -> bool
   val label : t -> string
 
   (** Immutable replacement validates the existing sort and budgets against the
-      new schema. Removing a sorted column requires clearing sort first. *)
+      new schema. Removing a sorted column requires clearing sort first.
+      Remove references from [selectable_headers] and appearance padding before
+      removing those columns. *)
   val with_columns : t -> Table_column.Collection.t -> t Or_error.t
 
   val with_sort : t -> Sort.t option -> t Or_error.t
@@ -147,6 +200,11 @@ module Command : sig
 end
 
 module Expert : sig
+  val column_viewport_of_wire
+    :  Config.t
+    -> Gpuio_protocol.Table_wire.Column_viewport.t
+    -> Column_viewport.t option
+
   (** Revisions belong to the mounted bridge adapter, not application config.
       No native handle is serialized through this conversion. *)
   val to_wire
@@ -155,7 +213,17 @@ module Expert : sig
     -> query_generation:int64
     -> Gpuio_protocol.Table_wire.Config.t Or_error.t
 
+  val appearance_to_wire
+    :  Config.t
+    -> theme:Theme.t
+    -> Gpuio_protocol.Table_wire.Appearance.t option Or_error.t
+
   val list_config : Config.t -> Virtual_list.Config.t
+
+  (** Separate optional bridge metadata; preserves the original table/schema
+      wire layouts. None denotes the established native defaults. *)
+  val behavior_to_wire : Config.t -> Gpuio_protocol.Table_wire.Behavior.t option
+
   val cell_to_wire : Cell.t -> Gpuio_protocol.Table_wire.Cell.t
 
   val request_of_wire

@@ -390,22 +390,72 @@ async fn workload(
     let mut sliding = config(0);
     sliding.motion = gpuio_protocol::navigation_stack::Motion::Slide;
     sliding.duration_ms = 2000;
+    // Resize geometry is tested at a known mid-transition sample. Real GPU
+    // readbacks and AppKit resizes can outlast a two-second wall-clock motion;
+    // after that its outgoing page is correctly hidden and its probe is stale.
+    handle
+        .update(cx, |v, _, _| {
+            v.navigation[&node(75)]
+                .borrow_mut()
+                .advance_test_time(std::time::Duration::ZERO);
+        })
+        .unwrap();
     apply(cx, handle, vec![Op::SetNavigationStack(node(75), sliding)]);
+    handle
+        .update(cx, |v, _, _| {
+            v.navigation[&node(75)]
+                .borrow_mut()
+                .advance_test_time(std::time::Duration::from_millis(1000));
+        })
+        .unwrap();
     frame(cx, handle).await;
     for (width, height) in [(300., 180.), (500., 320.), (400., 280.)] {
         handle
             .update(cx, |_, w, _| w.resize(gpui::size(px(width), px(height))))
+            .unwrap();
+        // A GPUI frame can precede AppKit's asynchronous resize notification.
+        // Wait for the actual viewport, then paint and test the child geometry.
+        let expected = gpui::size(px(width), px(height));
+        let mut resized = false;
+        for _ in 0..200 {
+            resized = handle
+                .update(cx, |_, window, _| window.viewport_size() == expected)
+                .unwrap();
+            if resized {
+                break;
+            }
+            cx.background_executor()
+                .timer(std::time::Duration::from_millis(10))
+                .await;
+        }
+        assert!(
+            resized,
+            "navigation native viewport did not resize to {expected:?}"
+        );
+        handle
+            .update(cx, |v, _, _| {
+                for id in [page(0), page(127), button(127)] {
+                    v.probes.borrow_mut().remove(&node(id));
+                }
+            })
             .unwrap();
         frame(cx, handle).await;
         handle
             .update(cx, |v, w, _| {
                 assert_eq!(
                     v.probes.borrow()[&node(button(127))].bounds.size.width,
-                    px(width)
+                    px(width),
+                    "navigation resize: target={expected:?}, viewport={:?}, active={}, incoming={:?}, outgoing={:?}",
+                    w.viewport_size(),
+                    w.is_window_active(),
+                    v.probes.borrow().get(&node(page(0))).map(|p| p.bounds),
+                    v.probes.borrow().get(&node(page(127))).map(|p| p.bounds),
                 );
                 let incoming = v.probes.borrow()[&node(page(0))].bounds;
                 let outgoing = v.probes.borrow()[&node(page(127))].bounds;
                 assert_eq!(incoming.size.width, px(width));
+                assert_eq!(incoming.left(), px(-width / 2.));
+                assert_eq!(outgoing.left(), px(width / 2.));
                 assert!(
                     (f32::from(outgoing.left() - incoming.left()) - width).abs() <= 1.,
                     "sliding offsets adapt to the new assigned width"
@@ -430,6 +480,21 @@ async fn workload(
             })
             .unwrap();
     }
+    handle
+        .update(cx, |v, _, _| {
+            v.navigation[&node(75)]
+                .borrow_mut()
+                .advance_test_time(std::time::Duration::from_millis(1000));
+            v.probes.borrow_mut().remove(&node(page(127)));
+        })
+        .unwrap();
+    frame(cx, handle).await;
+    handle
+        .update(cx, |v, _, _| {
+            assert!(!v.probes.borrow().contains_key(&node(page(127))));
+            assert_eq!(v.probes.borrow()[&node(page(0))].bounds.left(), px(0.));
+        })
+        .unwrap();
     // Empty inactive pages preserve history positions but release all their widgets.
     let mut unmount = config(0);
     unmount.retain = false;

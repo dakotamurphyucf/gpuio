@@ -1,0 +1,13 @@
+{
+  "base_revision": "2e8883e",
+  "dirty": true,
+  "native_probe_binary": "/Users/dakotamurphy/gpuio/target/debug/deps/native_metal_presentation-190102a08f11f5ff",
+  "native_probe_sha256": "7c8ef2d575bc7b1112865a9faa8e49886ec44cc0d19d9c41af9cd2febb6bc06e",
+  "standalone_probe_sha256": "ef12236e71a5a543730ebc928957e3bd624b79966f01feb5ee3a226cbb14a0d9",
+  "sources": {
+    "rust/native/tests/native_metal_presentation.rs": "7913e7b25579c9c6e1a38f294cfef9cce98665e0839af53dde3c233453e73209",
+    "scripts/test_metal_presentation.py": "7833c61327bd26313d31619d9842a855fa7ca500473fba40b9233c4ad7eaca11",
+    "scripts/presentation_report.py": "fb0aa4cb78bcb028a400424fc810e817d89335171fb2a0156236984544858c3e",
+    "scripts/test_presentation_report.py": "141a3ad47171b1c26b1f5027df6af1d05acf8ab7c5240b2f0f78ad810404ba14"
+  }
+}

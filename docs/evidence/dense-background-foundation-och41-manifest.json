@@ -1,0 +1,91 @@
+{
+  "archive": "dense-background-foundation-och41-logs.tar.gz",
+  "sha256": "abd82437e26239dd3aee3a56f1c3707c44e9b03208812d8aca889e46d4324cb5",
+  "members": [
+    {
+      "path": "dense-format.log",
+      "bytes": 16693,
+      "sha256": "7f0ec118dde193dee84ab9efcf298cfbd5d279dade09d7e6afd2efcaac6a59d4"
+    },
+    {
+      "path": "dense-protocol.log",
+      "bytes": 15120,
+      "sha256": "ab43b76b2c6eacb09dccc15490e122c34f849f3df4f94cebb159ee735eb6f917"
+    },
+    {
+      "path": "dense-protocol-second.log",
+      "bytes": 59507,
+      "sha256": "cc44d1acc9456757310eae87d7b49bad0297a4a28593b9a8c8d168c3d00d15a4"
+    },
+    {
+      "path": "dense-protocol-third.log",
+      "bytes": 59582,
+      "sha256": "3fb4b50dda2190061745463781e81f8dcf28912ee1c8fd3a7f731dba7cdf546e"
+    },
+    {
+      "path": "dense-chart-expects.log",
+      "bytes": 533,
+      "sha256": "a024a5c5efd4550b7024217ec72fd648290022012188f4abf6ff5a18b5afd6b6"
+    },
+    {
+      "path": "dense-chart-expects-second.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "dense-native.log",
+      "bytes": 701753,
+      "sha256": "8dd35a990a7dc16638cfa38bd48d01e8defe1e87345451ba15dbf2ce939d6941"
+    },
+    {
+      "path": "dense-format-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "dense-rustfmt-write.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "dense-protocol-final.log",
+      "bytes": 745,
+      "sha256": "d178a2b1b2fb93f6c3578c14195b652cac2694197d8069715f45f221b765ad52"
+    },
+    {
+      "path": "dense-native-final.log",
+      "bytes": 700894,
+      "sha256": "2942f3bc2272d1aa714ba35f69b784e04ccd5ed13eeee2f83aefd6d85c95708e"
+    },
+    {
+      "path": "dense-gpu.log",
+      "bytes": 628977,
+      "sha256": "70fbb42f500241a3b8d73da947d07585e52dc159447a5541a36dc83b3310ee12"
+    },
+    {
+      "path": "dense-clippy.log",
+      "bytes": 588425,
+      "sha256": "e2a2a81497c6db49de80f5fbd76fb8a91a612a9b0450d36d50a23536b35189e0"
+    },
+    {
+      "path": "dense-dune-final.log",
+      "bytes": 705834,
+      "sha256": "ca61f745359db90e622b8f4e9eb0cb9c476eadd0dd610d9ef15fa6ec622b10ae"
+    },
+    {
+      "path": "dense-rustfmt-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "dense-validation-commands.json",
+      "bytes": 2263,
+      "sha256": "f3ca2e0bead2ca7440cdcc6fb9cd35e45b86a30519d52b86656514b3f3a43aa2"
+    },
+    {
+      "path": "dense-source-hashes.json",
+      "bytes": 9808,
+      "sha256": "079cf3b8f73e0d92d6e2d42a0fa230c00ddd3f6b5a9a8b5ec4af305e19ff3c0f"
+    }
+  ]
+}

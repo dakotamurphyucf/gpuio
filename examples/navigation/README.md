@@ -1,5 +1,14 @@
 # Navigation Lab
 
+Read the implementation companions:
+
+- [Lab model, composition and runtime](main.md) → [main.ml](main.ml).
+- [Carousel component](carousel_lab.md) → [carousel_lab.ml](carousel_lab.ml) and
+  [its interface](carousel_lab.mli).
+- [Sidebar asset startup](sidebar_icons.md) → [sidebar_icons.ml](sidebar_icons.ml).
+
+[dune](dune) defines the shared executable and PPX.
+
 Run `./scripts/gpuio exec dune exec examples/navigation/main.exe`.
 
 The public Core/Bonsai/Eio example includes an accessible breadcrumb path,
@@ -26,9 +35,9 @@ completes data work while content is hidden, and verifies scoped shutdown. It
 closes the window on completion or a reported failure. Native tests separately
 cover actual Tab/Enter/AX activation and AppKit description readback.
 
-This example covers the locally accepted OCH-37 navigation/disclosure, carousel
-and supplementary overlay adapters. Consolidated hosted gates and merge remain;
-Linux GUI validation is tracked separately in OCH-17.
+These are source walkthroughs, not new native acceptance evidence. Current
+platform scope is described by the [release policy](../../docs/platform-release-policy.md);
+Linux desktop qualification is deferred separately in OCH-47.
 
 The lab also includes the initial `Sidebar` composition: grouped nested links,
 independent expansion, selected/disabled destinations, a scoped SVG icon, suffix,
@@ -140,5 +149,5 @@ page screenshots. It closes and reaps the child on success or failure.
 ![Public carousel with retained draft](../../docs/images/navigation-carousel.png)
 
 These checks complement native GPU/pointer and marked-text/nested-popup tests.
-The local family acceptance matrix is in the OCH-37 evidence ledger; consolidated
-hosted gates and merge remain tracked in Linear.
+Consult the dated OCH-37 evidence ledger and live tickets for acceptance at
+recorded revisions; current qualification is not implied by these launch commands.

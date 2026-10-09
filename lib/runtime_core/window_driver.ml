@@ -23,6 +23,7 @@ type t =
   }
 
 let create
+      ?document_defaults
       ?asset_owner
       ?document_owner
       ?canvas_owner
@@ -46,7 +47,14 @@ let create
   ; driver = Bonsai_driver.create ~clock ~action_history:Release_after_flush computation
   ; active
   ; clock
-  ; reconciler = R.create ?asset_owner ?document_owner ?canvas_owner ?chart_owner window
+  ; reconciler =
+      R.create
+        ?document_defaults
+        ?asset_owner
+        ?document_owner
+        ?canvas_owner
+        ?chart_owner
+        window
   ; theme
   ; pending = None
   ; closed = false

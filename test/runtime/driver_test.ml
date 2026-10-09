@@ -461,3 +461,72 @@ let%expect_test "managed streaming diffs the accepted source without rebuilding 
   Driver.close driver;
   [%expect {| |}]
 ;;
+
+let%expect_test "external palette publication lifecycle follows accepted command staging" =
+  let source = B.Expert.Var.create 0 in
+  let publications = ref [] in
+  let component graph =
+    let open B.Let_syntax in
+    let version = B.Expert.Var.value source in
+    B.Edge.on_change
+      version
+      ~equal:Int.equal
+      ~callback:
+        (B.return (fun version ->
+           E.of_thunk (fun () -> publications := version :: !publications)))
+      graph;
+    let%arr version = version in
+    let command =
+      Gpuio.Command.Id.of_string (sprintf "result-%d" version) |> Or_error.ok_exn
+    in
+    let definition =
+      Gpuio.Command.create
+        ~id:command
+        ~label:(sprintf "Result %d" version)
+        ~on_invoke:(fun () -> E.Ignore)
+        ()
+      |> Or_error.ok_exn
+    in
+    Gpuio.View.command_scope
+      ~commands:(Gpuio.Command.Registry.create [ definition ] |> Or_error.ok_exn)
+      [ Gpuio.View.command_palette
+          ~config:
+            (Gpuio.Command_palette.Config.create
+               ~label:"Search"
+               ~commands:[ command ]
+               ~search:External
+               ()
+             |> Or_error.ok_exn)
+          ~on_dismiss:(fun _ -> E.Ignore)
+          ()
+      ]
+  in
+  let driver = create component in
+  cycle driver 0.;
+  assert (List.is_empty !publications);
+  let first = accept driver |> Option.value_exn in
+  assert (List.equal Int.equal !publications [ 0 ]);
+  B.Expert.Var.set source 1;
+  cycle driver 1.;
+  let staged =
+    match Driver.next_message driver with
+    | Some (Apply tx) -> tx
+    | _ -> assert false
+  in
+  assert (Int64.(staged.revision > first.revision));
+  assert (
+    List.exists staged.operations ~f:(function
+      | Set_commands _ -> true
+      | _ -> false));
+  Driver.submitted driver;
+  B.Expert.Var.set source 2;
+  cycle driver 2.;
+  assert (List.equal Int.equal !publications [ 0 ]);
+  Driver.acknowledge driver ~revision:staged.revision |> Or_error.ok_exn;
+  assert (List.equal Int.equal !publications [ 1; 0 ]);
+  cycle driver 3.;
+  ignore (accept driver : Wire.Transaction.t option);
+  assert (List.equal Int.equal !publications [ 2; 1; 0 ]);
+  Driver.close driver;
+  [%expect {| |}]
+;;

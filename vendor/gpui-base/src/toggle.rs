@@ -169,6 +169,11 @@ impl RenderOnce for Toggle {
         let on_change = self.on_change;
 
         self.base
+            // Native controls own their pointer interaction inside selectable
+            // documents; bubbling still delivers activation and focus.
+            .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| {
+                crate::GlobalState::suppress_text_selection(cx);
+            })
             .test_support()
             .role(Role::Button)
             // Match Button's neutral control geometry: a fixed-size toggle

@@ -44,15 +44,78 @@ closing the application discards it. A real application supplies persistence,
 provider integration, credentials and orchestration through its own Eio services.
 This example is not a provider client or a storage layer.
 
+## Read the code
+
+Begin with the [small counter](../getting_started/README.md) if Bonsai is new to
+you. For this larger app, read the [CLI and package metadata](main.md), then
+[application assembly](application.md), then the
+[deterministic response model](model/fake_backend.md). The assembly guide explains
+which resources belong to the application and which belong to each window; the
+model guide follows a send through acceptance, byte chunks, completion and retry.
+The model's companion also explains its supporting expect test. Continue with
+[transcript message composition](runtime/chat_message.md) and
+[native workspace motion](runtime/chat_motion.md) to see small stateless view
+helpers and their caller-owned Bonsai state. The
+[shared conversation controller](runtime/conversation.md) then explains the full
+acceptance/producer/document lifecycle, history loading and attachments. For the
+larger fixtures, read [bounded CPU jobs](runtime/fixture_job.md), then
+[native query loading](runtime/query_loading.md) and
+[guarded finding actions](runtime/result_actions.md). These helpers separate
+producer scheduling, pending-state presentation and current-row inspection. Continue
+with the [source explorer](runtime/sources.md) and its
+[pure tree fixtures/moves](runtime/source_data.md), then the
+[results controller](runtime/results.md) and
+[complete query/data model](runtime/result_data.md). Their guides trace lazy
+loading, current-generation delivery, virtualized rows/cells and accepted moves. Settings helpers have separate guides for
+[accepted generation parameters](runtime/generation_settings.md),
+[fixed civil-date fixtures](runtime/schedule_data.md),
+[review dates and follow-up selection](runtime/schedule_settings.md), and
+[confirmed annotation color](runtime/annotation_settings.md). They distinguish
+native drafts/previews from accepted window values. The
+[native review counter](runtime/review.md) and
+[window-local feedback](runtime/review_feedback.md) explain extension events,
+retained note editing and controlled disclosure. Small supporting guides cover
+[inclusive score bounds](runtime/score_range.md) and
+[native responsive alternatives](runtime/responsive.md). Navigation/presentation support is explained in
+[artifact destinations](runtime/artifact_sidebar.md), the
+[four-page tour](runtime/artifact_tour.md), and
+[local portrait decoding/fallback](runtime/contributor_portrait.md). The shared
+[SVG icon registrations](runtime/icons.md) and
+[semantic palette](runtime/palette.md) separate resources from pure styling. The main composition guides are
+[workspace panels, commands and close handling](runtime/workspace.md),
+[artifact navigation/lifetimes](runtime/inspector.md), and
+[settings epochs/native drafts](runtime/settings.md). For the canvas, read the
+[pure stage/scene model](runtime/run_diagram.md), then its
+[scoped diagram controller](runtime/diagram.md).
+
+These are code walkthroughs, not new platform acceptance evidence. The runtime
+source map below identifies the remaining component boundaries; per-component
+review status is explicit in the [coverage inventory](../coverage.md).
+
 ## Implementation map
 
-- `model/fake_backend`: pure chunk/delay/failure configuration and fixtures.
-- `runtime/icons` and `runtime/palette`: original SVG assets and semantic light/dark colors.
-- `runtime/conversation`: shared conversation scopes, paging, response documents,
+- [Model/fake backend](model/fake_backend.md): pure chunk/delay/failure configuration and fixtures.
+- [Icons](runtime/icons.md) and [palette](runtime/palette.md): original SVG assets and semantic light/dark colors.
+- [Shared conversation](runtime/conversation.md): conversation scopes, paging, response documents,
   bounded attachments, cancellation and retry.
-- `runtime/workspace`: one window's tabs, editors, list views, commands and close
+- [Workspace](runtime/workspace.md): one window's tabs, editors, list views, commands and close
   decision; composed entirely through public view/controller APIs.
-- `main.ml`: Eio capabilities, window creation and integration acceptance runner.
+- [CLI walkthrough](main.md), with [`main.ml`](main.ml): command-line options and package metadata only.
+- [Application walkthrough](application.md), with [`application.ml`](application.ml)
+  and [`application.mli`](application.mli): Eio capabilities, conversation ownership,
+  window creation and resource cleanup. Start here to see how the app is assembled.
+- [Self-test walkthrough](self_test.md), with [`self_test.ml`](self_test.ml) and
+  [`self_test.mli`](self_test.mli): optional programmatic integration driver.
+- [Workload metrics walkthrough](workload_metrics.md), with
+  [`workload_metrics.ml`](workload_metrics.ml) and [`workload_metrics.mli`](workload_metrics.mli):
+  opt-in sampled diagnostics, kept out of ordinary startup.
+
+For the UI, follow `runtime/workspace.ml`'s `component` function: `Bonsai` owns
+reactive observations, `Effect` describes deferred actions, and `View` creates
+GPUIO elements. The workspace delegates conversation content, settings and
+inspector features to their own modules. For a smaller introduction to the same
+boundaries, read the [counter](../getting_started/README.md) and the gallery's
+[separate component and shell](../gallery/README.md#reading-the-code).
 
 The [ownership design](../../docs/design/agent-workspace.md) explains why hiding a
 row, closing a tab and closing a window have different effects on streaming.
@@ -73,7 +136,8 @@ Accessibility permission and reaps its child on success or failure. It exercises
 actual native UI activation, Return, the picker, tab/window/theme/palette controls
 and OS close decisions. `--native-test` only lengthens fake send acceptance to
 make the newer-draft race observable and prints a marker after `App.run` returns.
-Linux GUI execution remains informational under OCH-17; Linux build/unit checks
+Linux GUI execution remains informational, with full desktop qualification deferred
+to OCH-47 under the [platform release policy](../../docs/platform-release-policy.md); Linux build/unit checks
 remain required. See [milestone evidence](../../docs/evidence/agent-workspace-m4.md).
 
 ## Milestone 5 workspace showcase
@@ -273,7 +337,7 @@ columns. [Responsive evidence](../../docs/evidence/agent-chat-m5.md#responsive-i
 
 For local workload measurements, launch with `--workload-metrics --full-motion`.
 This opt-in mode prints `App.diagnostics` snapshots twice per second through Eio
-and streams seven-byte chunks two seconds apart. Use **Cancel** to stop the long
+and configures seven-byte chunks five seconds apart. Use **Cancel** to stop the long
 fixture. The sampling task is included in its own task count; normal operation
 has no metrics task. The records distinguish accepted messages/events from empty
 clock-driven bridge drains and report OCaml resource reservations, not GPU memory.

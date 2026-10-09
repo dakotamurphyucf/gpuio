@@ -13,6 +13,7 @@ module Property : sig
     | Top_right_radius
     | Bottom_left_radius
     | Bottom_right_radius
+    | Opacity_factor
   [@@deriving bin_io, compare, equal, sexp_of]
 end
 
@@ -24,6 +25,15 @@ module Target : sig
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Step_position : sig
+  type t =
+    | Jump_start
+    | Jump_end
+    | Jump_none
+    | Jump_both
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Easing : sig
   type t =
     | Linear
@@ -32,7 +42,13 @@ module Easing : sig
     | Ease_out
     | Ease_in_out
     | Cubic_bezier of float * float * float * float
+    | Ease_in_out_cubic
+    | Steps of int64 * Step_position.t
+    | Linear_stops of (float * float) list
   [@@deriving bin_io, equal, sexp_of]
+
+  val valid_linear_stops : (float * float) list -> bool
+  val valid_steps : count:int64 -> position:Step_position.t -> bool
 end
 
 module Spring : sig
@@ -46,11 +62,30 @@ module Spring : sig
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Iteration_count : sig
+  type t =
+    { high : int64
+    ; low : int64
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Direction : sig
+  type t =
+    | Normal
+    | Reverse
+    | Alternate
+    | Alternate_reverse
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Repeat : sig
   type t =
     | Once
     | Loop
     | Alternate
+    | Finite of Iteration_count.t * Direction.t
+    | Infinite of Direction.t
   [@@deriving bin_io, equal, sexp_of]
 end
 

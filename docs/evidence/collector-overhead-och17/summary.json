@@ -1,0 +1,218 @@
+[
+  {
+    "revision": "9e6fea4c46e368a748c51e2b87b9d704af2f83b8",
+    "dirty": false,
+    "executable_sha256": "d18f909e4749abf04093f2260c49cba3deed81b6bb846c72a960e0750ea7a23c",
+    "complete": true,
+    "returncode": 0,
+    "error": null,
+    "wall_seconds": 10.58170104213059,
+    "cpu_user_seconds": 0.991169,
+    "cpu_system_seconds": 0.254837,
+    "peak_rss_bytes": 110641152,
+    "foreground_preflight": null,
+    "batch": "collector-overhead",
+    "name": "A-warmup",
+    "report_sha256": "e2c484bdd310fab422aad6937e35e7e2963b80a6dc5ea6538c9e082144c9ebc1",
+    "presentation_intervals": []
+  },
+  {
+    "revision": "9e6fea4c46e368a748c51e2b87b9d704af2f83b8",
+    "dirty": false,
+    "executable_sha256": "fd3d5dabeb1d73eade70207db5a48d69120a8b7370f450d3ec20593e802843c2",
+    "complete": false,
+    "returncode": 2,
+    "error": "RuntimeError: GUI workload exited with 2",
+    "wall_seconds": 13.91359187476337,
+    "cpu_user_seconds": 0.17016,
+    "cpu_system_seconds": 0.10227499999999999,
+    "peak_rss_bytes": 99221504,
+    "foreground_preflight": null,
+    "batch": "collector-overhead",
+    "name": "B-warmup",
+    "report_sha256": "9a7f3401cf380a84a52838741a494ef1eb4dc59de6ace73efb98312407a94b70",
+    "presentation_intervals": []
+  },
+  {
+    "revision": "9e6fea4c46e368a748c51e2b87b9d704af2f83b8",
+    "dirty": false,
+    "executable_sha256": "d18f909e4749abf04093f2260c49cba3deed81b6bb846c72a960e0750ea7a23c",
+    "complete": true,
+    "returncode": 0,
+    "error": null,
+    "wall_seconds": 8.91696562524885,
+    "cpu_user_seconds": 0.938983,
+    "cpu_system_seconds": 0.24070699999999998,
+    "peak_rss_bytes": 109854720,
+    "foreground_preflight": {
+      "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+      "requested": true,
+      "confirmed": true,
+      "request_seconds": 0.7584779178723693,
+      "confirmed_seconds": 0.7589355008676648
+    },
+    "batch": "collector-overhead-foreground",
+    "name": "A-warmup",
+    "report_sha256": "82c80a11b8d685475635ef2613f2c759e96135c0a8ba8a44a163da152be989ff",
+    "presentation_intervals": []
+  },
+  {
+    "revision": "9e6fea4c46e368a748c51e2b87b9d704af2f83b8",
+    "dirty": false,
+    "executable_sha256": "fd3d5dabeb1d73eade70207db5a48d69120a8b7370f450d3ec20593e802843c2",
+    "complete": true,
+    "returncode": 0,
+    "error": null,
+    "wall_seconds": 9.296627833507955,
+    "cpu_user_seconds": 0.8838809999999999,
+    "cpu_system_seconds": 0.29853199999999996,
+    "peak_rss_bytes": 115703808,
+    "foreground_preflight": {
+      "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+      "requested": true,
+      "confirmed": true,
+      "request_seconds": 0.2275682920590043,
+      "confirmed_seconds": 0.2281612502411008
+    },
+    "batch": "collector-overhead-foreground",
+    "name": "B-warmup",
+    "report_sha256": "1917ff3ed2fbb342729f119e21f3da806bd4946ae0ed2878bc15fea249e1a9cb",
+    "presentation_intervals": [
+      {
+        "cpu_elapsed_ns": 2602969583,
+        "cpu_draw_samples": 305,
+        "cpu_input_samples": 0,
+        "native_counts": {
+          "attempted": 305,
+          "admitted": 305,
+          "saturated": 0,
+          "presented": 304,
+          "not_submitted": 0,
+          "missing": 0,
+          "zero": 1,
+          "invalid_clock": 0,
+          "duplicate_callbacks": 0,
+          "trace_truncated": 0,
+          "histogram_overflow": 0
+        },
+        "pending": 0,
+        "observation_count": 3,
+        "all_sampled_active": true,
+        "all_sampled_visible": true
+      },
+      {
+        "cpu_elapsed_ns": 2009430500,
+        "cpu_draw_samples": 0,
+        "cpu_input_samples": 0,
+        "native_counts": {
+          "attempted": 0,
+          "admitted": 0,
+          "saturated": 0,
+          "presented": 0,
+          "not_submitted": 0,
+          "missing": 0,
+          "zero": 0,
+          "invalid_clock": 0,
+          "duplicate_callbacks": 0,
+          "trace_truncated": 0,
+          "histogram_overflow": 0
+        },
+        "pending": 0,
+        "observation_count": 2,
+        "all_sampled_active": true,
+        "all_sampled_visible": true
+      }
+    ]
+  },
+  {
+    "revision": "9e6fea4c46e368a748c51e2b87b9d704af2f83b8",
+    "dirty": false,
+    "executable_sha256": "d18f909e4749abf04093f2260c49cba3deed81b6bb846c72a960e0750ea7a23c",
+    "complete": true,
+    "returncode": 0,
+    "error": null,
+    "wall_seconds": 307.79765187576413,
+    "cpu_user_seconds": 66.408993,
+    "cpu_system_seconds": 11.477468,
+    "peak_rss_bytes": 160301056,
+    "foreground_preflight": {
+      "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+      "requested": true,
+      "confirmed": true,
+      "request_seconds": 0.2732801251113415,
+      "confirmed_seconds": 0.27362987492233515
+    },
+    "batch": "collector-overhead-foreground",
+    "name": "A1",
+    "report_sha256": "a6b6e39594a15d7ab40d2c9bc1ce54cc0d536bc4572b645e87f95ef2064effe8",
+    "presentation_intervals": []
+  },
+  {
+    "revision": "9e6fea4c46e368a748c51e2b87b9d704af2f83b8",
+    "dirty": false,
+    "executable_sha256": "fd3d5dabeb1d73eade70207db5a48d69120a8b7370f450d3ec20593e802843c2",
+    "complete": false,
+    "returncode": 2,
+    "error": "RuntimeError: GUI workload exited with 2",
+    "wall_seconds": 297.049145209603,
+    "cpu_user_seconds": 63.51443,
+    "cpu_system_seconds": 12.038931,
+    "peak_rss_bytes": 183730176,
+    "foreground_preflight": {
+      "policy": "One owned-window raise/activation before the history begin record; no activation or AX queries during measurement",
+      "requested": true,
+      "confirmed": true,
+      "request_seconds": 0.32417700067162514,
+      "confirmed_seconds": 0.3246643338352442
+    },
+    "batch": "collector-overhead-foreground",
+    "name": "B1",
+    "report_sha256": "f60478e3d4369544b68d2d28acc9ba1cd0d3efbb4d81cfbb7769c1de5ca224a1",
+    "presentation_intervals": [
+      {
+        "cpu_elapsed_ns": 231322292916,
+        "cpu_draw_samples": 27656,
+        "cpu_input_samples": 0,
+        "native_counts": {
+          "attempted": 27656,
+          "admitted": 27656,
+          "saturated": 0,
+          "presented": 27655,
+          "not_submitted": 0,
+          "missing": 0,
+          "zero": 1,
+          "invalid_clock": 0,
+          "duplicate_callbacks": 0,
+          "trace_truncated": 23560,
+          "histogram_overflow": 0
+        },
+        "pending": 0,
+        "observation_count": 232,
+        "all_sampled_active": true,
+        "all_sampled_visible": true
+      },
+      {
+        "cpu_elapsed_ns": 60005352708,
+        "cpu_draw_samples": 908,
+        "cpu_input_samples": 900,
+        "native_counts": {
+          "attempted": 1385,
+          "admitted": 1385,
+          "saturated": 0,
+          "presented": 1384,
+          "not_submitted": 0,
+          "missing": 0,
+          "zero": 1,
+          "invalid_clock": 0,
+          "duplicate_callbacks": 0,
+          "trace_truncated": 0,
+          "histogram_overflow": 0
+        },
+        "pending": 0,
+        "observation_count": 60,
+        "all_sampled_active": true,
+        "all_sampled_visible": true
+      }
+    ]
+  }
+]

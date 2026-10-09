@@ -1,6 +1,6 @@
 use std::{ops::Range, rc::Rc};
 
-use gpui::{Bounds, Half, Pixels, ShapedLine, TextAlign, px};
+use gpui::{Bounds, Half, Pixels, Point, ShapedLine, TextAlign, px};
 
 use super::{WrappingIndent, display_map::LineLayout};
 
@@ -12,6 +12,10 @@ pub(crate) struct WhitespaceIndicators {
 
 #[derive(Clone)]
 pub(super) struct LastLayout {
+    // Source identity and actual glyph origin from this retained paint only.
+    pub(super) source_revision: i64,
+    pub(super) masked: bool,
+    pub(super) range_origin: Point<Pixels>,
     pub(super) visible_range: Range<usize>,
     pub(super) visible_buffer_lines: Vec<usize>,
     pub(super) visible_line_byte_offsets: Vec<usize>,

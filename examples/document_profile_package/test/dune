@@ -1,0 +1,6 @@
+(library
+ (name document_profile_example_test)
+ (libraries core gpuio gpuio.protocol gpuio_example_document)
+ (inline_tests)
+ (preprocess
+  (pps ppx_jane ppx_expect)))

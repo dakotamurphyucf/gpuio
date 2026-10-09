@@ -98,6 +98,138 @@ let%expect_test "optional card slots and appearance updates preserve body contro
   [%expect {| body identity and handler survive header/footer and theme changes |}]
 ;;
 
+let%expect_test "group panel changes preserve controls and independently refine slots" =
+  let t = Reconciler.create window in
+  let group p ?variant ?header ?footer revision =
+    let refine = Style.create_exn [ Padding_left (Length.px_exn 23.) ] in
+    P.group_box
+      p
+      ?variant
+      ~header_style:refine
+      ~body_style:refine
+      ~footer_style:refine
+      ?header
+      ?footer
+      [ View.checkbox ~state:Checked ~on_toggle:(fun () -> revision) "Persistent choice" ]
+  in
+  let first = group P.Appearance.light "original" in
+  let initial = commit t first in
+  let node, handler =
+    List.find_map_exn initial ~f:(function
+      | W.Op.Create (node, Checkbox, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  let body_event = W.Event.Press (window, node, handler, 1L) in
+  assert (List.is_empty (commit t (group P.Appearance.light ~variant:Card "original")));
+  let stale_actions = ref [] in
+  List.iter [ P.Appearance.light; P.Appearance.dark ] ~f:(fun p ->
+    List.iter [ P.Group_variant.Card; Plain; Filled; Outline ] ~f:(fun variant ->
+      List.iter
+        [ true, true; false, true; true, false; false, false ]
+        ~f:(fun (h, f) ->
+          let control name = View.button name ~on_click:(fun () -> name) in
+          let view =
+            group
+              p
+              ~variant
+              ?header:(Option.some_if h (control "header"))
+              ?footer:(Option.some_if f (control "footer"))
+              "latest"
+          in
+          let operations = commit t view in
+          List.iter operations ~f:(function
+            | W.Op.Remove removed ->
+              assert (not (Gpuio_protocol.Node_id.equal node removed))
+            | Create (_, Checkbox, _, _) -> failwith "group control replaced"
+            | Set_control (changed, _) ->
+              assert (not (Gpuio_protocol.Node_id.equal node changed))
+            | Create (node, Button, _, Some handler) ->
+              stale_actions := W.Event.Press (window, node, handler, 1L) :: !stale_actions
+            | _ -> ());
+          assert (
+            Option.equal String.equal (Reconciler.dispatch t body_event) (Some "latest"));
+          List.iter !stale_actions ~f:(fun event ->
+            Option.iter (Reconciler.dispatch t event) ~f:(function
+              | "header" -> assert h
+              | "footer" -> assert f
+              | _ -> assert false));
+          assert (List.is_empty (commit t view)))));
+  let update = Reconciler.prepare t ~theme:Theme.default None |> ok in
+  Reconciler.accept t update |> ok;
+  List.iter (body_event :: !stale_actions) ~f:(fun event ->
+    assert (Option.is_none (Reconciler.dispatch t event)));
+  print_endline
+    "default Card unchanged; all variants/themes/slots keep checked body and latest \
+     action; removed slots and full unmount fence actions; repeats are idle";
+  [%expect
+    {| default Card unchanged; all variants/themes/slots keep checked body and latest action; removed slots and full unmount fence actions; repeats are idle |}]
+;;
+
+let%expect_test "status regions preserve surviving actions across slot changes" =
+  let t = Reconciler.create window in
+  let bar p leading center trailing =
+    let control name = View.button name ~on_click:(fun () -> name) in
+    P.status_bar
+      p
+      ?leading:(Option.some_if leading (control "leading"))
+      ?center:(Option.some_if center (control "center"))
+      ?trailing:(Option.some_if trailing (control "trailing"))
+      ()
+  in
+  let previous = ref [] in
+  List.iter [ P.Appearance.light; P.Appearance.dark ] ~f:(fun p ->
+    List.iter
+      [ true, true, true
+      ; false, true, true
+      ; false, true, false
+      ; true, true, false
+      ; true, false, false
+      ; true, false, true
+      ; false, false, true
+      ; false, false, false
+      ; true, true, true
+      ]
+      ~f:(fun (leading, center, trailing) ->
+        let view = bar p leading center trailing in
+        let operations = commit t view in
+        let survivors =
+          List.filter !previous ~f:(fun (_, _, name) ->
+            match name with
+            | "leading" -> leading
+            | "center" -> center
+            | "trailing" -> trailing
+            | _ -> assert false)
+        in
+        List.iter !previous ~f:(fun (node, handler, name) ->
+          let survives =
+            List.exists survivors ~f:(fun (_, _, other) -> String.equal name other)
+          in
+          let action =
+            Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L))
+          in
+          assert (Option.equal String.equal action (Option.some_if survives name)));
+        let added =
+          List.filter_map operations ~f:(function
+            | W.Op.Create (node, Button, _, Some handler) ->
+              let name =
+                Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L))
+                |> Option.value_exn
+              in
+              Some (node, handler, name)
+            | _ -> None)
+        in
+        previous := survivors @ added;
+        assert (
+          List.length !previous
+          = Bool.to_int leading + Bool.to_int center + Bool.to_int trailing);
+        assert (List.is_empty (commit t view))));
+  print_endline
+    "all eight slot combinations in both themes; retained actions, retired fences, idle \
+     repeats";
+  [%expect
+    {| all eight slot combinations in both themes; retained actions, retired fences, idle repeats |}]
+;;
+
 let%expect_test "links retain actions and disabled fencing; shortcuts never bind actions" =
   let t = Reconciler.create window in
   let link ?(disabled = false) action =
@@ -170,10 +302,104 @@ let%expect_test
   |}]
 ;;
 
+let%expect_test "overlay badge counts and labels are validated before rendering" =
+  List.iter
+    [ -1, 99; 1, -1 ]
+    ~f:(fun (count, max) ->
+      assert (Or_error.is_error (P.Overlay_badge.count ~max ~label:"Unread" count)));
+  List.iter
+    [ ""; " \t"; "bad\000label"; "\255"; String.make 4097 'x' ]
+    ~f:(fun label ->
+      assert (Or_error.is_error (P.Overlay_badge.count ~label 1));
+      assert (Or_error.is_error (P.Overlay_badge.dot ~label)));
+  List.iter
+    [ 0, 99, ""; 7, 99, "7"; 150, 99, "99+"; 1, 0, "0+"; Int.max_value, 99, "99+" ]
+    ~f:(fun (count, max, visible) ->
+      let label = sprintf "%d unread messages 世界" count in
+      let badge = P.Overlay_badge.count ~max ~label count |> ok in
+      let ds =
+        descriptions (P.overlay_badge P.Appearance.dark ~badge (View.text "Body"))
+      in
+      let text =
+        List.filter_map ds ~f:(fun d ->
+          if View.Expert.Kind.equal d.kind Text && not (String.equal d.text "Body")
+          then Some d.text
+          else None)
+      in
+      assert (List.equal String.equal text (if count = 0 then [] else [ visible ]));
+      let labels =
+        List.filter_map ds ~f:(fun d ->
+          Option.bind d.accessibility ~f:(fun a -> (Accessibility.Expert.to_wire a).label))
+      in
+      assert (List.equal String.equal labels (if count = 0 then [] else [ label ])));
+  print_endline
+    "negative values and malformed labels rejected; zero omitted; capped visual with \
+     uncapped Unicode label; max_int safe";
+  [%expect
+    {| negative values and malformed labels rejected; zero omitted; capped visual with uncapped Unicode label; max_int safe |}]
+;;
+
+let%expect_test "overlay changes keep the underlying control and dispose only decorations"
+  =
+  let owner = Asset.Expert.Owner.create () in
+  let id = Gpuio_protocol.Resource_id.create ~slot:0L ~generation:1L |> ok in
+  let asset = Asset.Expert.handle ~owner ~id ~format:Svg in
+  let icon =
+    Icon.Config.create ~asset ~description:Image.Description.decorative () |> ok
+  in
+  let t = Reconciler.create ~asset_owner:owner window in
+  let count value =
+    P.Overlay_badge.count ~label:(sprintf "%d unread" value) value |> ok
+  in
+  let view appearance size badge action =
+    P.overlay_badge
+      appearance
+      ~size
+      ~badge
+      (View.button "Inbox" ~on_click:(fun () -> action))
+  in
+  let initial = commit t (view P.Appearance.light Medium (count 7) `First) in
+  let node, handler =
+    List.find_map_exn initial ~f:(function
+      | W.Op.Create (node, Button, _, Some handler) -> Some (node, handler)
+      | _ -> None)
+  in
+  List.iter [ P.Appearance.light; P.Appearance.dark ] ~f:(fun appearance ->
+    List.iter [ P.Size.Small; Medium; Large ] ~f:(fun size ->
+      List.iter
+        [ count 150
+        ; P.Overlay_badge.dot ~label:"New activity" |> ok
+        ; P.Overlay_badge.icon icon
+        ; count 0
+        ; count 7
+        ]
+        ~f:(fun badge ->
+          let current = view appearance size badge `Latest in
+          let operations = commit t current in
+          List.iter operations ~f:(function
+            | W.Op.Remove removed ->
+              assert (not (Gpuio_protocol.Node_id.equal node removed))
+            | Create (_, Button, _, _) -> failwith "badged control was replaced"
+            | _ -> ());
+          (match Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L)) with
+           | Some `Latest -> ()
+           | Some `First | None -> assert false);
+          assert (List.is_empty (commit t current)))));
+  let removal = Reconciler.prepare t ~theme:Theme.default None |> ok in
+  Reconciler.accept t removal |> ok;
+  assert (
+    Option.is_none (Reconciler.dispatch t (W.Event.Press (window, node, handler, 1L))));
+  print_endline
+    "count/dot/icon/zero, both appearances and all sizes retain body identity and latest \
+     action; unmount fences delivery";
+  [%expect
+    {| count/dot/icon/zero, both appearances and all sizes retain body identity and latest action; unmount fences delivery |}]
+;;
+
 let%expect_test "presentation capability includes the accepted native family" =
   assert (Int64.equal (Int64.bit_and W.capabilities 17179869184L) 17179869184L);
   let bytes = W.Message.encode (Hello (W.version, W.capabilities)) |> ok in
   String.iter bytes ~f:(fun byte -> printf "%02x" (Char.to_int byte));
   print_endline "";
-  [%expect {| 0001fcffffffffff0f0000 |}]
+  [%expect {| 0003fcffffffffffffff7f |}]
 ;;

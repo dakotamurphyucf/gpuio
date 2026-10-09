@@ -235,3 +235,120 @@ let%expect_test
   [%expect
     {| formatting is bounded and malformed localized strings fail before reconciliation |}]
 ;;
+
+let%expect_test "compact paging retains controls and skips invisible formatters" =
+  let model = Pagination.create ~total_pages:100 ~current:50 () |> ok in
+  let labels =
+    Navigation.Pagination_labels.create
+      ~navigation:"Pages"
+      ~first:"First"
+      ~previous:"Earlier"
+      ~next:"Later"
+      ~last:"Last"
+      ~current:"Current"
+      ~page:(fun _ -> failwith "invisible page formatted")
+      ~gap:(fun ~first:_ ~last:_ -> failwith "invisible gap formatted")
+    |> ok
+  in
+  let compact model =
+    Navigation.pagination model ~layout:Compact ~labels ~on_request:Fn.id () |> ok
+  in
+  let view = compact model in
+  let children = (describe view).children in
+  assert (List.length children = 2);
+  assert (
+    Option.equal String.equal (metadata (List.hd_exn children)).label (Some "Earlier"));
+  assert (
+    Option.equal String.equal (metadata (List.last_exn children)).label (Some "Later"));
+  let reconciler = Reconciler.create window in
+  let initial = commit reconciler (page model) in
+  let previous = button initial "Previous"
+  and next = button initial "Next" in
+  let updates = commit reconciler view in
+  List.iter [ previous; next ] ~f:(fun (node, _) ->
+    assert (
+      not
+        (List.exists updates ~f:(function
+           | W.Op.Remove id -> Gpuio_protocol.Node_id.equal node id
+           | _ -> false))));
+  assert (
+    Option.equal
+      Pagination.Request.equal
+      (dispatch reconciler next)
+      (Some Pagination.Request.next));
+  List.iter [ 0; 1 ] ~f:(fun total_pages ->
+    ignore
+      (commit reconciler (compact (Pagination.create ~total_pages () |> ok))
+       : W.Op.t list);
+    assert (Option.is_none (dispatch reconciler next)));
+  print_endline
+    "two labelled arrows; retained identity and request; empty/single page inert; no \
+     hidden formatting";
+  [%expect
+    {| two labelled arrows; retained identity and request; empty/single page inert; no hidden formatting |}]
+;;
+
+let%expect_test "interactive gaps are bounded and obsolete intervals lose handlers" =
+  let model =
+    Pagination.create ~total_pages:Pagination.max_pages ~current:500_000_000 () |> ok
+  in
+  let render model suffix =
+    Navigation.pagination
+      model
+      ~on_request:(fun _ -> "request")
+      ~on_gap:(fun ~first ~last -> sprintf "%d..%d:%s" first last suffix)
+      ()
+    |> ok
+  in
+  let reconciler = Reconciler.create window in
+  let initial = commit reconciler (render model "old") in
+  let gap = button initial "…" in
+  assert (List.length (describe (render model "current")).children <= 17);
+  ignore (commit reconciler (render model "current") : W.Op.t list);
+  print_s [%sexp (dispatch reconciler gap : string option)];
+  ignore
+    (commit reconciler (render (Pagination.with_disabled model true) "disabled")
+     : W.Op.t list);
+  assert (Option.is_none (dispatch reconciler gap));
+  ignore
+    (commit reconciler (render (Pagination.with_total_pages model 3 |> ok) "shrunk")
+     : W.Op.t list);
+  assert (Option.is_none (dispatch reconciler gap));
+  [%expect {| (2..499999998:current) |}]
+;;
+
+let%expect_test "passive breadcrumb members replace links without stale activation" =
+  let items =
+    collection
+      [ "root", "Home", false; "section", "Section", false; "here", "Here", false ]
+  in
+  let render ~passive =
+    Navigation.breadcrumbs
+      items
+      ~label:"Path"
+      ~current_description:"Here"
+      ~is_navigable:(fun item ->
+        not
+          (passive
+           && Choice.Id.equal (Choice.id item) (Choice.Id.of_string "section" |> ok)))
+      ~item_style:(fun item ->
+        Style.create_exn
+          [ Font_weight
+              (if Choice.Id.equal (Choice.id item) (Choice.Id.of_string "section" |> ok)
+               then 700
+               else 400)
+          ])
+      ~on_navigate:Choice.Id.to_string
+      ()
+    |> ok
+  in
+  let reconciler = Reconciler.create window in
+  let initial = commit reconciler (render ~passive:false) in
+  let home = button initial "Home"
+  and section = button initial "Section" in
+  ignore (commit reconciler (render ~passive:true) : W.Op.t list);
+  assert (Option.is_none (dispatch reconciler section));
+  assert (Option.equal String.equal (dispatch reconciler home) (Some "root"));
+  print_endline "passive intermediate has no action; unaffected route remains live";
+  [%expect {| passive intermediate has no action; unaffected route remains live |}]
+;;

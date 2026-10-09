@@ -8,6 +8,7 @@ use crate::{
 use gpui::{prelude::*, *};
 use gpuio_protocol::{
     HandlerId, NodeId, WindowId, color_input as c,
+    color_presentation::Panel,
     color_value::{AlphaPolicy, Rgba, Value},
 };
 use std::sync::Arc;
@@ -16,6 +17,12 @@ use std::sync::Arc;
 mod channels;
 #[path = "color_input_editors.rs"]
 mod editors;
+#[path = "color_input_palette.rs"]
+mod palette;
+#[path = "color_input_panels.rs"]
+mod panels;
+#[path = "color_input_preview.rs"]
+mod preview;
 const CHANNELS: [c::Channel; 4] = [
     c::Channel::Hue,
     c::Channel::Saturation,
@@ -25,7 +32,7 @@ const CHANNELS: [c::Channel; 4] = [
 
 // Fixed-size paint work, independent of the display scale and palette size.
 // Empty has no fill; a transparent concrete color still shows the checkerboard.
-fn swatch(value: Value) -> impl IntoElement {
+fn swatch(value: Value, radius: f32) -> impl IntoElement {
     canvas(
         |_, _, _| (),
         move |bounds, _, window, _| {
@@ -42,25 +49,25 @@ fn swatch(value: Value) -> impl IntoElement {
                                 size(bounds.size.width / 4., bounds.size.height / 4.),
                             );
                             let mut quad = fill(
-                                cell,
+                                bounds,
                                 rgba(if (row + column) % 2 == 0 {
                                     0xeeeeeeff
                                 } else {
                                     0x999999ff
                                 }),
                             );
-                            quad.corner_radii = Corners {
-                                top_left: px(if row == 0 && column == 0 { 4. } else { 0. }),
-                                top_right: px(if row == 0 && column == 3 { 4. } else { 0. }),
-                                bottom_left: px(if row == 3 && column == 0 { 4. } else { 0. }),
-                                bottom_right: px(if row == 3 && column == 3 { 4. } else { 0. }),
-                            };
-                            window.paint_quad(quad);
+                            // Clip the complete rounded swatch to each tile;
+                            // rounding just the corner tile fails when the
+                            // requested radius extends into adjacent tiles.
+                            quad.corner_radii = px(radius).into();
+                            window.with_content_mask(Some(ContentMask { bounds: cell }), |w| {
+                                w.paint_quad(quad);
+                            });
                         }
                     }
                 }
                 let mut quad = fill(bounds, rgba(color.packed() as u32));
-                quad.corner_radii = px(4.).into();
+                quad.corner_radii = px(radius).into();
                 window.paint_quad(quad);
             }
         },
@@ -138,6 +145,10 @@ struct ColorInput {
     tracks: [Bounds<Pixels>; 4],
     hitboxes: [Option<HitboxId>; 4],
     capture: Option<(usize, HitboxId)>,
+    palette_preview: Option<(usize, Rgba)>,
+    presentation: Arc<gpuio_protocol::color_presentation::Presentation>,
+    panel: Panel,
+    tab_focus: [FocusHandle; 2],
     pointer: bool,
     closed: bool,
     metadata: Option<Arc<gpuio_protocol::accessibility::Config>>,
@@ -175,6 +186,7 @@ impl ColorInput {
                 if events.is_empty() {
                     return;
                 }
+                self.clear_palette_preview(cx);
                 self.editor_events(&events);
                 if !self.route.emit(events) {
                     self.model.fault();
@@ -184,6 +196,7 @@ impl ColorInput {
                 cx.notify();
             }
             Err(c::Error::LimitExceeded | c::Error::NativeFailure) => {
+                self.clear_palette_preview(cx);
                 self.model.fault();
                 self.release(window);
                 self.route.fault();
@@ -206,6 +219,7 @@ impl ColorInput {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
+        self.clear_palette_preview(cx);
         self.release(window);
         let result = self.model.cancel(reason);
         let changed = matches!(result, Ok(Some(_)));
@@ -216,6 +230,7 @@ impl ColorInput {
         self.channel_focus
             .iter()
             .chain(&self.palette_focus)
+            .chain(&self.tab_focus)
             .chain(std::iter::once(&self.clear_focus))
             .chain(self.editors.fields.iter().map(|editor| &editor.focus))
             .any(|f| f.is_focused(window))
@@ -235,6 +250,9 @@ impl ColorInput {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if source == c::Source::Palette && !self.shows_panel(Panel::Palette) {
+            return;
+        }
         let result = self.model.choose(value, source, self.access(pointer));
         if result.is_ok() {
             self.release(window);
@@ -254,15 +272,21 @@ impl ColorInput {
         canvas(
             |_, _, _| (),
             move |bounds, _, window, _| {
-                if bounds.size.width > px(0.)
-                    && bounds.size.height > px(0.)
-                    && bounds.intersects(&window.content_mask().bounds)
-                {
+                if bounds.size.width > px(0.) && bounds.size.height > px(0.) {
                     let mut gate = gate.borrow_mut();
                     if editor && focus.is_focused(window) {
                         gate.remember_command_target(node);
                     }
-                    gate.record_part(node, part, focus.clone(), enabled, focus.is_focused(window));
+                    gate.record_part(
+                        node,
+                        part,
+                        super::focus::Target {
+                            handle: focus.clone(),
+                            tab_stop: enabled,
+                            bounds,
+                        },
+                        focus.is_focused(window),
+                    );
                 }
             },
         )
@@ -273,6 +297,7 @@ impl ColorInput {
 
 impl Render for ColorInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.validate_palette_preview(cx);
         self.sync_editors(window, cx);
         let config = self.model.config();
         let snapshot = self.model.snapshot();
@@ -285,8 +310,8 @@ impl Render for ColorInput {
             .min_w(px(0.))
             .flex()
             .flex_col()
-            .gap(px(10.))
-            .p(px(10.))
+            .gap(px(self.presentation.control_gap as f32))
+            .p(px(self.presentation.padding as f32))
             .role(Role::Group)
             .aria_label(config.labels.control.clone())
             .aria_value(match snapshot.value {
@@ -308,7 +333,7 @@ impl Render for ColorInput {
                         .overflow_hidden()
                         .border_1()
                         .border_color(rgba(0x80808080))
-                        .child(swatch(snapshot.value)),
+                        .child(swatch(self.displayed_color(), 4.)),
                 )
                 .child(
                     div()
@@ -317,72 +342,52 @@ impl Render for ColorInput {
                         .child(self.editor_element(0, window)),
                 ),
         );
-        for (index, channel) in CHANNELS.into_iter().enumerate() {
-            root = root.child(self.channel(index, channel, window, cx));
-        }
-        let mut palette = div().flex().flex_wrap().gap(px(6.));
-        for (index, entry) in config.palette.iter().enumerate() {
-            let value = Value::Color(entry.color);
-            let allowed = editable && config.allows(value);
-            let focus = self.palette_focus[index]
-                .clone()
-                .tab_stop(enabled && config.allows(value));
-            let selected = snapshot.value == value;
-            let mut swatch = div()
-                .id(("swatch", index))
-                .relative()
-                .size(px(28.))
-                .rounded(px(5.))
+        // A permanently reserved caption line avoids shifting the channels or
+        // palette when hover starts or ends. It is paint-only inspection, not
+        // an editor draft or an accessible selected value.
+        root = root.child(crate::semantics::State {
+            identity: None,
+            busy: false,
+            element: div()
+                .id("palette-preview-caption")
+                .h(window.line_height())
                 .overflow_hidden()
-                .border_2()
-                .border_color(if selected || focus.is_focused(window) {
-                    window.text_style().color
-                } else {
-                    transparent_black()
-                })
-                .child(swatch(value))
-                .role(Role::RadioButton)
-                .aria_label(entry.label.clone())
-                .aria_selected(selected)
-                .aria_toggled(if selected {
-                    Toggled::True
-                } else {
-                    Toggled::False
-                })
-                .when(enabled && config.allows(value), |this| {
-                    this.track_focus(&focus)
-                })
-                .child(self.record(
-                    &focus,
-                    4 + index as u16,
-                    enabled && config.allows(value),
-                    false,
-                ));
-            if allowed {
-                swatch = swatch.cursor_pointer().on_click(cx.listener(
-                    move |s, event: &ClickEvent, w, cx| {
-                        s.choose(
-                            value,
-                            c::Source::Palette,
-                            !matches!(event, ClickEvent::Keyboard(_)),
-                            w,
-                            cx,
-                        );
-                        cx.stop_propagation();
-                    },
-                ));
-            }
-            palette = palette.child(crate::semantics::State {
-                element: swatch,
-                metadata: None,
-                live: None,
-                hidden: false,
-                disabled: !enabled || !config.allows(value),
-                read_only: config.read_only,
-                modal: false,
-            });
+                .text_ellipsis()
+                .child(
+                    self.palette_preview
+                        .map_or_else(String::new, |(_, c)| c.to_hex()),
+                ),
+            metadata: None,
+            live: None,
+            hidden: true,
+            disabled: false,
+            read_only: false,
+            modal: false,
+        });
+        if let Some(tabs) = self.tab_bar(window, cx) {
+            root = root.child(tabs);
         }
-        root = root.child(palette);
+        if self.shows_panel(Panel::Channels) {
+            let mut channels = div()
+                .id("color-channels")
+                .flex()
+                .flex_col()
+                .gap(px(self.presentation.control_gap as f32));
+            if let Some(label) = self.panel_label(Panel::Channels) {
+                channels = channels.role(Role::TabPanel).aria_label(label.to_owned());
+            }
+            for (index, channel) in CHANNELS.into_iter().enumerate() {
+                channels = channels.child(self.channel(index, channel, window, cx));
+            }
+            root = root.child(channels);
+        }
+        if self.shows_panel(Panel::Palette) {
+            let mut palette = div().id("color-palette").child(self.palette(window, cx));
+            if let Some(label) = self.panel_label(Panel::Palette) {
+                palette = palette.role(Role::TabPanel).aria_label(label.to_owned());
+            }
+            root = root.child(palette);
+        }
         let clear_focus = self
             .clear_focus
             .clone()
@@ -415,6 +420,8 @@ impl Render for ColorInput {
             }));
         }
         root = root.child(crate::semantics::State {
+            identity: None,
+            busy: false,
             element: clear,
             metadata: None,
             live: None,
@@ -440,6 +447,8 @@ impl Render for ColorInput {
             );
         }
         crate::semantics::State {
+            identity: None,
+            busy: false,
             element: root,
             metadata: self.metadata.clone(),
             live: None,
@@ -485,6 +494,13 @@ impl Instance {
             tracks: [Bounds::default(); 4],
             hitboxes: [None; 4],
             capture: None,
+            palette_preview: None,
+            presentation: node.color_presentation.clone().unwrap_or_default(),
+            panel: node
+                .color_presentation
+                .as_ref()
+                .map_or(Panel::Palette, |p| p.panels.initial()),
+            tab_focus: std::array::from_fn(|_| cx.focus_handle()),
             pointer: true,
             closed: false,
             metadata: node.accessibility.clone(),
@@ -499,6 +515,14 @@ impl Instance {
         let state = self.state.read(cx);
         state.focused(window) || state.model.snapshot().interaction.is_some()
     }
+    pub(super) fn text_focused(&self, window: &Window, cx: &App) -> bool {
+        self.state
+            .read(cx)
+            .editors
+            .fields
+            .iter()
+            .any(|field| field.focus.is_focused(window))
+    }
     pub(super) fn focused(&self, window: &Window, cx: &App) -> bool {
         self.state.read(cx).focused(window)
     }
@@ -508,7 +532,12 @@ impl Instance {
         pointer: bool,
         cx: &mut App,
     ) -> Stateful<Div> {
-        self.state.update(cx, |s, _| s.pointer = pointer);
+        self.state.update(cx, |s, cx| {
+            s.pointer = pointer;
+            if !pointer {
+                s.clear_palette_preview(cx);
+            }
+        });
         base.child(self.state.clone())
     }
 }
@@ -555,6 +584,11 @@ impl View {
             if let Some(instance) = self.color_inputs.get(&node.id) {
                 instance.state.update(cx, |s, cx| {
                     let changed_handler = s.route.handler != node.handler.unwrap();
+                    if changed_handler
+                        || s.model.config() != node.color_input.as_ref().unwrap().config.as_ref()
+                    {
+                        s.clear_palette_preview(cx);
+                    }
                     s.route.handler = node.handler.unwrap();
                     if changed_handler {
                         s.cancel(c::CancelReason::Interrupted, window, cx);
@@ -567,6 +601,11 @@ impl View {
                         s.release(window);
                     }
                     s.publish(result, window, cx);
+                    s.configure_presentation(
+                        node.color_presentation.clone().unwrap_or_default(),
+                        window,
+                        cx,
+                    );
                     let count = s.model.config().palette.len();
                     if s.palette_focus
                         .iter()
@@ -639,15 +678,21 @@ impl View {
             let s = instance.state.read(cx);
             let reason = if !self.visited.contains(id) || !s.route.gate.borrow().visible(*id) {
                 Some(c::CancelReason::Hidden)
+            } else if s.route.gate.borrow().disabled(*id) {
+                Some(c::CancelReason::Disabled)
             } else if !s.route.gate.borrow().allows(*id) {
                 Some(c::CancelReason::Modal)
-            } else if s.capture.is_some() && s.access(true) == Access::Blocked {
+            } else if (s.capture.is_some() || s.palette_preview.is_some())
+                && s.access(true) == Access::Blocked
+            {
                 Some(c::CancelReason::Interrupted)
             } else {
                 None
             };
             if let Some(reason) = reason
-                && (s.focused(window) || s.model.snapshot().interaction.is_some())
+                && (s.focused(window)
+                    || s.model.snapshot().interaction.is_some()
+                    || s.palette_preview.is_some())
             {
                 let weak = instance.state.downgrade();
                 window.defer(cx, move |w, cx| {
@@ -661,3 +706,7 @@ impl View {
 #[cfg(feature = "native-tests")]
 #[path = "color_input_view_test.rs"]
 pub(crate) mod test;
+
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "color_input_preview_test.rs"]
+mod preview_test;

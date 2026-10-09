@@ -1,0 +1,24 @@
+# name	config_hex	operation	input_hex	result	output_hex
+phone_raw	0007283939292d4141	raw	31326162	ok	283132292d6162
+phone_prefix	0007283939292d4141	formatted	283132292d	ok	3132
+phone_wrong	0007283939292d4141	formatted	31326162	fit	-
+literal_collision	00022d2a	raw	2d	ok	2d2d
+extract_collision	00022d2a	formatted	2d2d	ok	2d
+unicode_literal	0005e7958c2d2a	raw	e7958c	ok	e7958c2de7958c
+combining_slots	00022a2a	raw	65cc81	ok	65cc81
+unicode_digit	00022a39	raw	e7958c31	ok	e7958c31
+wrong_digit	00022a39	raw	e7958cefbc91	fit	-
+grouping	0101012c0102	raw	31323334352e3230	ok	31322c3334352e3230
+extract_grouping	0101012c0102	formatted	31322c3334352e3230	ok	31323334352e3230
+bad_grouping	0101012c0102	formatted	31323334352e3230	fit	-
+fraction_group	0101012c0102	formatted	312c3233342e352c30	fit	-
+fullwidth	0101012c0102	raw	efbc8befbc91efbc92efbc93efbc94e38082efbc95efbc90	ok	2b312c3233342e3530
+precision	010103e280af0104	raw	303031323334352e32333030	ok	30e280af303132e280af3334352e32333030
+partial_sign	010000	raw	2d	ok	2d
+partial_decimal	010000	raw	2d2e	ok	2d2e
+empty	010000	raw	-	ok	-
+zero_fraction	01000100	raw	312e	fit	-
+fraction_only	01000102	raw	312e323334	fit	-
+exponent	010000	raw	316533	fit	-
+bad_lines	010000	raw	310a32	text	-
+bad_utf8	010000	raw	ff	text	-

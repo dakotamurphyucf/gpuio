@@ -1,0 +1,2 @@
+COMMAND ['rustc', '--edition=2024', '--crate-name=sankey_label_measurement_probe', '--crate-type=lib', '--emit=metadata', '--extern', 'gpui=target/debug/deps/libgpui-4ab364f6b9f326df.rlib', '-L', 'dependency=target/debug/deps', 'scratch/agents/root-20261004-resumed/sankey-label-measurement-probe.rs', '-o', 'scratch/agents/root-20261004-resumed/sankey-label-measurement-probe.rmeta']
+MEASUREMENT_WORKER_TYPECHECK_OK; not an executed measurement or GUI check

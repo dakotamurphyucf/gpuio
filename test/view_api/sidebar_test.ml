@@ -199,6 +199,11 @@ let button operations label =
   List.find_map_exn operations ~f:(function
     | W.Op.Create (node, Button, text, Some handler) when String.equal text label ->
       Some (node, handler)
+    | W.Op.Create (node, Link, _, Some handler)
+      when List.exists operations ~f:(function
+             | W.Op.Set_link (owner, config) ->
+               Gpuio_protocol.Node_id.equal owner node && String.equal config.label label
+             | _ -> false) -> Some (node, handler)
     | _ -> None)
 ;;
 
@@ -322,4 +327,122 @@ let%expect_test
      rejected";
   [%expect
     {| header navigation and dedicated expansion dispatch independently; nonbutton trigger rejected |}]
+;;
+
+let%expect_test "optional selection activation follows the current branch policy" =
+  let groups ?(disabled = false) activation =
+    [ group
+        [ S.Item.create
+            ~id:(id "Parent")
+            ~label:"Parent"
+            ~activation
+            ~disabled
+            ~children:[ item ~children:[ item "Grandchild" ] "Child"; item "Other" ]
+            ()
+          |> ok
+        ; S.Item.create ~id:(id "Leaf") ~label:"Leaf" ~activation () |> ok
+        ]
+    ]
+  in
+  let make activation =
+    S.create ~groups:(groups activation) ~selected:None ~expanded:[ id "Child" ] () |> ok
+  in
+  List.iter [ S.Item.Activation.Select_only; Expand; Toggle ] ~f:(fun activation ->
+    let t = make activation in
+    let once = S.apply_request t (Select (id "Parent")) in
+    assert (Option.equal S.Id.equal (S.selected once) (Some (id "Parent")));
+    assert (S.is_expanded once (id "Child"));
+    assert (
+      Bool.equal
+        (S.is_expanded once (id "Parent"))
+        (not (S.Item.Activation.equal activation Select_only)));
+    let twice = S.apply_request once (Select (id "Parent")) in
+    assert (
+      Bool.equal
+        (S.is_expanded twice (id "Parent"))
+        (S.Item.Activation.equal activation Expand));
+    let caret = S.apply_request once (Toggle (id "Parent")) in
+    assert (Option.equal S.Id.equal (S.selected caret) (S.selected once));
+    assert (
+      not
+        (Bool.equal
+           (S.is_expanded caret (id "Parent"))
+           (S.is_expanded once (id "Parent"))));
+    let leaf = S.apply_request t (Select (id "Leaf")) in
+    assert (List.equal S.Id.equal (S.expanded leaf) (S.expanded t));
+    let programmatic = S.select t (Some (id "Parent")) |> ok in
+    assert (List.equal S.Id.equal (S.expanded programmatic) (S.expanded t));
+    let disabled = S.with_disabled t true in
+    assert (S.equal disabled (S.apply_request disabled (Select (id "Parent"))));
+    let disabled_parent = S.with_groups t (groups ~disabled:true activation) |> ok in
+    assert (
+      S.equal disabled_parent (S.apply_request disabled_parent (Select (id "Parent"))));
+    let offcanvas = S.with_collapse t Offcanvas |> fun t -> S.with_collapsed t true in
+    assert (S.equal offcanvas (S.apply_request offcanvas (Select (id "Parent"))));
+    let compact =
+      S.with_collapsed t true |> fun t -> S.apply_request t (Select (id "Parent"))
+    in
+    assert (not (S.is_visible compact (id "Child")));
+    assert (
+      Bool.equal (S.is_expanded compact (id "Parent")) (S.is_expanded once (id "Parent")));
+    let expanded = S.with_collapsed compact false in
+    assert (
+      Bool.equal (S.is_visible expanded (id "Child")) (S.is_expanded once (id "Parent"))));
+  let stale_request = S.Request.Select (id "Parent") in
+  let model = make Toggle in
+  let latest = S.with_groups model (groups Expand) |> ok in
+  let twice = S.apply_request (S.apply_request latest stale_request) stale_request in
+  assert (S.is_expanded twice (id "Parent"));
+  print_endline
+    "default independence; opt-in expand/toggle; latest eligibility; compact preference; \
+     selection-only programmatic API";
+  [%expect
+    {| default independence; opt-in expand/toggle; latest eligibility; compact preference; selection-only programmatic API |}]
+;;
+
+let%expect_test
+    "selection activation retains native links, handlers and disclosure owners"
+  =
+  let groups activation =
+    [ group
+        [ S.Item.create
+            ~id:(id "Parent")
+            ~label:"Parent"
+            ~activation
+            ~children:[ item "Child" ]
+            ()
+          |> ok
+        ]
+    ]
+  in
+  let r = Reconciler.create window in
+  let initial = S.create ~groups:(groups Select_only) ~selected:None () |> ok in
+  let mounted = commit r (sidebar initial) in
+  let node, handler = button mounted "Parent" in
+  let request =
+    Reconciler.dispatch r (W.Event.Press (window, node, handler, 1L)) |> Option.value_exn
+  in
+  let latest = S.with_groups initial (groups Toggle) |> ok in
+  assert (List.is_empty (commit r (sidebar latest)));
+  let expanded = S.apply_request latest request in
+  let changes = commit r (sidebar expanded) in
+  assert (S.is_expanded expanded (id "Parent"));
+  assert (
+    not
+      (List.exists changes ~f:(function
+         | W.Op.Create _ | Remove _ | Bind _ -> true
+         | _ -> false)));
+  let second =
+    Reconciler.dispatch r (W.Event.Press (window, node, handler, Reconciler.revision r))
+    |> Option.value_exn
+  in
+  let collapsed = S.apply_request expanded second in
+  assert (not (S.is_expanded collapsed (id "Parent")));
+  assert (Option.equal S.Id.equal (S.selected collapsed) (Some (id "Parent")));
+  ignore (commit r (sidebar collapsed) : W.Op.t list);
+  print_endline
+    "policy change is model-only; repeated native selection requests retain branch \
+     identity";
+  [%expect
+    {| policy change is model-only; repeated native selection requests retain branch identity |}]
 ;;

@@ -1,0 +1,31 @@
+AX_WAIT A little context goes a long way
+AX_PRESS Markdown & code
+AX_WAIT Markdown preview
+DOCUMENT_SCROLL_TARGET [593.0, 790.5, 770.0, 350.0] point (978.0, 965.5)
+DOCUMENT_SCROLL_TARGET [593.0, 710.5, 770.0, 350.0] point (978.0, 885.5)
+GALLERY_FOCUS_READY Inspect highlighted code requests= 1
+AX_WAIT (Data Inspect_code)
+GALLERY_FOCUS_READY Summarize native table requests= 1
+AX_WAIT (Data Summarize_table)
+GALLERY_FOCUS_READY Review details requests= 1
+AX_WAIT (Data Open_badge)
+AX_WAIT (Data Open_card)
+AX_WAIT (Data Open_card)
+GALLERY_FOCUS_READY Review details requests= 1
+AX_WAIT (Data Open_badge)
+GALLERY_FOCUS_READY Show review end requests= 1
+AX_WAIT (Data Open_card)
+GALLERY_FOCUS_READY Show review start requests= 1
+GALLERY_FOCUS_READY Show review end requests= 1
+GALLERY_FOCUS_READY Show review end requests= 1
+AX_WAIT (Data Open_card)
+GALLERY_FOCUS_READY Show review end requests= 1
+AX_WAIT (Data Open_card)
+AX_PRESS Runtime & windows
+AX_PRESS Refresh resource counts
+GALLERY_RESOURCE_SNAPSHOT Images: 1 · Charts: 0 · Canvases: 0
+AX_PRESS Refresh resource counts
+GALLERY_RESOURCE_SNAPSHOT Images: 0 · Charts: 0 · Canvases: 0
+AX_WAIT Documents: 0
+AX_WAIT Registered source bytes: 0
+GPUIO_DOCUMENT_PROFILE_OK: native actions/plugins, navigation, updates, remount and source release

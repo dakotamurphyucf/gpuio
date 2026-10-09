@@ -1,0 +1,114 @@
+{
+  "commands/README.txt": {
+    "bytes": 1228,
+    "sha256": "ba7306ee89fd2472b671462daf7125dc4b4b0077a8a8e22238a505738d971a57"
+  },
+  "commands/binary-sha256.json": {
+    "bytes": 170,
+    "sha256": "0aa5eea617a1851ef95b75a23f8e7a8509495cb89395378f9200c6e035e7f772"
+  },
+  "logs/native-popup-lifecycle-armed-build.log": {
+    "bytes": 71,
+    "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+  },
+  "logs/native-popup-lifecycle-armed-consumer-build.log": {
+    "bytes": 503,
+    "sha256": "5a4ca3fb5fa9bc6c895b3398e6e554a1598925fa19dd557c8ea7463e874b536d"
+  },
+  "logs/native-popup-lifecycle-build-final.log": {
+    "bytes": 71,
+    "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+  },
+  "logs/native-popup-lifecycle-build-modal.log": {
+    "bytes": 71,
+    "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+  },
+  "logs/native-popup-lifecycle-build.log": {
+    "bytes": 100341,
+    "sha256": "ccf4e02ecfccb17b0434be054e5bc5dc40181f1dfea2eba50dd9c3be1018a588"
+  },
+  "logs/native-popup-lifecycle-disable.log": {
+    "bytes": 303,
+    "sha256": "edfa20b4ed8ae2704537eed81fc0382abd071341c3a65abd03f50507cd22d89b"
+  },
+  "logs/native-popup-lifecycle-final-close.log": {
+    "bytes": 164,
+    "sha256": "3880024c2562bca4a98536cce4e0bb8528970ee96a7350bab3527ec7dbf64cae"
+  },
+  "logs/native-popup-lifecycle-final-disable.log": {
+    "bytes": 333,
+    "sha256": "1c58d02daee34c7000cb518b62cc43760e8dc99dc92faa9db6efb6f164c7d41c"
+  },
+  "logs/native-popup-lifecycle-final-hide.log": {
+    "bytes": 321,
+    "sha256": "ade02c26ca96daedd4cb46639d47f6ef0e3a6403f0ad2ec3d00a0a59f59389bf"
+  },
+  "logs/native-popup-lifecycle-final-interaction.log": {
+    "bytes": 565,
+    "sha256": "78d826ac587c4abd0af95046d9d9a61c79d96af200455f4a21b0b58b7f2908d9"
+  },
+  "logs/native-popup-lifecycle-final-invalidate.log": {
+    "bytes": 223,
+    "sha256": "f05c745efc0a4ff8e1ad2a3b87d17db4d878e3d754ec4f75243941366d3a5b6e"
+  },
+  "logs/native-popup-lifecycle-final-modal.log": {
+    "bytes": 296,
+    "sha256": "564bc5780a2d1f5931ab5fa417a7fb0a86d6636818edc981dbac732065f5841b"
+  },
+  "logs/native-popup-lifecycle-final-replace.log": {
+    "bytes": 333,
+    "sha256": "b7ced8e78aca69c8c221a7f570a566c486907dbcc1c43df11edd5412b11534d8"
+  },
+  "logs/native-popup-lifecycle-final-retire.log": {
+    "bytes": 217,
+    "sha256": "b3d1300afa41e1e4f1322a0de848a8b3084775e6d71499e5dbe1d1f3914e9a71"
+  },
+  "logs/native-popup-lifecycle-hide.log": {
+    "bytes": 291,
+    "sha256": "d57bb4a94a8b005d6b87524244935432ca846c41e47adcf4b8c2f1a6f18bc105"
+  },
+  "logs/native-popup-lifecycle-modal.log": {
+    "bytes": 266,
+    "sha256": "bbd9d87e7675a18911a35ab60ca08da2f96e9d5be42d272347ab23740ea45393"
+  },
+  "logs/native-popup-lifecycle-replace.log": {
+    "bytes": 303,
+    "sha256": "bc5a49422d32211f37f65aec493a1b7eadcdec4d92fd95752631479cf531e360"
+  },
+  "logs/native-popup-lifecycle-workflow.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "sources/.github/workflows/foundation.yml": {
+    "bytes": 75245,
+    "sha256": "a1404e848e6f38186b75199e91e46d2a8acc67186e0def1afb2a8da102d3095f"
+  },
+  "sources/docs/catalog/commands-menus-review.md": {
+    "bytes": 14598,
+    "sha256": "b9f95caaa233de3a3e80b5efa83c9459e47683d079f7647402c07da38399e55a"
+  },
+  "sources/docs/design/native-popup-menu.md": {
+    "bytes": 7228,
+    "sha256": "b44fa4f37f44724030bbf97b6974acdf0a95c10b5de2298555bbd45a90d5a587"
+  },
+  "sources/docs/evidence/native-popup-och41.md": {
+    "bytes": 10512,
+    "sha256": "63984ae31098a07f63bd83777a6e7d6cc72d96e12629b325bac27183dc691f3c"
+  },
+  "sources/docs/status.md": {
+    "bytes": 44425,
+    "sha256": "aa67aeb0700ab4aa511082d99a1a040b847a63c44f5db9561815f930c4396ad1"
+  },
+  "sources/examples/menus/main.md": {
+    "bytes": 8110,
+    "sha256": "43a0f93102699b5ae3851f07f44b526e7b578dcbdca112534b502b3d0b0801d3"
+  },
+  "sources/examples/menus/main.ml": {
+    "bytes": 8230,
+    "sha256": "600d20f027ec8bdd697137c2911762741739c2f127e55eacb3e7a2ec04dd8cdd"
+  },
+  "sources/scripts/test_native_popup_macos.py": {
+    "bytes": 17867,
+    "sha256": "5586a479d51aa876794a2a4723a155515189ce6ff23562fad0e377dcfe88028b"
+  }
+}

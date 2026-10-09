@@ -13,6 +13,25 @@ use gpui::{
     RenderOnce, StatefulInteractiveElement as _, Styled, Window, div, prelude::FluentBuilder,
 };
 use gpui_base::TestSupportExt as _;
+use std::rc::Rc;
+
+/// Scoped native scrollbar rendering over the table's existing handles. The
+/// table retains ownership of header/pinned-column layout and visibility flags.
+/// Returning None suppresses that axis; omitting this presentation restores Base.
+/// This callback is native Rust rendering and must not call another runtime.
+#[derive(Clone)]
+pub struct ScrollbarPresentation {
+    pub(super) width: gpui::Pixels,
+    pub(super) render: Rc<dyn Fn(gpui::Axis) -> Option<gpui::AnyElement>>,
+}
+impl ScrollbarPresentation {
+    pub fn new(
+        width: gpui::Pixels,
+        render: Rc<dyn Fn(gpui::Axis) -> Option<gpui::AnyElement>>,
+    ) -> Option<Self> {
+        (f32::from(width).is_finite() && width >= gpui::px(0.)).then_some(Self { width, render })
+    }
+}
 
 const CONTEXT: &str = "GpuioDataTable";
 pub(super) fn init(cx: &mut App) {
@@ -43,6 +62,7 @@ pub(super) fn init(cx: &mut App) {
 
 pub(super) struct TableOptions {
     pub(super) scrollbar_visible: Edges<bool>,
+    pub(super) scrollbar_presentation: Option<ScrollbarPresentation>,
     /// Set stripe style of the table.
     pub(super) stripe: bool,
     /// Set to use border style of the table.
@@ -56,6 +76,7 @@ impl Default for TableOptions {
     fn default() -> Self {
         Self {
             scrollbar_visible: Edges::all(true),
+            scrollbar_presentation: None,
             stripe: false,
             bordered: true,
             inherit_text_style: false,
@@ -144,6 +165,10 @@ where
             bottom: horizontal,
             ..Default::default()
         };
+        self
+    }
+    pub fn scrollbar_presentation(mut self, presentation: Option<ScrollbarPresentation>) -> Self {
+        self.options.scrollbar_presentation = presentation;
         self
     }
 }

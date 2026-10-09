@@ -1,0 +1,13 @@
+{
+  "before_bytes" : 65536,
+  "complete" : true,
+  "device_name" : "Apple M1 Max",
+  "held_bytes" : 8454144,
+  "layer_released" : true,
+  "os" : "Version 14.5 (Build 23F79)",
+  "registry_id" : "4294969919",
+  "released_bytes" : 65536,
+  "requested_buffer_bytes" : 8388608,
+  "scope" : "isolated device-counter\/ownership calibration; no GPUI workload or presentation measurement",
+  "view_released" : true
+}

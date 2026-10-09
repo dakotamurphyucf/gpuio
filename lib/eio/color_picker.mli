@@ -48,9 +48,31 @@ val command
     native hex/channel editors. *)
 val view
   :  ?style:Gpuio.Style.t
+  -> ?trigger_style:Gpuio.Style.t
+  -> ?appearance:Gpuio.Color_input.Appearance.t
   -> ?apply_label:string
   -> ?cancel_label:string
   -> overlay:Gpuio.Overlay.Config.t
   -> label:string
   -> t
   -> Gpuio_bonsai.View.t
+
+(** A single native trigger button around checked passive content (for example
+    formatted value text, an icon or a color swatch). [accessible_name] must be
+    nonblank UTF-8 without NUL, at most 1024 bytes. Content follows
+    [Gpuio.View.button_with_content]'s bounds; interactive descendants and
+    callbacks are rejected. Changing content retains the trigger and open draft.
+    [trigger_style] styles the button; [style] styles the popup. Use one view per
+    controller, choosing this helper or [view]. A clear action belongs beside
+    the trigger and updates the application's controlled value explicitly. *)
+val view_with_trigger
+  :  ?style:Gpuio.Style.t
+  -> ?trigger_style:Gpuio.Style.t
+  -> ?appearance:Gpuio.Color_input.Appearance.t
+  -> ?apply_label:string
+  -> ?cancel_label:string
+  -> overlay:Gpuio.Overlay.Config.t
+  -> accessible_name:string
+  -> trigger:Gpuio_bonsai.View.t
+  -> t
+  -> Gpuio_bonsai.View.t Or_error.t

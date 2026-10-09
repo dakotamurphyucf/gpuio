@@ -1,0 +1,86 @@
+{
+  "complete": false,
+  "original_error": "ValueError: Startup presentation exceeds 100 ms",
+  "cpu_budget_failures_replay": [],
+  "revision": "394039d6945ea6da283129aa65e688f817f23adf",
+  "executable_sha256": "7daba2ca5760c418cb8c29d4ebdaa17a7960ceca7ba495a0bdf448092017400e",
+  "dirty_at_start": false,
+  "peak_rss_bytes": 183844864,
+  "wall_seconds": 288.58384412527084,
+  "intervals": [
+    {
+      "cpu_elapsed_ns": 222113502000,
+      "counts": {
+        "attempted": 26590,
+        "admitted": 26590,
+        "saturated": 0,
+        "presented": 26587,
+        "not_submitted": 0,
+        "missing": 0,
+        "zero": 3,
+        "invalid_clock": 0,
+        "duplicate_callbacks": 0,
+        "trace_truncated": 22494,
+        "histogram_overflow": 0
+      },
+      "pending": 0,
+      "histograms": {
+        "submission_to_presentation": {
+          "count": 26587,
+          "p95": 32260095,
+          "p99": 32292863
+        },
+        "input_to_presentation": {
+          "count": 0,
+          "p95": null,
+          "p99": null
+        },
+        "scheduled_presentation_interval": {
+          "count": 0,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "startup_recovery_ns": 102723125.3683567,
+      "visibility_samples": 223,
+      "all_observed_active_visible": true
+    },
+    {
+      "cpu_elapsed_ns": 60012533750,
+      "counts": {
+        "attempted": 0,
+        "admitted": 0,
+        "saturated": 0,
+        "presented": 0,
+        "not_submitted": 0,
+        "missing": 0,
+        "zero": 0,
+        "invalid_clock": 0,
+        "duplicate_callbacks": 0,
+        "trace_truncated": 0,
+        "histogram_overflow": 0
+      },
+      "pending": 0,
+      "histograms": {
+        "submission_to_presentation": {
+          "count": 0,
+          "p95": null,
+          "p99": null
+        },
+        "input_to_presentation": {
+          "count": 0,
+          "p95": null,
+          "p99": null
+        },
+        "scheduled_presentation_interval": {
+          "count": 0,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "startup_recovery_ns": null,
+      "visibility_samples": 60,
+      "all_observed_active_visible": true
+    }
+  ]
+}

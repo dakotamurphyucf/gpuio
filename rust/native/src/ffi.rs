@@ -122,6 +122,17 @@ pub fn gpuio_v1_submit(
     status(result).to_ocaml(cr)
 }
 #[ocaml_interop::export]
+pub fn gpuio_v1_document_profile_catalog(
+    cr: &mut OCamlRuntime,
+    _unit: OCaml<()>,
+) -> OCaml<OCamlBytes> {
+    let mut bytes = Vec::new();
+    crate::document_profiles::catalog()
+        .binprot_write(&mut bytes)
+        .expect("encode document profile catalog");
+    bytes.to_ocaml(cr)
+}
+#[ocaml_interop::export]
 pub fn gpuio_v1_extension_catalog(cr: &mut OCamlRuntime, _unit: OCaml<()>) -> OCaml<OCamlBytes> {
     let mut bytes = Vec::new();
     crate::extensions::catalog()
@@ -261,4 +272,26 @@ pub fn gpuio_v1_command_queue(
         .expect("mailbox poisoned")
         .command_queue();
     (count as i64, bytes as i64, peak as i64).to_ocaml(cr)
+}
+
+/// Pure, bounded regex preparation. Requires no Transport or GPUI application.
+#[ocaml_interop::export]
+pub fn gpuio_v1_input_regex_prepare(
+    cr: &mut OCamlRuntime,
+    bytes: OCaml<OCamlBytes>,
+) -> OCaml<OCamlBytes> {
+    let bytes = bytes.as_bytes();
+    let result = if bytes.len() > gpuio_protocol::input_validation::MAX_SOURCE_BYTES + 16 {
+        gpuio_protocol::input_validation::Preparation::Failed(
+            gpuio_protocol::input_validation::Error::InvalidSource,
+        )
+    } else {
+        let bytes = bytes.to_owned();
+        cr.releasing_runtime(|| crate::input_validation::prepare(&bytes))
+    };
+    let mut output = Vec::new();
+    result
+        .binprot_write(&mut output)
+        .expect("encode regex preparation");
+    output.to_ocaml(cr)
 }

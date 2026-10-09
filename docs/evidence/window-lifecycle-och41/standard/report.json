@@ -1,0 +1,29 @@
+{
+  "complete": true,
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "checks": [
+    {
+      "case": "minimize-restore-retains-window-and-editor",
+      "cycle": 1
+    },
+    {
+      "case": "minimize-restore-retains-window-and-editor",
+      "cycle": 2
+    },
+    {
+      "case": "minimize-restore-retains-window-and-editor",
+      "cycle": 3
+    },
+    {
+      "case": "native-selection-delete-and-undo-after-transitions"
+    },
+    {
+      "case": "second-window-close-retains-original"
+    }
+  ],
+  "custom_chrome": false,
+  "executable_sha256": "506e27144b26dc0172f21548e20827643deaa7c67604dae41495959e5225fb0c",
+  "revision": "282c21e0173921fd1d3330e59e639b8146cd4284",
+  "dirty": true,
+  "child_reaped": true
+}

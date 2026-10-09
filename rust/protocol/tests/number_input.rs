@@ -596,3 +596,81 @@ fn correlated_commands_use_distinct_tags_and_reject_bad_envelopes() {
         .is_err()
     );
 }
+
+#[test]
+fn application_step_independent_fixtures_and_validation() {
+    let request = StepRequest {
+        id: 11,
+        direction: Direction::Increase,
+        source: Source::Stepper,
+        snapshot: settled(),
+    };
+    fixture(
+        Event::StepRequested(request.clone()),
+        include_str!("../../../test/fixtures/number-step-request.hex"),
+        decode_number_input_event,
+    );
+    fixture(
+        Command::ResolveStep {
+            request_id: 11,
+            revision: 8,
+            value: Some(Value::Number(4.5)),
+        },
+        include_str!("../../../test/fixtures/number-step-apply.hex"),
+        decode_number_input_command,
+    );
+    fixture(
+        Command::ResolveStep {
+            request_id: 11,
+            revision: 8,
+            value: None,
+        },
+        include_str!("../../../test/fixtures/number-step-decline.hex"),
+        decode_number_input_command,
+    );
+    for invalid in [
+        StepRequest {
+            id: 0,
+            ..request.clone()
+        },
+        StepRequest {
+            snapshot: snapshot(),
+            ..request.clone()
+        },
+    ] {
+        assert!(decode_number_input_event(&encode(&Event::StepRequested(invalid))).is_err());
+    }
+    for invalid in [
+        Command::ResolveStep {
+            request_id: 0,
+            revision: 8,
+            value: None,
+        },
+        Command::ResolveStep {
+            request_id: 1,
+            revision: -1,
+            value: None,
+        },
+        Command::ResolveStep {
+            request_id: 1,
+            revision: 0,
+            value: Some(Value::Number(f64::NAN)),
+        },
+    ] {
+        assert!(decode_number_input_command(&encode(&invalid)).is_err());
+    }
+    let mut maximum = request;
+    maximum.id = i64::MAX;
+    maximum.snapshot.draft = "0".repeat(MAX_DRAFT_BYTES);
+    maximum.snapshot.revision = i64::MAX;
+    maximum.snapshot.selection = Selection {
+        anchor: 4096,
+        head: 4096,
+    };
+    let encoded = encode(&Event::StepRequested(maximum.clone()));
+    assert!(encoded.len() <= MAX_EVENT_BYTES);
+    assert_eq!(
+        decode_number_input_event(&encoded),
+        Ok(Event::StepRequested(maximum))
+    );
+}

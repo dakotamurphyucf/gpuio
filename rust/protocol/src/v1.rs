@@ -9,7 +9,9 @@ pub use crate::toast::*;
 use crate::{HandlerId, NodeId, WindowId};
 use binprot::macros::BinProtWrite;
 
-pub const VERSION: i64 = 1;
+// Unpublished exact epoch 3 adds MenuButton observation/placement, split coordination,
+// and Link loading beyond epoch 2 button presentation.
+pub const VERSION: i64 = 3;
 pub const CAP_TREE: i64 = 1;
 pub const CAP_NATIVE_STYLES: i64 = 2;
 pub const CAP_FRAME_EVENTS: i64 = 4;
@@ -54,7 +56,53 @@ pub const CAP_MANAGED_TABLES: i64 = 1_i64 << 40;
 pub const CAP_DESKTOP: i64 = 1_i64 << 41;
 pub const CAP_OS_NOTIFICATIONS: i64 = 1_i64 << 42;
 pub const CAP_CHARTS: i64 = 1_i64 << 43;
-pub const CAPABILITIES: i64 = CAP_CHARTS
+/// Extended cursor values and start-ellipsis styles.
+pub const CAP_STYLE_VALUES: i64 = 1_i64 << 44;
+pub const CAP_INPUT_REGIONS: i64 = 1_i64 << 45;
+pub const CAP_POINTER_OCCLUSION: i64 = 1_i64 << 46;
+/// Atomic foreground runs on ordinary text, including selectable text.
+pub const CAP_STYLED_TEXT: i64 = 1_i64 << 47;
+/// Composed passive-content links with one native action/focus owner.
+pub const CAP_LINKS: i64 = 1_i64 << 48;
+/// Native solid/dashed border refinements, including state layers.
+pub const CAP_BORDER_STYLES: i64 = 1_i64 << 49;
+pub const CAP_ASPECT_RATIO: i64 = 1_i64 << 50;
+pub const CAP_OPACITY_FACTOR: i64 = 1_i64 << 51;
+pub const CAP_COMMAND_BINDINGS: i64 = 1_i64 << 52;
+pub const CAP_NUMBER_INPUT_DRAFT: i64 = 1_i64 << 53;
+/// Inherited native input/focus gating with discoverable disabled semantics.
+pub const CAP_DISABLED_SUBTREES: i64 = 1_i64 << 54;
+/// Atomic signed-line/span grid placement for both axes.
+pub const CAP_GRID_LOCATION: i64 = 1_i64 << 55;
+/// One bounded passive retained fallback child on an avatar.
+pub const CAP_AVATAR_FALLBACK: i64 = 1_i64 << 56;
+pub const CAP_RATING_APPEARANCE: i64 = 1_i64 << 57;
+pub const CAP_SPINNER: i64 = 1_i64 << 58;
+pub const CAP_PROGRESS_PRESENTATION: i64 = 1_i64 << 59;
+pub const CAP_CONTROL_APPEARANCE: i64 = 1_i64 << 60;
+pub const CAP_CONTROL_LABELS: i64 = 1_i64 << 61;
+/// Standalone radios, semantic radio groups and per-checkable Tab policy.
+pub const CAP_CHECKABLE_NAVIGATION: i64 = 1_i64 << 62;
+pub const CAPABILITIES: i64 = CAP_CHECKABLE_NAVIGATION
+    | CAP_CONTROL_LABELS
+    | CAP_CONTROL_APPEARANCE
+    | CAP_PROGRESS_PRESENTATION
+    | CAP_SPINNER
+    | CAP_RATING_APPEARANCE
+    | CAP_AVATAR_FALLBACK
+    | CAP_GRID_LOCATION
+    | CAP_DISABLED_SUBTREES
+    | CAP_NUMBER_INPUT_DRAFT
+    | CAP_COMMAND_BINDINGS
+    | CAP_OPACITY_FACTOR
+    | CAP_ASPECT_RATIO
+    | CAP_BORDER_STYLES
+    | CAP_LINKS
+    | CAP_STYLED_TEXT
+    | CAP_POINTER_OCCLUSION
+    | CAP_INPUT_REGIONS
+    | CAP_STYLE_VALUES
+    | CAP_CHARTS
     | CAP_OS_NOTIFICATIONS
     | CAP_DESKTOP
     | CAP_MANAGED_TABLES
@@ -161,6 +209,14 @@ pub enum Kind {
     HoverCard,
     Carousel,
     ChartView,
+    InputRegion,
+    HighlightScope,
+    Link,
+    Radio,
+    ChoicePicker,
+    CarouselTrack,
+    CarouselTrackGroup,
+    SplitGroup,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -245,13 +301,15 @@ pub enum Control {
     Button(bool),
     Checkbox(CheckState, bool),
     Switch(bool, bool),
+    Radio(bool, Option<crate::checkable::Position>, bool),
 }
 impl Control {
     pub fn disabled(self) -> bool {
         match self {
-            Self::Button(disabled) | Self::Checkbox(_, disabled) | Self::Switch(_, disabled) => {
-                disabled
-            }
+            Self::Button(disabled)
+            | Self::Checkbox(_, disabled)
+            | Self::Switch(_, disabled)
+            | Self::Radio(_, _, disabled) => disabled,
         }
     }
     pub fn kind(self) -> Kind {
@@ -259,6 +317,7 @@ impl Control {
             Self::Button(_) => Kind::Button,
             Self::Checkbox(..) => Kind::Checkbox,
             Self::Switch(..) => Kind::Switch,
+            Self::Radio(..) => Kind::Radio,
         }
     }
 }
@@ -280,6 +339,10 @@ pub enum Color {
 pub enum Fill {
     Solid(Color),
     LinearGradient(f64, Color, f64, Color, f64),
+    /// Explicit interpolation: 0=sRGB, 1=Oklab. Legacy tag1 remains sRGB.
+    LinearGradientIn(i64, f64, Color, f64, Color, f64),
+    PatternSlash(Color, f64, f64),
+    Checkerboard(Color, f64),
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Shadow {
@@ -358,6 +421,11 @@ pub enum Field {
     SelectionColor(Color),
     AccessibleName(String),
     Inert(bool),
+    PointerOcclusion(i64),
+    BorderStyle(i64),
+    AspectRatio(f64),
+    Disabled(bool),
+    GridLocation(crate::grid_location::Location),
 }
 
 /// Initial portable refinements; adding tags requires explicit schema review.
@@ -392,6 +460,14 @@ pub struct EditorSelection {
     pub anchor: i64,
     pub head: i64,
 }
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, BinProtWrite)]
+pub enum EditorPrivacy {
+    #[default]
+    Plain,
+    PasswordHidden,
+    PasswordRevealed,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct EditorConfig {
     pub label: String,
@@ -434,7 +510,7 @@ pub enum EditorUndoPolicy {
     Record,
     Reset,
 }
-#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum EditorCommand {
     Replace(String, EditorSelectionPolicy, EditorUndoPolicy, Option<i64>),
     Select(EditorSelection),
@@ -443,6 +519,11 @@ pub enum EditorCommand {
     Redo,
     Submit,
     ReadSnapshot,
+    ReadContentHintStatus,
+    ReadViewport,
+    ScrollViewport(crate::editor_viewport::Offset),
+    Search(crate::editor_search::Command),
+    ReadRangeBounds(i64, EditorSelection),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum EditorError {
@@ -457,11 +538,20 @@ pub enum EditorError {
     NativeFailure,
     InvalidText,
     FocusBlocked,
+    SearchUnavailable,
+    StaleSearch,
+    NotEditable,
 }
-#[derive(Clone, Debug, PartialEq, Eq, BinProtWrite)]
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum EditorResult {
     Applied(EditorSnapshot),
     Failed(EditorError),
+    ContentHintStatus(crate::input_content_hint::Status),
+    Viewport(Option<crate::editor_viewport::Snapshot>),
+    ViewportScrollAccepted,
+    SearchObserved(crate::editor_search::Snapshot),
+    SearchReplaced(EditorSnapshot, crate::editor_search::Snapshot, i64),
+    RangeBounds(Option<crate::editor_geometry::Snapshot>),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum EditorEventKind {
@@ -680,7 +770,86 @@ pub enum Op {
     SetTable(NodeId, crate::table::Config),
     SetTableCell(NodeId, crate::table::Cell),
     TableCommand(NodeId, crate::table::Command),
-    SetChart(NodeId, crate::chart_view::Config),
+    // Keep the growing chart payload from inflating every small tree operation.
+    // Box is transparent to bin_prot; the operation tag and payload stay unchanged.
+    SetChart(NodeId, Box<crate::chart_view::Config>),
+    SetInputRegion(NodeId, crate::input::Config),
+    SetHighlightScope(NodeId, crate::highlight::Config),
+    SetDocumentDiff(NodeId, i64, Option<crate::document_diff::Config>),
+    SetStyledText(NodeId, crate::text_content::Content),
+    SetLink(NodeId, crate::link::Config),
+    SetTextShimmer(NodeId, Option<crate::text_shimmer::Config>),
+    SetCommandBinding(NodeId, Option<crate::command_binding::Config>),
+    SetNumberInputDraft(NodeId, Option<String>),
+    SetRatingAppearance(NodeId, Option<crate::rating::Appearance>),
+    SetSpinner(NodeId, crate::spinner::Config),
+    SetProgressPresentation(NodeId, crate::progress_presentation::Config),
+    SetControlAppearance(NodeId, Option<crate::control_appearance::Config>),
+    SetTabOrder(NodeId, Option<crate::checkable::TabOrder>),
+    SetButtonPresentation(NodeId, Option<crate::button::Config>),
+    SetSplitButton(NodeId, Option<crate::split_button::Config>),
+    SetHoverObserver(NodeId, Option<HandlerId>),
+    SetChoicePicker(NodeId, Box<crate::choice_picker::Presentation>),
+    SetEditorPrivacy(NodeId, EditorPrivacy),
+    SetEditorFrame(NodeId, Option<crate::editor_frame::Config>),
+    SetEditorContentHint(NodeId, Option<crate::input_content_hint::Hint>),
+    SetEditorFormat(NodeId, Option<crate::input_format::Config>),
+    SetEditorValidation(NodeId, Option<crate::input_validation::Rule>),
+    SetTextAreaLayout(NodeId, Option<crate::text_area_layout::Config>),
+    SetEditorClearOnEscape(NodeId, bool),
+    SetEditorSearchable(NodeId, bool),
+    SetOtpAppearance(NodeId, Option<crate::otp_presentation::Appearance>),
+    SetNumberPresentation(NodeId, Option<crate::number_presentation::Config>),
+    SetNumberStepMode(NodeId, crate::number_input::StepMode),
+    SetSliderAppearance(NodeId, Option<crate::slider_presentation::Appearance>),
+    SetReveal(NodeId, Option<crate::reveal::Config>),
+    SetCalendarAppearance(NodeId, Option<crate::calendar_presentation::Appearance>),
+    SetColorPresentation(NodeId, Option<crate::color_presentation::Presentation>),
+    SetPopover(NodeId, bool),
+    SetCalendarContent(NodeId, Option<crate::calendar_content::Config>),
+    SetOverlayBackdrop(NodeId, Option<i64>),
+    SetOverlayMotion(NodeId, bool),
+    SetTooltipMotion(NodeId, bool),
+    SetPlacementGeometry(NodeId, Option<crate::placement_geometry::Config>),
+    SetSheetInsets(NodeId, Option<crate::sheet_insets::Insets>),
+    SetCalendarViewportObserver(NodeId, Option<HandlerId>),
+    SetCarouselTrack(NodeId, crate::carousel_track::Config),
+    SetCarouselTrackMotion(NodeId, Option<crate::carousel_track::Motion>),
+    SetTabAppearance(NodeId, Option<crate::tab_appearance::Config>),
+    SetTabContent(NodeId, Option<crate::tab_content::Config>),
+    SetTabViewport(NodeId, Option<crate::tab_viewport::Config>),
+    SetTabTrailing(NodeId, bool),
+    SetChoiceMenu(NodeId, bool),
+    SetTabMotion(NodeId, Option<crate::tab_motion::Config>),
+    SetSplitGroup(
+        NodeId,
+        crate::split_group::Config,
+        crate::split_group_appearance::Config,
+    ),
+    SetToastPlacement(NodeId, Option<crate::toast_placement::Placement>),
+    SetToastLayering(NodeId, Option<crate::toast_layering::Layering>),
+    SetToastMotion(NodeId, Option<crate::toast_motion::Config>),
+    SetScrollbar(NodeId, Option<Box<crate::scrollbar::Config>>),
+    SetListAxis(NodeId, crate::list::Axis),
+    SetListInput(NodeId, Option<crate::list_input::Config>),
+    SetTableBehavior(NodeId, Option<crate::table::Behavior>),
+    SetTableAppearance(NodeId, Option<crate::table::Appearance>),
+    SetTableHeader(NodeId, Option<crate::table_header::Target>),
+    SetTableHeaderStyle(NodeId, Vec<Style>),
+    SetTableRowStyle(NodeId, Vec<Style>),
+    SetDocumentSelectionFormat(NodeId, bool),
+    SetDocumentPreview(NodeId, crate::document_preview::Config),
+    SetDocumentTextStyle(NodeId, Option<crate::document_style::Config>),
+    SetDocumentMarkdownOptions(NodeId, crate::document::MarkdownOptions),
+    SetDocumentActions(NodeId, crate::document_actions::Config),
+    SetDocumentProfile(NodeId, crate::document_profile::Config),
+    SetWindowRegion(NodeId, Option<crate::window_region::Region>),
+    CreateTableText(NodeId, crate::table::Cell),
+    SetTableText(NodeId, crate::table::Cell),
+    SetPaletteOptions(NodeId, Option<crate::palette_options::Config>),
+    SetPaletteLayout(NodeId, Option<crate::palette_layout::Config>),
+    SetPaletteObserved(NodeId, bool),
+    SetIconTransform(NodeId, Option<crate::icon_transform::Transform>),
 }
 
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
@@ -715,6 +884,21 @@ pub enum Message {
     Desktop(i64, crate::desktop::Request),
     Notification(i64, crate::notification::Request),
     Chart(i64, crate::chart_resource::Request),
+    PaletteCommand(
+        i64,
+        WindowId,
+        NodeId,
+        HandlerId,
+        Option<i64>,
+        crate::palette_command::Command,
+    ),
+    MenuCommand(
+        i64,
+        WindowId,
+        NodeId,
+        HandlerId,
+        crate::menu_command::Command,
+    ),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
@@ -874,5 +1058,126 @@ pub enum Event {
         i64,
         i64,
         crate::chart_view::Observation,
+    ),
+    InputObserved(WindowId, NodeId, HandlerId, i64, crate::input::Event),
+    HighlightObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::highlight::Observation,
+    ),
+    DocumentDiffEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::ResourceId,
+        crate::document_diff::Event,
+    ),
+    CommandBindingObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::command_binding::Observation,
+    ),
+    MenuOpenChanged(WindowId, NodeId, HandlerId, i64, bool),
+    HoverChanged(WindowId, NodeId, HandlerId, i64, bool),
+    ChoicePickerEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::choice_picker::Event,
+    ),
+    EditorSearchObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::editor_search::Snapshot,
+    ),
+    CalendarViewportChanged(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::calendar_viewport::Observation,
+    ),
+    CarouselTrackRequested(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::carousel_track::Request,
+    ),
+    SplitGroupResized(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        i64,
+        crate::split_group::Snapshot,
+    ),
+    ListInput(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        i64,
+        crate::list_input::Request,
+    ),
+    TableColumnsObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::table::ColumnViewport,
+    ),
+    DocumentPreviewObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::ResourceId,
+        crate::document_preview::Event,
+    ),
+    DocumentAction(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::ResourceId,
+        crate::document_actions::Event,
+    ),
+    DocumentProfileEvent(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::ResourceId,
+        crate::document_profile::Event,
+    ),
+    PaletteObserved(
+        WindowId,
+        NodeId,
+        HandlerId,
+        i64,
+        crate::palette_state::Snapshot,
+    ),
+    PaletteResult(
+        i64,
+        WindowId,
+        NodeId,
+        HandlerId,
+        crate::palette_command::Response,
+    ),
+    MenuResult(
+        i64,
+        WindowId,
+        NodeId,
+        HandlerId,
+        crate::menu_command::Response,
     ),
 }

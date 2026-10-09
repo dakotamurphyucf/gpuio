@@ -1,9 +1,14 @@
 # Notification Lab
 
+Read the [source walkthrough](main.md) for the Bonsai graph, API calls, runtime
+ownership, interaction trace, and diagnostic limitations.
+
 Public `Gpuio.Notification` values and `Gpuio_eio.Notification` operations with
-real OS delivery. macOS is currently implemented; the Linux backend remains in
-progress and currently returns `Unsupported`. This example is separate from
-in-app toast components.
+real OS delivery. The macOS backend uses UserNotifications; the Linux backend
+uses the freedesktop notification service and reports `Not_required` authorization.
+Service capabilities and desktop presentation depend on the running environment;
+private-bus checks do not establish Linux graphical acceptance. This example is
+separate from in-app toast components.
 
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/notification/main.exe

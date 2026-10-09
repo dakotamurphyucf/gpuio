@@ -138,11 +138,12 @@ impl SubclassingAdapter {
     ) -> Self {
         let view = view as *mut NSView;
         let retained_view = unsafe { Id::retain(view) }.unwrap();
-        Self::new_internal(retained_view, activation_handler, action_handler)
+        Self::new_internal(retained_view, false, activation_handler, action_handler)
     }
 
     fn new_internal(
         retained_view: Id<NSView>,
+        is_view_focused: bool,
         activation_handler: impl 'static + ActivationHandler,
         action_handler: impl 'static + ActionHandler,
     ) -> Self {
@@ -154,7 +155,7 @@ impl SubclassingAdapter {
         {
             panic!("subclassing adapter already instantiated on view {view:?}");
         }
-        let adapter = unsafe { Adapter::new(view as *mut c_void, false, action_handler) };
+        let adapter = unsafe { Adapter::new(view as *mut c_void, is_view_focused, action_handler) };
         // Cast to a pointer and back to force the lifetime to 'static
         // SAFETY: We know the class will live as long as the instance,
         // and we only use this reference while the instance is alive.
@@ -209,6 +210,8 @@ impl SubclassingAdapter {
 
     /// Create an adapter that dynamically subclasses the content view
     /// of the specified window.
+    /// Initial host focus follows the window's current key state, including
+    /// when installation happens after its first key-window notification.
     ///
     /// The action handler will always be called on the main thread.
     ///
@@ -227,7 +230,12 @@ impl SubclassingAdapter {
     ) -> Self {
         let window = unsafe { &*(window as *const NSWindow) };
         let retained_view = window.contentView().unwrap();
-        Self::new_internal(retained_view, activation_handler, action_handler)
+        Self::new_internal(
+            retained_view,
+            window.isKeyWindow(),
+            activation_handler,
+            action_handler,
+        )
     }
 
     /// If and only if the tree has been initialized, call the provided function

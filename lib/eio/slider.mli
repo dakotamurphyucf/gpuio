@@ -12,7 +12,11 @@ val create
   -> Bonsai.Cont.graph
   -> t Bonsai.Cont.t
 
-val view : ?style:Gpuio.Style.t -> t -> Gpuio_bonsai.View.t
+val view
+  :  ?style:Gpuio.Style.t
+  -> ?appearance:Gpuio.Slider.Appearance.t
+  -> t
+  -> Gpuio_bonsai.View.t
 
 (** Last native observation, absent before mounting. A stored controller may
     outlive its placement; commands then fail with [Stale_slider]. *)

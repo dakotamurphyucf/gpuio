@@ -550,3 +550,581 @@ fn query_reset_retires_old_viewports_and_eviction_releases_cell_bytes() {
             .is_none()
     );
 }
+
+#[test]
+fn horizontal_list_metadata_cannot_reinterpret_a_managed_table() {
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(0, initial())).unwrap();
+    let bytes = tree.retained_bytes();
+    assert_eq!(
+        tree.apply(&tx(
+            1,
+            vec![
+                Op::SetText(node(3), "must roll back".into()),
+                Op::SetListAxis(node(0), list::Axis::Horizontal),
+            ]
+        )),
+        Err(ErrorCode::InvalidTree)
+    );
+    assert_eq!(tree.revision(), 1);
+    assert_eq!(tree.retained_bytes(), bytes);
+    assert_eq!(tree.get(node(3)).unwrap().text.as_ref(), "display");
+    assert_eq!(tree.get(node(0)).unwrap().list_axis, list::Axis::Vertical);
+}
+
+#[test]
+fn behavior_policy_is_atomic_charged_and_fences_stale_input() {
+    let restricted = Behavior {
+        row_header: false,
+        boundary: Boundary::Stop,
+        selectable_headers: Some(vec![]),
+    };
+    for reverse in [false, true] {
+        let mut session = session();
+        let before = session.tree(window()).unwrap().retained_bytes();
+        let behavior_op = Op::SetTableBehavior(node(0), Some(restricted.clone()));
+        assert!(
+            session.apply(&tx(1, vec![behavior_op.clone()])).is_err(),
+            "policy requires fresh schema revision"
+        );
+        let mut next = config();
+        next.schema_revision = 2;
+        let mut operations = vec![Op::SetTable(node(0), next.clone()), behavior_op];
+        if reverse {
+            operations.reverse();
+        }
+        session.apply(&tx(1, operations)).unwrap();
+        assert!(session.tree(window()).unwrap().retained_bytes() > before);
+        let send = |revision, request| {
+            session.table_input(
+                window(),
+                node(0),
+                handler(1),
+                1,
+                Input {
+                    schema_revision: revision,
+                    query_generation: 0,
+                    request,
+                },
+            )
+        };
+        assert!(send(1, Request::Select(Selection::Row(1))).is_none());
+        for request in [
+            Request::Select(Selection::Column("value".into())),
+            Request::Copy(Selection::Column("value".into())),
+            Request::Context(Selection::Column("value".into())),
+        ] {
+            assert!(send(2, request).is_none());
+        }
+        for request in [
+            Request::Select(Selection::Cell(1, "value".into())),
+            Request::Sort("value".into(), Some(Direction::Ascending)),
+            Request::Select(Selection::Row(1)),
+        ] {
+            assert!(send(2, request).is_some());
+        }
+        assert!(
+            session
+                .apply(&tx(
+                    2,
+                    vec![command(
+                        1,
+                        Target::SetSelection(Selection::Column("value".into()))
+                    )]
+                ))
+                .is_err()
+        );
+        assert!(
+            session
+                .apply(&tx(2, vec![Op::SetTableBehavior(node(0), None)]))
+                .is_err()
+        );
+        next.schema_revision = 3;
+        session
+            .apply(&tx(
+                2,
+                vec![
+                    Op::SetTableBehavior(node(0), None),
+                    Op::SetTable(node(0), next),
+                    command(1, Target::SetSelection(Selection::Column("value".into()))),
+                ],
+            ))
+            .unwrap();
+        assert_eq!(session.tree(window()).unwrap().retained_bytes(), before);
+    }
+}
+
+#[test]
+fn behavior_rejects_orphans_unknown_headers_and_budget_overflow_without_mutation() {
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(0, initial())).unwrap();
+    let baseline = tree.retained_bytes();
+    let mut next = config();
+    next.schema_revision = 2;
+    for (owner, headers) in [
+        (node(0), vec!["missing".into()]),
+        (node(0), vec!["value".into(), "value".into()]),
+        (node(1), vec![]),
+    ] {
+        assert!(
+            tree.apply(&tx(
+                1,
+                vec![
+                    Op::SetText(node(3), "rollback".into()),
+                    Op::SetTable(node(0), next.clone()),
+                    Op::SetTableBehavior(
+                        owner,
+                        Some(Behavior {
+                            selectable_headers: Some(headers),
+                            ..Behavior::default()
+                        })
+                    )
+                ]
+            ))
+            .is_err()
+        );
+        assert_eq!(tree.revision(), 1);
+        assert_eq!(tree.get(node(3)).unwrap().text.as_ref(), "display");
+    }
+    let operations = vec![
+        Op::SetTable(node(0), next),
+        Op::SetTableBehavior(
+            node(0),
+            Some(Behavior {
+                selectable_headers: Some(vec!["value".into()]),
+                ..Behavior::default()
+            }),
+        ),
+    ];
+    assert_eq!(
+        tree.apply_with_budget(&tx(1, operations.clone()), baseline),
+        Err(ErrorCode::LimitExceeded)
+    );
+    assert_eq!(tree.retained_bytes(), baseline);
+    tree.apply(&tx(1, operations)).unwrap();
+    let mut orphan = Tree::new(window());
+    assert!(
+        orphan
+            .apply(&tx(
+                0,
+                vec![
+                    Op::Create(node(0), Kind::VirtualList, String::new(), Some(handler(1))),
+                    Op::SetTableBehavior(node(0), Some(Behavior::default()))
+                ]
+            ))
+            .is_err()
+    );
+}
+
+#[test]
+fn appearance_separates_paint_from_geometry_and_checks_quota_and_membership() {
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(0, initial())).unwrap();
+    let baseline = tree.retained_bytes();
+    let paint = Appearance {
+        striped: true,
+        colors: vec![(Part::HeaderBackground, 0xff000080)],
+        ..Appearance::default()
+    };
+    let op = Op::SetTableAppearance(node(0), Some(paint.clone()));
+    assert_eq!(
+        tree.apply_with_budget(&tx(1, vec![op.clone()]), baseline),
+        Err(ErrorCode::LimitExceeded)
+    );
+    tree.apply(&tx(1, vec![op])).unwrap();
+    assert_eq!(
+        tree.get(node(0))
+            .unwrap()
+            .table
+            .as_ref()
+            .unwrap()
+            .schema_revision,
+        1
+    );
+    let padding = Padding {
+        top: 1.,
+        right: 2.,
+        bottom: 3.,
+        left: 4.,
+    };
+    let padded = Appearance {
+        padding: Some(padding),
+        ..paint
+    };
+    assert!(
+        tree.apply(&tx(
+            2,
+            vec![Op::SetTableAppearance(node(0), Some(padded.clone()))]
+        ))
+        .is_err()
+    );
+    let mut next = config();
+    next.schema_revision = 2;
+    tree.apply(&tx(
+        2,
+        vec![
+            Op::SetTableAppearance(node(0), Some(padded.clone())),
+            Op::SetTable(node(0), next.clone()),
+        ],
+    ))
+    .unwrap();
+    next.schema_revision = 3;
+    assert!(
+        tree.apply(&tx(
+            3,
+            vec![
+                Op::SetTable(node(0), next.clone()),
+                Op::SetTableAppearance(
+                    node(0),
+                    Some(Appearance {
+                        column_padding: vec![("missing".into(), padding)],
+                        ..padded
+                    })
+                )
+            ]
+        ))
+        .is_err()
+    );
+    assert_eq!(tree.revision(), 3);
+    assert!(
+        tree.apply(&tx(3, vec![Op::SetTableAppearance(node(0), None)]))
+            .is_err()
+    );
+    tree.apply(&tx(
+        3,
+        vec![
+            Op::SetTableAppearance(node(0), None),
+            Op::SetTable(node(0), next),
+        ],
+    ))
+    .unwrap();
+    assert_eq!(tree.retained_bytes(), baseline);
+    assert!(
+        tree.apply(&tx(
+            4,
+            vec![Op::SetTableAppearance(node(1), Some(Appearance::default()))]
+        ))
+        .is_err()
+    );
+}
+
+#[test]
+fn column_observation_admission_checks_current_owner_schema_and_pin_identity() {
+    let mut session = session();
+    let viewport = ColumnViewport {
+        schema_revision: 1,
+        query_generation: 0,
+        columns: vec![("value".into(), Pin::Unpinned, false)],
+    };
+    let send = |s: &Session, h, rev, v| s.table_columns_observed(window(), node(0), h, rev, v);
+    assert!(send(&session, handler(1), 1, viewport.clone()).is_some());
+    assert!(send(&session, handler(2), 1, viewport.clone()).is_none());
+    assert!(send(&session, handler(1), 2, viewport.clone()).is_none());
+    for columns in [
+        vec![("missing".into(), Pin::Unpinned, true)],
+        vec![("value".into(), Pin::Left, true)],
+    ] {
+        assert!(
+            send(
+                &session,
+                handler(1),
+                1,
+                ColumnViewport {
+                    columns,
+                    ..viewport.clone()
+                }
+            )
+            .is_none()
+        );
+    }
+    let mut next = config();
+    next.schema_revision = 2;
+    next.schema.columns[0].width = 200.;
+    session
+        .apply(&tx(1, vec![Op::SetTable(node(0), next)]))
+        .unwrap();
+    assert!(send(&session, handler(1), 1, viewport.clone()).is_none());
+    assert!(
+        send(
+            &session,
+            handler(1),
+            2,
+            ColumnViewport {
+                schema_revision: 2,
+                columns: vec![],
+                ..viewport
+            }
+        )
+        .is_some()
+    );
+}
+
+fn header_ops(slot: i64) -> Vec<Op> {
+    vec![
+        Op::Create(node(slot), Kind::Container, String::new(), None),
+        Op::SetTableHeader(
+            node(slot),
+            Some(gpuio_protocol::table_header::Target::Column("value".into())),
+        ),
+        Op::Create(node(slot + 1), Kind::Text, "Rich header".into(), None),
+        Op::Splice(node(slot), 0, 0, vec![node(slot + 1)]),
+        Op::Splice(node(0), 0, 0, vec![node(slot)]),
+    ]
+}
+
+#[test]
+fn header_ownership_budgets_and_mapping_fences_are_atomic() {
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(0, initial())).unwrap();
+    let baseline = tree.retained_bytes();
+    let mut next = config();
+    next.schema_revision = 2;
+    let mut add = header_ops(4);
+    assert_eq!(tree.apply(&tx(1, add.clone())), Err(ErrorCode::InvalidTree));
+    assert_eq!(tree.len(), 4);
+    add.push(Op::SetTable(node(0), next.clone()));
+    assert_eq!(
+        tree.apply_with_budget(&tx(1, add.clone()), baseline),
+        Err(ErrorCode::LimitExceeded)
+    );
+    assert_eq!(tree.retained_bytes(), baseline);
+    tree.apply(&tx(1, add)).unwrap();
+    assert_eq!(tree.len(), 6);
+    assert_eq!(tree.get(node(0)).unwrap().list_rows.len(), 1);
+    let retained = tree.retained_bytes();
+    // Child-only mutations must revalidate unchanged ancestor ownership.
+    for bad in [
+        vec![Op::SetTableHeader(node(4), None)],
+        vec![Op::SetTableHeader(
+            node(4),
+            Some(gpuio_protocol::table_header::Target::Column(
+                "missing".into(),
+            )),
+        )],
+        vec![Op::SetStyle(node(4), vec![Style::Width(Length::Px(10.))])],
+        vec![Op::Bind(node(4), Some(handler(2)))],
+        vec![Op::SetListRows(
+            node(0),
+            vec![list::Row {
+                id: 1,
+                node: node(4),
+            }],
+        )],
+        header_ops(6),
+    ] {
+        assert_eq!(tree.apply(&tx(2, bad)), Err(ErrorCode::InvalidTree));
+        assert_eq!(tree.revision(), 2);
+        assert_eq!(tree.len(), 6);
+        assert_eq!(tree.retained_bytes(), retained);
+    }
+    tree.apply(&tx(2, vec![Op::SetText(node(5), "Updated".into())]))
+        .unwrap();
+    let mut remove = vec![
+        Op::Splice(node(0), 0, 1, vec![]),
+        Op::Remove(node(5)),
+        Op::Remove(node(4)),
+    ];
+    assert_eq!(
+        tree.apply(&tx(3, remove.clone())),
+        Err(ErrorCode::InvalidTree)
+    );
+    next.schema_revision = 3;
+    remove.push(Op::SetTable(node(0), next));
+    tree.apply(&tx(3, remove)).unwrap();
+    assert_eq!(tree.retained_bytes(), baseline);
+}
+
+#[test]
+fn header_marker_cannot_turn_an_ordinary_list_row_into_table_content() {
+    let mut tree = Tree::new(window());
+    let mut operations = initial();
+    operations.retain(|op| !matches!(op, Op::SetTable(..) | Op::SetTableCell(..)));
+    operations.extend(header_ops(4));
+    assert_eq!(tree.apply(&tx(0, operations)), Err(ErrorCode::InvalidTree));
+    assert_eq!(tree.len(), 0);
+    assert_eq!(tree.revision(), 0);
+}
+
+#[test]
+fn scoped_header_and_row_styles_are_owned_charged_and_reversible_without_schema_change() {
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(0, initial())).unwrap();
+    let baseline = tree.retained_bytes();
+    let style = vec![Style::Fields(vec![Field::Foreground(Color::Rgba(
+        0xff0000ff,
+    ))])];
+    let update = tx(
+        1,
+        vec![
+            Op::SetTableHeaderStyle(node(0), style.clone()),
+            Op::SetTableRowStyle(node(1), style.clone()),
+        ],
+    );
+    assert_eq!(
+        tree.apply_with_budget(&update, baseline),
+        Err(ErrorCode::LimitExceeded)
+    );
+    assert_eq!(tree.retained_bytes(), baseline);
+    tree.apply(&update).unwrap();
+    assert!(tree.retained_bytes() > baseline);
+    assert_eq!(
+        tree.get(node(0))
+            .unwrap()
+            .table
+            .as_ref()
+            .unwrap()
+            .schema_revision,
+        1
+    );
+    for operation in [
+        Op::SetTableRowStyle(node(2), style.clone()),
+        Op::SetTableRowStyle(node(0), style.clone()),
+        Op::SetTableHeaderStyle(node(1), style.clone()),
+        Op::SetTableRowStyle(
+            node(1),
+            vec![Style::State(2, vec![Field::Height(Length::Px(90.))])],
+        ),
+        Op::SetTableHeaderStyle(
+            node(0),
+            vec![Style::State(7, vec![Field::Foreground(Color::Rgba(1))])],
+        ),
+        Op::SetTableRowStyle(
+            node(1),
+            vec![Style::Fields(vec![Field::FontSize(f64::NAN)])],
+        ),
+    ] {
+        assert!(tree.apply(&tx(2, vec![operation])).is_err());
+        assert_eq!(tree.revision(), 2);
+    }
+    tree.apply(&tx(
+        2,
+        vec![
+            Op::SetTableHeaderStyle(node(0), vec![]),
+            Op::SetTableRowStyle(node(1), vec![]),
+        ],
+    ))
+    .unwrap();
+    assert_eq!(tree.retained_bytes(), baseline);
+}
+
+fn compact_initial() -> Vec<Op> {
+    let mut operations = initial();
+    operations.retain(|op| {
+        !matches!(op,
+        Op::Create(id, ..) if *id == node(2) || *id == node(3))
+    });
+    operations.retain(|op| match op {
+        Op::SetTableCell(..) => false,
+        Op::Splice(id, ..) => *id != node(2),
+        _ => true,
+    });
+    operations.insert(
+        5,
+        Op::CreateTableText(
+            node(2),
+            Cell {
+                column: "value".into(),
+                copy_text: "日本語👨‍👩‍👧‍👦".into(),
+            },
+        ),
+    );
+    operations
+}
+
+#[test]
+fn compact_text_cells_preserve_ownership_atomicity_and_payload_limits() {
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(0, compact_initial())).unwrap();
+    assert_eq!(tree.len(), 3);
+    let baseline = tree.retained_bytes();
+    let before = tree.get(node(2)).unwrap().text.clone();
+    let copy = "x".repeat(MAX_COPY_BYTES);
+    let update = tx(
+        1,
+        vec![Op::SetTableText(
+            node(2),
+            Cell {
+                column: "value".into(),
+                copy_text: copy.clone(),
+            },
+        )],
+    );
+    assert_eq!(
+        tree.apply_with_budget(&update, baseline),
+        Err(ErrorCode::LimitExceeded)
+    );
+    assert_eq!(tree.revision(), 1);
+    assert_eq!(tree.get(node(2)).unwrap().text, before);
+    assert_eq!(tree.retained_bytes(), baseline);
+    tree.apply(&update).unwrap();
+    assert_eq!(
+        tree.retained_bytes() - baseline,
+        2 * (copy.len() - before.len())
+    );
+    assert_eq!(&*tree.get(node(2)).unwrap().text, copy.as_str());
+    assert_eq!(
+        tree.get(node(2))
+            .unwrap()
+            .table_cell
+            .as_ref()
+            .unwrap()
+            .copy_text,
+        copy
+    );
+    for invalid in [
+        Op::SetTableText(
+            node(2),
+            Cell {
+                column: "other".into(),
+                copy_text: "wrong".into(),
+            },
+        ),
+        Op::SetTableText(
+            node(1),
+            Cell {
+                column: "value".into(),
+                copy_text: "row".into(),
+            },
+        ),
+        Op::SetTableText(
+            node(2),
+            Cell {
+                column: "value".into(),
+                copy_text: "\0".into(),
+            },
+        ),
+        Op::SetText(node(2), "display/copy mismatch".into()),
+        Op::Bind(node(2), Some(handler(2))),
+        Op::Splice(node(1), 0, 1, vec![]),
+        Op::CreateTableText(
+            node(2),
+            Cell {
+                column: "value".into(),
+                copy_text: "duplicate".into(),
+            },
+        ),
+    ] {
+        assert!(tree.apply(&tx(2, vec![invalid])).is_err());
+        assert_eq!(tree.revision(), 2);
+        assert_eq!(&*tree.get(node(2)).unwrap().text, copy.as_str());
+    }
+    let mut orphan = Tree::new(window());
+    assert!(
+        orphan
+            .apply(&tx(
+                0,
+                vec![
+                    Op::CreateTableText(
+                        node(0),
+                        Cell {
+                            column: "value".into(),
+                            copy_text: "orphan".into()
+                        }
+                    ),
+                    Op::SetRoot(Some(node(0))),
+                ]
+            ))
+            .is_err()
+    );
+    assert_eq!(orphan.len(), 0);
+}

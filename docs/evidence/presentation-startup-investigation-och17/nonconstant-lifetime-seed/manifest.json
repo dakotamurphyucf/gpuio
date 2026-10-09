@@ -1,0 +1,136 @@
+{
+  "archive": "validation.tar.gz",
+  "sha256": "ca448c71365720c9e4ee72d9f0791e60b6177f3a5ec05c3779d50762d2e989ac",
+  "base_revision": "3ea0bfc",
+  "scope": "Nonconstant seed lifetime optimization; preserves uninstrumented startup failure. Instrumented timings are diagnostic only.",
+  "files": [
+    {
+      "path": "validation-commands.txt",
+      "sha256": "c4a18df1b078258dabd167dfb8ecabb049482b5d21f2cdbafcbc599344aa820f"
+    },
+    {
+      "path": "summary.json",
+      "sha256": "92364690563a73bea7f8ec86e7b4613f91c49ee98b28acfdc36118fc57779e4e"
+    },
+    {
+      "path": "ocaml-spans.json",
+      "sha256": "a95618e953c520cac7904d1293986734b4d583a5f2ee3762e82238469a69a8cf"
+    },
+    {
+      "path": "build.log",
+      "sha256": "52473cf9d8aa7c8c4ac84d6cd5bb828a6bdee43ee6231b684cfd4c1afe917134"
+    },
+    {
+      "path": "driver.log",
+      "sha256": "f40276b200e57a38bc847ec69b61e5447a640b3d326e053fc0906214e4802636"
+    },
+    {
+      "path": "table-report/report.json",
+      "sha256": "d040d6e202db742b11b69045fedf6df507b854b38d5312424cfc75a2b668175d"
+    },
+    {
+      "path": "table-report/application.log",
+      "sha256": "4f51f6240d0b03384ab76e06d3689d9598c33cbac0aaf578a04efbecfa13633f"
+    },
+    {
+      "path": "candidate-table-smoke-001-driver.log",
+      "sha256": "f40276b200e57a38bc847ec69b61e5447a640b3d326e053fc0906214e4802636"
+    },
+    {
+      "path": "candidate-table-smoke-001/report.json",
+      "sha256": "43d4dfe591878c2495f31de26b998015d1baef6d86fe35ec20ee3a363871eb7d"
+    },
+    {
+      "path": "candidate-table-smoke-001/application.log",
+      "sha256": "ccd0e57e676dcb9dad5b0116626f40e915c2687de94bd7641e7623710e49e67b"
+    },
+    {
+      "path": "candidate-trace/build.log",
+      "sha256": "b0f7cc5d45168a5b8b871e37128dbe192032e20acae0feeafefa644ed0abafc0"
+    },
+    {
+      "path": "candidate-trace/driver.log",
+      "sha256": "c1cc5474090fd98423dfec0164ff8daef772d0bee4ccb7fc853e6e63c77b3829"
+    },
+    {
+      "path": "candidate-trace/summary.json",
+      "sha256": "889a5d9842bfd4e0dece0389024dd6fa6d8f849b89b117fd0056ad2d8c23bda1"
+    },
+    {
+      "path": "candidate-trace/ocaml-spans.json",
+      "sha256": "8926eed1f8f1ddadffb08c6d876866cd74f3b80e250e1193d0cd458c5206d020"
+    },
+    {
+      "path": "candidate-trace/report/report.json",
+      "sha256": "906f9fa77bfdf0a8ad5f63459398184335bfa42115e105c4c3e51e1400c530be"
+    },
+    {
+      "path": "candidate-trace/report/application.log",
+      "sha256": "22cc68162be2bf1d245a7455cda64fed8ed29331a6f069c6ee704b7c1f30334e"
+    },
+    {
+      "path": "lifetime-candidate-focused.log",
+      "sha256": "63aa95054f320e61fcb65e6140829e05bc02a7b7eeed9ea2bf1ff78449c21656"
+    },
+    {
+      "path": "lifetime-candidate-release-tests.log",
+      "sha256": "3bc64452ba4b8b1f49aaef9723e58e9d6073eb0df9226a73cc48366f52aa131d"
+    },
+    {
+      "path": "lifetime-candidate-dev-tests.log",
+      "sha256": "71a03761346ebe87c9ec6148c0971bcc08371d068a5a1c925dcef1084d8883c1"
+    },
+    {
+      "path": "lifetime-candidate-consumer.log",
+      "sha256": "cebdca1dc17382977a1c8b399b09aea52e2471c7cd52689328ef13e51163b5c5"
+    },
+    {
+      "path": "candidate-source/candidate.patch",
+      "sha256": "eab7875d1ff4b0256a9ae60ee68d2d9511aa4432029bff52bf33ba8d843d9ff0"
+    },
+    {
+      "path": "candidate-source/lib/bonsai/managed_rows.ml",
+      "sha256": "1cf83d7fd3ba705a12bcc1e63ccc28e144b959720cbcdd5921d35c2e12d90107"
+    },
+    {
+      "path": "candidate-source/test/virtual_list/managed_rows_test.ml",
+      "sha256": "1f1b7aa2fc9573f002db25994cb605a291cbc51f2067b6f7faa4bfa16db93c07"
+    },
+    {
+      "path": "candidate-trace/instrumented/examples/performance_probe/rust/src/presentation.rs",
+      "sha256": "ac1d159416461c2f5d9db15c82c9e2d4be98413f8f6bd5aeedbde6704aaa7058"
+    },
+    {
+      "path": "candidate-trace/instrumented/lib/eio/app.ml",
+      "sha256": "33dcb7548fc9e78711908924a412c461b2416ad54c4f959a4c980be4fe20a42d"
+    },
+    {
+      "path": "candidate-trace/instrumented/lib/runtime_core/window_driver.ml",
+      "sha256": "bcb59eddd5ff62008c984bb33e4d55655d0bc680d5baa30c6cca1a468ef7399e"
+    },
+    {
+      "path": "candidate-trace/instrumented/lib/runtime_core/window_driver.mli",
+      "sha256": "89c9b6fd5dea632cf06e04edeb9c9c7daf409ded48d999374e3026241534839e"
+    },
+    {
+      "path": "candidate-trace/original/examples/performance_probe/rust/src/presentation.rs",
+      "sha256": "2e24242fab65533aaa5095357c8c079efc5a8b0907d359a6061f0baa363a4f3d"
+    },
+    {
+      "path": "candidate-trace/original/lib/eio/app.ml",
+      "sha256": "7f9758f07a015875a8ec1d23f3b41845d1976cbfe9d3fa213301354818dc14f9"
+    },
+    {
+      "path": "candidate-trace/original/lib/runtime_core/window_driver.ml",
+      "sha256": "fce33c9e349518ee3e0f8853ad3bbd24fa3736213fdddb6c58e9f5cf1de1c983"
+    },
+    {
+      "path": "candidate-trace/original/lib/runtime_core/window_driver.mli",
+      "sha256": "90d42c9f5f505285cdb6d67e24c145b8f4075147bb5f0619b83c576de4b74ff9"
+    },
+    {
+      "path": "overlay.patch",
+      "sha256": "1286f046f5a84f62c4c6dc4f18a3602c36c891fe56db59d2a96f323f6ea2a4f3"
+    }
+  ]
+}

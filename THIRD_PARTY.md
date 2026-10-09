@@ -28,6 +28,42 @@ their upstream licenses in Cargo's pinned source checkouts. Cargo.lock records t
 full transitive dependency set. These dependency licenses are independent of
 GPUIO's project license. Run `cargo metadata --locked` when auditing the closure.
 
+Vendored example assets can have different terms from their surrounding code.
+The GPUI SVG example includes **Dragon clip art.svg** by **Ebaychatter0**, under
+CC BY-SA 3.0. The [asset notices](third_party/ASSET_NOTICES.md) retain its source,
+license link, attribution and byte-verified provenance. GPUIO has not changed the
+artwork or its existing upstream source/license comments. The retained Bonsai
+web example also contains an unmodified Fira Code font; the asset notices link
+its exact release identity and full SIL Open Font License text.
+
+`third_party/notice-sources.json` records exact supplemental notice attributions
+for pinned packages lacking separate package-local files. Zed Apache symlinks
+were compared byte-for-byte with `third_party/licenses/zed-gpui.txt`; the nested
+binprot and ocaml-interop derive crates have unchanged workspace texts retained
+as [binprot-rs](third_party/licenses/binprot-rs.txt) and
+[ocaml-interop](third_party/licenses/ocaml-interop.txt). First-party crates refer
+to GPUIO's root license. Each entry includes source/manifest/text hashes and an
+attribution rationale. These collection inputs do not select dual-license
+alternatives or establish a complete distribution notice set. See the
+[notice audit](docs/evidence/dependency-notices-och17.md).
+
+`third_party/licenses/registry/` retains additional unchanged upstream notice
+files from exact revisions recorded by the published crates' `.cargo_vcs_info.json`.
+The attribution manifest links each package to its source URL, Git blob SHA-1,
+local manifest hash and notice SHA-256. These include AccessKit's additional
+Chromium notice as well as dual-license files; collecting them does not choose
+an alternative or assert that source/asset obligations are fully reviewed.
+
+The zune-inflate attribution additionally verifies the packaged original manifest
+against its exact recorded upstream commit; retained files include its full Zlib
+text and root copyright/licensing policy. This does not select a license alternative.
+
+The OCaml collector separately captures installed package metadata, source/doc
+notices and all eight named native Bonsai vendor roots. The OCaml 5.3 source and
+installed runtime license texts match byte-for-byte, including the original linking
+exception. Tool/configuration packages and native/system/assets still require
+review; see [OCaml notice evidence](docs/evidence/ocaml-notices-och17.md).
+
 `vendor/gpui-base` retains GPUI Kit's Apache-2.0 sources/license at
 `84f57fdfcb4910623fb0bb7f795b077e249f9271` (0.6.1). Its original manifest and
 upstream README are retained. The adapted manifest unifies GPUI/macros/sum-tree
@@ -54,3 +90,19 @@ commit, independently of its styled component crate. Its [source provenance and
 adaptations](rust/plot/UPSTREAM.md) and [Apache-2.0 license](rust/plot/LICENSE-APACHE)
 remain with the extracted sources. The validated GPUIO chart adapter lives outside
 that extraction.
+
+`docs/catalog/sources` contains unmodified documentation snapshots from Longbridge
+GPUI Kit `84f57fdfcb4910623fb0bb7f795b077e249f9271` and GPUIX
+`18e695ed0ee8121a7793413ca795e08eda2a13df`, both Apache-2.0. Their complete license
+texts and an exact-source/SHA-256 manifest are retained in that directory. These
+entry-point/contract snapshots support the OCH-41 audit and are not new compiled
+or runtime dependencies.
+
+`rust/native/src/text_shimmer_paint.rs` and `text_shimmer_color.rs` adapt the
+glyph-mask approach and Oklab mixing from that same Longbridge revision's
+`crates/component/src/shimmer.rs` and `theme/color.rs` (copyright 2024–2026
+Longbridge, Apache-2.0). Changes delegate layout to GPUIO's existing StyledText,
+take a native phase sample, validate bounded work, preserve color emoji and
+expose diagnostic paint reports. The original notice/license is retained in
+[`docs/catalog/sources/gpui-kit-LICENSE`](docs/catalog/sources/gpui-kit-LICENSE);
+the shimmer source snapshot is recorded in the adjacent manifest.

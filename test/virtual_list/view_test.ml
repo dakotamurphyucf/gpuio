@@ -157,3 +157,68 @@ let%expect_test "viewport translation rejects an obsolete order and removed hand
   assert (Option.is_none (R.dispatch r (event { viewport with order_revision = 2L })));
   [%expect {| |}]
 ;;
+
+let%expect_test "horizontal configurations validate extents and retain keyed native rows" =
+  let module V = Virtual_list in
+  let horizontal = V.Config.horizontal ~width:(Fixed 80.) () |> Or_error.ok_exn in
+  assert (V.Axis.equal (V.Config.axis horizontal) Horizontal);
+  assert (V.Extent.equal (V.Config.extent horizontal) (Fixed 80.));
+  assert (V.Height.equal (V.Config.height horizontal) (Fixed 80.));
+  assert (V.Axis.equal (V.Config.axis config) Vertical);
+  List.iter [ Float.nan; Float.infinity; 0.; 1_000_001. ] ~f:(fun value ->
+    assert (Or_error.is_error (V.Config.horizontal ~width:(Estimated value) ()));
+    assert (Or_error.is_error (V.Config.horizontal ~width:(Fixed value) ())));
+  List.iter [ 1.; 1_000_000. ] ~f:(fun value ->
+    V.Config.horizontal ~width:(Estimated value) () |> Or_error.ok_exn |> ignore);
+  let r = R.create window in
+  let view config =
+    View.virtual_list ~config [ key "a", View.text "A"; key "b", View.text "B" ]
+    |> Or_error.ok_exn
+  in
+  let initial = prepare r (view horizontal) in
+  let ops = operations initial in
+  let node =
+    List.find_map_exn ops ~f:(function
+      | Set_list_axis (id, Horizontal) -> Some id
+      | _ -> None)
+  in
+  let rows = row_mapping ops in
+  accept r initial;
+  assert (List.is_empty (operations (prepare r (view horizontal))));
+  let vertical = V.Config.create ~height:(Fixed 80.) () |> Or_error.ok_exn in
+  List.iter [ vertical; horizontal ] ~f:(fun next ->
+    let change = prepare r (view next) in
+    let ops = operations change in
+    assert (
+      List.exists ops ~f:(function
+        | Set_list_axis (id, axis) ->
+          Gpuio_protocol.Node_id.equal id node
+          && L.Axis.equal axis (V.Expert.axis_to_wire (V.Config.axis next))
+        | _ -> false));
+    assert (
+      not
+        (List.exists ops ~f:(function
+           | Create _ | Remove _ | Set_list_order _ | Set_list_rows _ | Set_list_config _
+             -> true
+           | _ -> false)));
+    (* The existing wrappers change clipping and main extent; their identities
+       and the logical order remain intact across the axis replacement. *)
+    assert (
+      List.for_all rows ~f:(fun row ->
+        List.exists ops ~f:(function
+          | Set_style (id, _) -> Gpuio_protocol.Node_id.equal id row.L.Row.node
+          | _ -> false)));
+    accept r change);
+  assert (
+    Or_error.is_error
+      (View.Expert.managed_virtual_list
+         ~config:horizontal
+         ~order:(order [ "a" ])
+         ~invalidated:[]
+         ~invalidation_revision:0L
+         ~on_viewport:Fn.id
+         ~on_retain:(fun _ -> failwith "unexpected")
+         ~on_tree_input:(fun _ -> failwith "unexpected")
+         []));
+  [%expect {| |}]
+;;

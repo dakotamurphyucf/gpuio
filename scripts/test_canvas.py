@@ -2,6 +2,7 @@
 """Public OCaml canvas acceptance through a child app's macOS AX/keyboard APIs."""
 import argparse
 import ctypes as C
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -31,6 +32,23 @@ def ready(mac, label, role='AXStaticText'):
         time.sleep(0.05)
     mac.dump(TITLE)
     raise RuntimeError(f'Canvas object did not become ready: {label}')
+
+
+def wait_scene_position(mac, text):
+    end = time.monotonic() + 30
+    while time.monotonic() < end:
+        if mac.child.poll() is not None:
+            raise RuntimeError(f'Canvas app exited: {mac.child.returncode}')
+        node = mac.find(TITLE, 'Model evaluation plot', deadline=end)
+        if node:
+            try:
+                # AccessKit maps the native scene description to AppKit AXHelp.
+                if text in (mac.text(node, 'AXHelp') or ''):
+                    return
+            finally:
+                mac.release(node)
+        time.sleep(.05)
+    raise RuntimeError(f'Native canvas did not publish position: {text}')
 
 
 def screenshot(mac, path, *, title=None):
@@ -94,6 +112,10 @@ def exercise(mac, image_path):
     mac.wait_text(TITLE, 'Swift · x 180.0 · y 320.0')
     mac.key(124, flags=1 << 17)  # Shift+Right, targeted to the child process.
     mac.wait_text(TITLE, 'Swift · x 181.0 · y 320.0')
+    # Inspector text changes when OCaml receives the move, before its replacement
+    # scene has necessarily been prepared. The canvas description belongs to the
+    # actual native snapshot, so wait for that version before invoking its action.
+    wait_scene_position(mac, 'Swift at x 181.0, y 320.0')
     node = ready(mac, 'Activate Swift', 'AXButton')
     try:
         mac.perform(node, 'AXPress')
@@ -129,7 +151,9 @@ def main():
     args = parser.parse_args()
     repo = Path(__file__).resolve().parent.parent
     with tempfile.TemporaryFile(mode='w+') as log:
-        child = subprocess.Popen([str(repo / '_build/default/examples/canvas/main.exe')],
+        child = subprocess.Popen([str(repo / '_build/default/examples/canvas/main.exe'),
+                                  '--trace-events'],
+                                 env={**os.environ, 'GPUIO_TRACE_CANVAS': '1'},
                                  cwd=repo, stdout=log, stderr=subprocess.STDOUT, text=True)
         mac = None
         try:

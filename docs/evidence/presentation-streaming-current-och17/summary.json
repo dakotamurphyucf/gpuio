@@ -1,0 +1,385 @@
+{
+  "revision": "e4797b811d1c2605ac4594bb61c4eed64f666b5a",
+  "executable_source_revision": "2562490ffee13059a6ca99ddc7108556f2a3972a",
+  "executable_sha256": "60388014ddb81f069323dfbb18baf29e3b071c928aeef6a45090a8e9b096b373",
+  "plan": "One warm-up followed by exactly three full 120-second four-stream trials with 1200 foreground key events each using code from 2562490f (subsequent commits only change docs); unchanged budgets; retain every outcome; stop remaining trials on child execution failure or missing input-source restoration",
+  "running": null,
+  "trials": [
+    {
+      "name": "warmup",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "3af4a915b13399adf69de5ff58bd149bc8ba3cb809526c7a2e5d8e215682321a",
+      "revision": "e4797b811d1c2605ac4594bb61c4eed64f666b5a",
+      "dirty": false,
+      "executable_sha256": "60388014ddb81f069323dfbb18baf29e3b071c928aeef6a45090a8e9b096b373",
+      "budget_failures": null,
+      "peak_rss_bytes": 103055360,
+      "wall_seconds": 8.582296457141638,
+      "cpu_user_seconds": 0.46680499999999997,
+      "cpu_system_seconds": 0.166877,
+      "total_source_bytes": 40960,
+      "stream_update_counts": [
+        80,
+        80,
+        80,
+        80
+      ],
+      "key_count": 40,
+      "input_source_restored": true,
+      "peak_active_rows": 10,
+      "streaming": {
+        "elapsed_ns": 4341719667,
+        "histograms": {
+          "draw": {
+            "count": 183,
+            "p95": 1670143,
+            "p99": 1854463
+          },
+          "dirty_to_submission": {
+            "count": 116,
+            "p95": 9019391,
+            "p99": 11616255
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 40,
+            "p95": 7610367,
+            "p99": 8658943
+          },
+          "inputs_per_frame": {
+            "count": 40,
+            "p95": 2,
+            "p99": 2
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 116,
+            "admitted": 116,
+            "saturated": 0,
+            "presented": 115,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 1,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 1,
+            "first_presentation_ns": 69014629
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 115,
+              "p95": 19349503,
+              "p99": 20316159
+            },
+            "input_to_presentation": {
+              "count": 40,
+              "p95": 25739263,
+              "p99": 28344319
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 5,
+          "all_sampled_active_visible": true
+        }
+      }
+    },
+    {
+      "name": "001",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "b7d248350f343039c4864458dc212cb0a4f0b25a605bfeacdb2e86e5aea6f243",
+      "revision": "e4797b811d1c2605ac4594bb61c4eed64f666b5a",
+      "dirty": false,
+      "executable_sha256": "60388014ddb81f069323dfbb18baf29e3b071c928aeef6a45090a8e9b096b373",
+      "budget_failures": [],
+      "peak_rss_bytes": 134529024,
+      "wall_seconds": 123.5324492501095,
+      "cpu_user_seconds": 17.017317,
+      "cpu_system_seconds": 3.371589,
+      "total_source_bytes": 1228800,
+      "stream_update_counts": [
+        2400,
+        2400,
+        2400,
+        2400
+      ],
+      "key_count": 1200,
+      "input_source_restored": true,
+      "peak_active_rows": 10,
+      "streaming": {
+        "elapsed_ns": 120329964959,
+        "histograms": {
+          "draw": {
+            "count": 5572,
+            "p95": 4517887,
+            "p99": 5541887
+          },
+          "dirty_to_submission": {
+            "count": 3872,
+            "p95": 9699327,
+            "p99": 12066815
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 1200,
+            "p95": 8691711,
+            "p99": 10035199
+          },
+          "inputs_per_frame": {
+            "count": 1200,
+            "p95": 2,
+            "p99": 2
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 3872,
+            "admitted": 3872,
+            "saturated": 0,
+            "presented": 3871,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 1,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 1,
+            "first_presentation_ns": 28113504
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 3871,
+              "p95": 22904831,
+              "p99": 27590655
+            },
+            "input_to_presentation": {
+              "count": 1200,
+              "p95": 30588927,
+              "p99": 32849919
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 121,
+          "all_sampled_active_visible": true
+        }
+      }
+    },
+    {
+      "name": "002",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "589d4b7289258bf085fd4a9801f2ef4318daa0deade7a77203ec3de02c39eef1",
+      "revision": "e4797b811d1c2605ac4594bb61c4eed64f666b5a",
+      "dirty": false,
+      "executable_sha256": "60388014ddb81f069323dfbb18baf29e3b071c928aeef6a45090a8e9b096b373",
+      "budget_failures": [],
+      "peak_rss_bytes": 137854976,
+      "wall_seconds": 123.75940337497741,
+      "cpu_user_seconds": 18.193745,
+      "cpu_system_seconds": 3.596767,
+      "total_source_bytes": 1228800,
+      "stream_update_counts": [
+        2400,
+        2400,
+        2400,
+        2400
+      ],
+      "key_count": 1200,
+      "input_source_restored": true,
+      "peak_active_rows": 10,
+      "streaming": {
+        "elapsed_ns": 120340008459,
+        "histograms": {
+          "draw": {
+            "count": 5444,
+            "p95": 4497407,
+            "p99": 5603327
+          },
+          "dirty_to_submission": {
+            "count": 3763,
+            "p95": 10534911,
+            "p99": 12320767
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 1200,
+            "p95": 8626175,
+            "p99": 9691135
+          },
+          "inputs_per_frame": {
+            "count": 1200,
+            "p95": 2,
+            "p99": 2
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 3763,
+            "admitted": 3763,
+            "saturated": 0,
+            "presented": 3762,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 1,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 1,
+            "first_presentation_ns": 69346504
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 3762,
+              "p95": 22822911,
+              "p99": 27213823
+            },
+            "input_to_presentation": {
+              "count": 1200,
+              "p95": 29065215,
+              "p99": 32358399
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 121,
+          "all_sampled_active_visible": true
+        }
+      }
+    },
+    {
+      "name": "003",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "171091c7c1ba56b4b79c36f33b4b8b36276d69de1d6e14e1b19b307637f32b51",
+      "revision": "e4797b811d1c2605ac4594bb61c4eed64f666b5a",
+      "dirty": false,
+      "executable_sha256": "60388014ddb81f069323dfbb18baf29e3b071c928aeef6a45090a8e9b096b373",
+      "budget_failures": [],
+      "peak_rss_bytes": 132333568,
+      "wall_seconds": 123.69492287561297,
+      "cpu_user_seconds": 19.767425,
+      "cpu_system_seconds": 3.772751,
+      "total_source_bytes": 1228800,
+      "stream_update_counts": [
+        2400,
+        2400,
+        2400,
+        2400
+      ],
+      "key_count": 1200,
+      "input_source_restored": true,
+      "peak_active_rows": 10,
+      "streaming": {
+        "elapsed_ns": 120330414250,
+        "histograms": {
+          "draw": {
+            "count": 5369,
+            "p95": 4640767,
+            "p99": 5697535
+          },
+          "dirty_to_submission": {
+            "count": 3723,
+            "p95": 10854399,
+            "p99": 12902399
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 1200,
+            "p95": 8773631,
+            "p99": 9994239
+          },
+          "inputs_per_frame": {
+            "count": 1200,
+            "p95": 2,
+            "p99": 2
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 3723,
+            "admitted": 3723,
+            "saturated": 0,
+            "presented": 3722,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 1,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 1,
+            "first_presentation_ns": 69217504
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 3722,
+              "p95": 23724031,
+              "p99": 28557311
+            },
+            "input_to_presentation": {
+              "count": 1200,
+              "p95": 30490623,
+              "p99": 35225599
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 121,
+          "all_sampled_active_visible": true
+        }
+      }
+    }
+  ]
+}

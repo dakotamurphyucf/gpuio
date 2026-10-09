@@ -1,0 +1,50 @@
+{
+  "checkout.log": {
+    "bytes": 494,
+    "sha256": "3c86a43ef074a4472243686b38c47d0cc1fd3200faf4469529a7d562e93a0390"
+  },
+  "metal-presentation-calibration.json": {
+    "bytes": 63536,
+    "sha256": "1de31ba22a517d0b5e007c4076a70d0fbd809cb9d004abf31f11585981f52ba6"
+  },
+  "metal-presentation-display.json": {
+    "bytes": 35,
+    "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+  },
+  "metal-presentation-hook/report.json": {
+    "bytes": 76207,
+    "sha256": "6adc2d3b0e171af2ba7ac8d25331a55631865e78e39219370dfd69955cae2d7a"
+  },
+  "packages/agent-chat.json": {
+    "bytes": 1534,
+    "sha256": "9410d74652fd304e024f2cd6609a4a706185c667274c2fe3f210b2d4dabbc143"
+  },
+  "packages/gallery.json": {
+    "bytes": 3156,
+    "sha256": "04c775a2dbfbfd114e627cf3c19098fd0d974329a24bc4b31ce51f605e2cea8c"
+  },
+  "packages/signal-studio.json": {
+    "bytes": 1592,
+    "sha256": "60df474fd3e8e058b81509ac9eaed3981b96421d83dc8df2fc428bfb7edfa952"
+  },
+  "pie-label-failure.log": {
+    "bytes": 3580,
+    "sha256": "92321be4bd4eb32f58fd139eeb31fc0caa6b2b1b3aedeecc971bea776e16ffb4"
+  },
+  "run.json": {
+    "bytes": 66785,
+    "sha256": "a771fbee2192b1ab48cedbd82a93bf8a4469e8126cb8ad4c27dfcf60c777495b"
+  },
+  "source-identity.txt": {
+    "bytes": 147,
+    "sha256": "40d8fae727d93fd1f225c26d77164e9f9740670ed1390e60167800d519b06f3f"
+  },
+  "source-merge.json": {
+    "bytes": 101,
+    "sha256": "d0df0a26d329280da2bde83f2de0cee8d8b9b2d2342d91826f91f8cd2d7da197"
+  },
+  "table-cleanup.log": {
+    "bytes": 403,
+    "sha256": "dca2bcccbe3230df97b9eb2e161e9fe01cf899af661dd02127ce7c5f37c657d1"
+  }
+}

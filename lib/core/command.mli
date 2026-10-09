@@ -23,6 +23,11 @@ end
 
 type 'action t
 
+(** Supplying [checked], including [false], presents a toggle command; omitting
+    it presents an ordinary command. Native activation invokes [on_invoke] as an
+    intent: apply it to the current application model rather than a Boolean
+    captured during rendering. [View.command_button] exposes the checked value
+    to accessibility and [Style.State.Checked]; [Pressed] remains transient. *)
 val create
   :  id:Id.t
   -> label:string
@@ -47,6 +52,10 @@ val native
 val id : _ t -> Id.t
 val label : _ t -> string
 val is_enabled : _ t -> bool
+
+(** Declared shortcuts in declaration order. This does not resolve native focus,
+    shadowing, competing bindings, editor availability or composition gates. *)
+val shortcuts : _ t -> Shortcut.t list
 
 module Registry : sig
   type 'action command := 'action t

@@ -40,8 +40,14 @@ impl Route {
             }
             Action::Browse(_) => return,
         };
-        window.focus(&state.input.focus, cx);
+        let changed = state.sync_label_visibility();
+        let focus = state.input.focus.clone();
         state.redraw(window, cx);
+        drop(state);
+        if changed {
+            super::sync_label_inputs(window, cx);
+        }
+        window.focus(&focus, cx);
         window.prevent_default();
         cx.stop_propagation();
     }
@@ -80,6 +86,8 @@ impl Route {
                 }
             });
         crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             element,
@@ -120,6 +128,7 @@ impl State {
         } else {
             return false;
         }
+        self.sync_label_visibility();
         self.redraw(window, cx);
         window.prevent_default();
         cx.stop_propagation();
@@ -228,6 +237,8 @@ pub(in crate::host::chart_view) fn element(state: Shared) -> Option<gpui::AnyEle
             );
         }
         rows = rows.child(crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             element,

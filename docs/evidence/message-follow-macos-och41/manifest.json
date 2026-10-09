@@ -1,0 +1,131 @@
+{
+  "base_revision": "501430a519252a19e66b92b0dbc96aafa05541d8",
+  "platform": {
+    "system": "Darwin",
+    "version": "14.5",
+    "machine": "arm64"
+  },
+  "binary_sha256": {
+    "repository": "7eb809164689cd6dba3df8e6aaf56f8b423c84193b2a2b916c1d998dec0994bb",
+    "installed": "ceb5f0233e7a01ac52e4b84de58fc9a5ed8d84a3a5fe60e4cda544ce3723878a"
+  },
+  "installed_build": "Rebuilt collections_page.ml against reused horizontal-consumer installed prefix; no new library staging.",
+  "files": [
+    {
+      "path": "follow-native-001/follow-Light-Comfortable.png",
+      "sha256": "60ee1fc97ca7d6dec5302debc3d26f66ad240b32b4bea8ab4fdd3eed5dee7b1e",
+      "bytes": 492159
+    },
+    {
+      "path": "follow-native-001/follow-Light-Large.png",
+      "sha256": "0ec155af12b688d9e963ed03952dbe864ca5d5ccc518367e3837586309318a09",
+      "bytes": 458569
+    },
+    {
+      "path": "follow-native-001/gallery-failure.png",
+      "sha256": "0ec155af12b688d9e963ed03952dbe864ca5d5ccc518367e3837586309318a09",
+      "bytes": 458569
+    },
+    {
+      "path": "follow-native-001/message-follow-report.json",
+      "sha256": "7bffc4316680f6823526b7d9d55f95f5c80b45669fc3fd2d455b5e05b94144ea",
+      "bytes": 4966
+    },
+    {
+      "path": "follow-native-001.log",
+      "sha256": "94d7ac2dc5052ae53f0a622bfb82eea063f972085023f5d063e7c5cab2d089c5",
+      "bytes": 6421
+    },
+    {
+      "path": "follow-native-002/follow-Dark-Comfortable.png",
+      "sha256": "07129b84e2af75d75168a91e436fd9719ce29007a12dfea28ba97bce3f3503c6",
+      "bytes": 487817
+    },
+    {
+      "path": "follow-native-002/follow-Dark-Compact.png",
+      "sha256": "3c476eadb35eb2c7f2387c35186f03444cb126e6f2ca9085705505c5c2a7db41",
+      "bytes": 464757
+    },
+    {
+      "path": "follow-native-002/follow-Dark-Large.png",
+      "sha256": "5c2d5a486de589f647c6dee14111068a3ae1b3844a5ea7494aba8c5717edce16",
+      "bytes": 456872
+    },
+    {
+      "path": "follow-native-002/follow-Light-Comfortable.png",
+      "sha256": "14b6681a75c906d9720a821c49a780c2e28be58e4bb044419f66ddf59a3ea18c",
+      "bytes": 491743
+    },
+    {
+      "path": "follow-native-002/follow-Light-Compact.png",
+      "sha256": "2d8c41706df7808a44b94620a4bcea168f77942c9bd2ccb595e24e3e49aca5db",
+      "bytes": 466571
+    },
+    {
+      "path": "follow-native-002/follow-Light-Large.png",
+      "sha256": "db1fa7bb4ff727a9ec92782734afb2985e3e2eba1c0350675e6999f5eb38e6de",
+      "bytes": 458762
+    },
+    {
+      "path": "follow-native-002/message-follow-report.json",
+      "sha256": "83df917a32010378a15684058fdcc6d0ea45864b5fd5e1c7563679c37cea5499",
+      "bytes": 22687
+    },
+    {
+      "path": "follow-native-002.log",
+      "sha256": "887b4e81b77c554e68071f38f00939a0c6c0e0c94d0affd6b7775e127a5c3baa",
+      "bytes": 6740
+    },
+    {
+      "path": "follow-installed-001/follow-Dark-Comfortable.png",
+      "sha256": "07129b84e2af75d75168a91e436fd9719ce29007a12dfea28ba97bce3f3503c6",
+      "bytes": 487817
+    },
+    {
+      "path": "follow-installed-001/follow-Dark-Compact.png",
+      "sha256": "3c476eadb35eb2c7f2387c35186f03444cb126e6f2ca9085705505c5c2a7db41",
+      "bytes": 464757
+    },
+    {
+      "path": "follow-installed-001/follow-Dark-Large.png",
+      "sha256": "5c2d5a486de589f647c6dee14111068a3ae1b3844a5ea7494aba8c5717edce16",
+      "bytes": 456872
+    },
+    {
+      "path": "follow-installed-001/follow-Light-Comfortable.png",
+      "sha256": "14b6681a75c906d9720a821c49a780c2e28be58e4bb044419f66ddf59a3ea18c",
+      "bytes": 491743
+    },
+    {
+      "path": "follow-installed-001/follow-Light-Compact.png",
+      "sha256": "2d8c41706df7808a44b94620a4bcea168f77942c9bd2ccb595e24e3e49aca5db",
+      "bytes": 466571
+    },
+    {
+      "path": "follow-installed-001/follow-Light-Large.png",
+      "sha256": "db1fa7bb4ff727a9ec92782734afb2985e3e2eba1c0350675e6999f5eb38e6de",
+      "bytes": 458762
+    },
+    {
+      "path": "follow-installed-001/message-follow-report.json",
+      "sha256": "83df917a32010378a15684058fdcc6d0ea45864b5fd5e1c7563679c37cea5499",
+      "bytes": 22687
+    },
+    {
+      "path": "follow-installed-001.log",
+      "sha256": "18e926baf2c38ffb00575bf63191c19bfae083a2fa464f7caf94dd1793bbaf19",
+      "bytes": 6794
+    },
+    {
+      "path": "follow-fixed-build.log",
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866",
+      "bytes": 71
+    },
+    {
+      "path": "follow-consumer-rebuild.log",
+      "sha256": "e6b14067aef49091f83e02b698c6f309fa93363aa7809d02e1d6919375777338",
+      "bytes": 100509
+    }
+  ],
+  "archive_sha256": "cef7e28b5dde3593cd2665cd8b86e5efde15ca83255d9373194b11c77019a880"
+}

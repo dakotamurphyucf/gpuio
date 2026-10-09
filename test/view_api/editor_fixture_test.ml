@@ -1,3 +1,4 @@
+(* These epoch-1 byte fixtures test the retained encoding, not live negotiation. *)
 open Core
 open Gpuio_protocol
 module W = Wire
@@ -19,7 +20,7 @@ let requests =
     ; Redo
     ]
   in
-  [ W.Message.Hello (W.version, 15L)
+  [ W.Message.Hello (1L, 15L)
   ; Apply
       { window
       ; base = 127L

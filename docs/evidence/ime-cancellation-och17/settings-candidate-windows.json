@@ -1,0 +1,28 @@
+{
+  "editor_bounds": [
+    1108.0,
+    568.0,
+    242.0,
+    23.0
+  ],
+  "windows": [
+    {
+      "kCGWindowAlpha": 1.0,
+      "kCGWindowBounds": {
+        "Height": 140.0,
+        "Width": 159.0,
+        "X": 1107.0,
+        "Y": 598.0
+      },
+      "kCGWindowIsOnscreen": true,
+      "kCGWindowLayer": 20,
+      "kCGWindowMemoryUsage": 2176,
+      "kCGWindowName": "",
+      "kCGWindowNumber": 215808,
+      "kCGWindowOwnerName": "gallery-ime-cancel-fixed.exe",
+      "kCGWindowOwnerPID": 19935,
+      "kCGWindowSharingState": 1,
+      "kCGWindowStoreType": 1
+    }
+  ]
+}

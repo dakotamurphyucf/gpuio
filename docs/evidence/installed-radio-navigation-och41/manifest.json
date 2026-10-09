@@ -1,0 +1,69 @@
+{
+  "application_revision": "e210d3e4a7b261e6bdf40023023937fbeb096e85",
+  "driver_base_revision": "470210acb31e2a6085605be1e6780a117115a868",
+  "executable_sha256": "5e96404a5df658b7dfa9af05b8d4ff8240737e8df0f751f05c58968a0e24d495",
+  "platform": "macOS 14.5 arm64 / M1 Max / built-in display",
+  "voiceover": "Owner hold: untouched",
+  "runs": [
+    {
+      "command": "python3 scripts/test_gallery.py --section checkable-navigation --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/radio-installed-470210a/images",
+      "log": "run-1.log",
+      "exit_code": 1,
+      "session": 54885
+    },
+    {
+      "command": "python3 scripts/test_gallery.py --section checkable-navigation --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/radio-installed-470210a/run-2-images",
+      "log": "run-2.log",
+      "exit_code": 0,
+      "session": 76142
+    }
+  ],
+  "archive": "local-validation.tar.gz",
+  "sha256": "c9d5e3b888c799fb6c3d82b6381fbd738a79e66062706adc045876386dc422a8",
+  "files": [
+    {
+      "path": "driver-first.py",
+      "sha256": "b50155f72072f9816b08f1814912b4adb22465c974992f42433e963bf607669d"
+    },
+    {
+      "path": "driver-passing.py",
+      "sha256": "2561c394e67456f7c7c2bbd60fa5fc71d10b6e607708b5a2bfa3dab6ef7ca58d"
+    },
+    {
+      "path": "driver-selector.patch",
+      "sha256": "39664d74839eeeb019b8182baebd0d843150f9eeed3be25b2300381c898f4495"
+    },
+    {
+      "path": "images/gallery-failure.png",
+      "sha256": "2917e9fb2412c1c45cd5341a622ed1815d2bda114342002bfe29df771c1fbf23"
+    },
+    {
+      "path": "images/gallery-standalone-radio-dark.png",
+      "sha256": "e02d3d96856086e446d76a91a3e0c5935cf738e6b319c298c2618a06979d3897"
+    },
+    {
+      "path": "images/gallery-standalone-radio-light.png",
+      "sha256": "246770884d6459bad5b6ea514a6330783195e4fbec6e6cddf5a646879a7da617"
+    },
+    {
+      "path": "metadata.json",
+      "sha256": "46326259f8cdd616f3ae4598796e15b2d8d327ad5b0e3135cb775dea2f40a173"
+    },
+    {
+      "path": "run-1.log",
+      "sha256": "f04702261c634a371aef696e25ede4de60f5f9d7a8d9b67907178e0e05846553"
+    },
+    {
+      "path": "run-2-images/gallery-standalone-radio-dark.png",
+      "sha256": "e02d3d96856086e446d76a91a3e0c5935cf738e6b319c298c2618a06979d3897"
+    },
+    {
+      "path": "run-2-images/gallery-standalone-radio-light.png",
+      "sha256": "246770884d6459bad5b6ea514a6330783195e4fbec6e6cddf5a646879a7da617"
+    },
+    {
+      "path": "run-2.log",
+      "sha256": "a331a75a52c4debb1c9eca0405ddb44de224567a5c16b428629cea303c409bd3"
+    }
+  ]
+}

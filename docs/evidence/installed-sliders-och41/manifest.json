@@ -1,0 +1,221 @@
+{
+  "application_revision": "e210d3e4a7b261e6bdf40023023937fbeb096e85",
+  "driver_base_revision": "7bd5e7b3d0cc933a24cb5d865d2b335225565145",
+  "executable_sha256": "5e96404a5df658b7dfa9af05b8d4ff8240737e8df0f751f05c58968a0e24d495",
+  "platform": "macOS 14.5 arm64 / M1 Max / built-in display",
+  "voiceover": "Owner hold; untouched",
+  "runs": [
+    {
+      "command": "python3 scripts/test_gallery.py --section sliders --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/slider-installed-7bd5e7b/run-1-images",
+      "session": 79115,
+      "exit_code": 1
+    },
+    {
+      "command": "python3 scripts/test_gallery.py --section sliders --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/slider-installed-7bd5e7b/run-2-images",
+      "session": 52261,
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/test_gallery.py --section sliders --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/slider-installed-7bd5e7b/run-3-images",
+      "session": 42514,
+      "exit_code": 1
+    },
+    {
+      "command": "python3 scripts/test_gallery.py --section sliders --executable scratch/agents/root-20261004-resumed/gallery-installed-lifetime-e210d3e/consumer/_build/default/main.exe --images scratch/agents/root-20261004-resumed/slider-installed-7bd5e7b/run-4-images",
+      "session": 46937,
+      "exit_code": 0
+    }
+  ],
+  "archive": "local-validation.tar.gz",
+  "sha256": "f5a48244edaae671962a4c1bc2dd12129d860363b95c19f2693f5bba64fa93aa",
+  "files": [
+    {
+      "path": "driver-run-1.py",
+      "sha256": "fff298c38d4a2270a7eb87fa0974adc5348825b61874013a18536b8f13e9c8ea"
+    },
+    {
+      "path": "driver-run-2.py",
+      "sha256": "25f81a48bd17a1eabd5c652a2068568898bff4d008753efaa24ad14087fc4ed3"
+    },
+    {
+      "path": "driver-run-3.py",
+      "sha256": "2ac7c6ff8aa2e8733363d8717316d31f19fd0d46c768f1e6bbfd4090c330dc6b"
+    },
+    {
+      "path": "driver-run-4.py",
+      "sha256": "13930e19d5e43746faf9c42fa9c9f01a4da86d207b346e34c359570cdeb9b8b4"
+    },
+    {
+      "path": "metadata.json",
+      "sha256": "a8635d4ac8be6e3c76168c9fb8da885bcf22522c222aa551e0cd6a90ec83706b"
+    },
+    {
+      "path": "run-1-images/gallery-failure.png",
+      "sha256": "39546b851d8cd734275c08885fd927cdfcdec0f25f53da408aec6e0c35619cb1"
+    },
+    {
+      "path": "run-1.log",
+      "sha256": "abf201627bec84e2e639926b50fc446d17f8a39b9e6159f3dfc97a1f679b46f6"
+    },
+    {
+      "path": "run-2-images/slider-paint-samples.json",
+      "sha256": "2175c0dad6482e5625865742714c0b5533aa96c2325cecc40802698334b563c8"
+    },
+    {
+      "path": "run-2.log",
+      "sha256": "b01f1c4c23534adf5bbce900542304cf135055cdc73bba926f3b5a4b19b1d8c0"
+    },
+    {
+      "path": "run-3-images/gallery-failure.png",
+      "sha256": "ac7a6b4570a29ca119a084ffe43452884d71270295790c31387d9d67f2073be3"
+    },
+    {
+      "path": "run-3-images/slider-paint-samples.json",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "run-3.log",
+      "sha256": "1328b1e9da461389d1bdf88d719be30a6590df9bac8365051f65f2c9784dafc1"
+    },
+    {
+      "path": "run-4-images/Dark-horizontal-large-remaining-range-0.png",
+      "sha256": "e30204462fcc7b80ce8986c3278bf76352cfdccb748fd3ee185ca72071618426"
+    },
+    {
+      "path": "run-4-images/Dark-horizontal-large-remaining-single-0.png",
+      "sha256": "e30204462fcc7b80ce8986c3278bf76352cfdccb748fd3ee185ca72071618426"
+    },
+    {
+      "path": "run-4-images/Dark-horizontal-large-selected-range-0.png",
+      "sha256": "9c1438b4553ff6c3284c8dbfd75f59cc42e30c7ddc6a4a655046d901bcb6f874"
+    },
+    {
+      "path": "run-4-images/Dark-horizontal-large-selected-single-0.png",
+      "sha256": "9c1438b4553ff6c3284c8dbfd75f59cc42e30c7ddc6a4a655046d901bcb6f874"
+    },
+    {
+      "path": "run-4-images/Dark-horizontal-small-remaining-range-0.png",
+      "sha256": "e0ff3feae9eea680876c43fdeedc4de147f51a276e666caec2a9e6ed195ea376"
+    },
+    {
+      "path": "run-4-images/Dark-horizontal-small-remaining-single-0.png",
+      "sha256": "e0ff3feae9eea680876c43fdeedc4de147f51a276e666caec2a9e6ed195ea376"
+    },
+    {
+      "path": "run-4-images/Dark-horizontal-small-selected-range-0.png",
+      "sha256": "3db14401f116b85294b603f415f1bd378be77dd26a923bce87f9536d47f0d679"
+    },
+    {
+      "path": "run-4-images/Dark-horizontal-small-selected-single-0.png",
+      "sha256": "3db14401f116b85294b603f415f1bd378be77dd26a923bce87f9536d47f0d679"
+    },
+    {
+      "path": "run-4-images/Dark-vertical-large-remaining-range-0.png",
+      "sha256": "d3a992fb53233c94e9dbd4c3d405acc1e7f130dd1fd5f76b451b5c1bb40a5e29"
+    },
+    {
+      "path": "run-4-images/Dark-vertical-large-remaining-single-0.png",
+      "sha256": "d3a992fb53233c94e9dbd4c3d405acc1e7f130dd1fd5f76b451b5c1bb40a5e29"
+    },
+    {
+      "path": "run-4-images/Dark-vertical-large-selected-range-0.png",
+      "sha256": "070ddf38e8cb9e99ea4204da6244d82a68e64ef5a23b89c92542bb63e5457213"
+    },
+    {
+      "path": "run-4-images/Dark-vertical-large-selected-single-0.png",
+      "sha256": "070ddf38e8cb9e99ea4204da6244d82a68e64ef5a23b89c92542bb63e5457213"
+    },
+    {
+      "path": "run-4-images/Dark-vertical-small-remaining-range-0.png",
+      "sha256": "6248751e827b3b201bdeb9de93360fde1a2e4d05090720b3826d4f0e7343500b"
+    },
+    {
+      "path": "run-4-images/Dark-vertical-small-remaining-single-0.png",
+      "sha256": "6248751e827b3b201bdeb9de93360fde1a2e4d05090720b3826d4f0e7343500b"
+    },
+    {
+      "path": "run-4-images/Dark-vertical-small-selected-range-0.png",
+      "sha256": "840ba927305bb7cda53d2e565e04544fd900622aa4e175cd73a07f371671e32a"
+    },
+    {
+      "path": "run-4-images/Dark-vertical-small-selected-single-0.png",
+      "sha256": "840ba927305bb7cda53d2e565e04544fd900622aa4e175cd73a07f371671e32a"
+    },
+    {
+      "path": "run-4-images/Light-horizontal-large-remaining-range-0.png",
+      "sha256": "b4a9d217d4fff0e537870589254fd6b18d9cc27d6306ec5fdd49ca8b5e949e26"
+    },
+    {
+      "path": "run-4-images/Light-horizontal-large-remaining-single-0.png",
+      "sha256": "b4a9d217d4fff0e537870589254fd6b18d9cc27d6306ec5fdd49ca8b5e949e26"
+    },
+    {
+      "path": "run-4-images/Light-horizontal-large-selected-range-0.png",
+      "sha256": "f9ba4ffedf970ebc348099c2a8a5219af28eb33416183a21c913e7a6fbbacac8"
+    },
+    {
+      "path": "run-4-images/Light-horizontal-large-selected-single-0.png",
+      "sha256": "f9ba4ffedf970ebc348099c2a8a5219af28eb33416183a21c913e7a6fbbacac8"
+    },
+    {
+      "path": "run-4-images/Light-horizontal-small-remaining-range-0.png",
+      "sha256": "1bf3fedd53e01d30590e4150099dd329ba1ee97b018b12b1a2b9ff49f6315c0f"
+    },
+    {
+      "path": "run-4-images/Light-horizontal-small-remaining-single-0.png",
+      "sha256": "1bf3fedd53e01d30590e4150099dd329ba1ee97b018b12b1a2b9ff49f6315c0f"
+    },
+    {
+      "path": "run-4-images/Light-horizontal-small-selected-range-0.png",
+      "sha256": "c2f7b2661502e1b580a9ea91eab80886a52720f32d6ffe439fe97d4459554762"
+    },
+    {
+      "path": "run-4-images/Light-horizontal-small-selected-single-0.png",
+      "sha256": "c2f7b2661502e1b580a9ea91eab80886a52720f32d6ffe439fe97d4459554762"
+    },
+    {
+      "path": "run-4-images/Light-vertical-large-remaining-range-0.png",
+      "sha256": "6d706cc245a0d0412b3ee6918c46b1ea4508d780b8f60f72e0c8357a834dfc27"
+    },
+    {
+      "path": "run-4-images/Light-vertical-large-remaining-single-0.png",
+      "sha256": "6d706cc245a0d0412b3ee6918c46b1ea4508d780b8f60f72e0c8357a834dfc27"
+    },
+    {
+      "path": "run-4-images/Light-vertical-large-selected-range-0.png",
+      "sha256": "e2a148878f954f62a98cdf2dca3f435609dc994138e87bbfe60091a7282ec59c"
+    },
+    {
+      "path": "run-4-images/Light-vertical-large-selected-single-0.png",
+      "sha256": "e2a148878f954f62a98cdf2dca3f435609dc994138e87bbfe60091a7282ec59c"
+    },
+    {
+      "path": "run-4-images/Light-vertical-small-remaining-range-0.png",
+      "sha256": "ac471a7ad010d0a02b12887be21b9d3329ea791fbfe18914b1c742e921b57f74"
+    },
+    {
+      "path": "run-4-images/Light-vertical-small-remaining-single-0.png",
+      "sha256": "ac471a7ad010d0a02b12887be21b9d3329ea791fbfe18914b1c742e921b57f74"
+    },
+    {
+      "path": "run-4-images/Light-vertical-small-selected-range-0.png",
+      "sha256": "0aaa8af5d4dcf9580bbdcbcb977ebcbd51bc28326de867ed09fd7289eb0ff2ba"
+    },
+    {
+      "path": "run-4-images/Light-vertical-small-selected-single-0.png",
+      "sha256": "b70bb456a9d23622f0b39fe164339bdf98109c4bac15ce7e506b757447a6c592"
+    },
+    {
+      "path": "run-4-images/slider-paint-samples.json",
+      "sha256": "2175c0dad6482e5625865742714c0b5533aa96c2325cecc40802698334b563c8"
+    },
+    {
+      "path": "run-4.log",
+      "sha256": "9d93139c72c805f647c7e62516afe55772746746ce6e3cb8b6bbf568b87fbfc4"
+    },
+    {
+      "path": "selectors.patch",
+      "sha256": "13edc995fe0441c739a44fd32efe422aae56c990c97a03d5f98330229e81521d"
+    }
+  ]
+}

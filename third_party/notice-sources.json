@@ -1,0 +1,1090 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "package": {
+        "name": "accesskit",
+        "version": "0.24.1",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "cd01e2e0c169f5d6c72fdb42e77cf707608dbbb615455676518eba33e8f5bc02"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/AccessKit--accesskit/1b5ec8b78e23-LICENSE-APACHE",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+          "provenance": "https://github.com/AccessKit/accesskit/blob/a55d3e1a18bb9ef0e4bccc9083fb13c3e0ad8969/LICENSE-APACHE",
+          "git_blob_sha1": "1b5ec8b78e237b5c3b3d812a7c0a6589d0f7161d"
+        },
+        {
+          "path": "third_party/licenses/registry/AccessKit--accesskit/31aa79387f27-LICENSE-MIT",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "provenance": "https://github.com/AccessKit/accesskit/blob/a55d3e1a18bb9ef0e4bccc9083fb13c3e0ad8969/LICENSE-MIT",
+          "git_blob_sha1": "31aa79387f27e730e33d871925e152e35e428031"
+        },
+        {
+          "path": "third_party/licenses/registry/AccessKit--accesskit/a32e00ce6be3-LICENSE.chromium",
+          "sha256": "845022e0c1db1abb41a6ba4cd3c4b674ec290f3359d9d3c78ae558d4c0ed9308",
+          "provenance": "https://github.com/AccessKit/accesskit/blob/a55d3e1a18bb9ef0e4bccc9083fb13c3e0ad8969/LICENSE.chromium",
+          "git_blob_sha1": "a32e00ce6be3620adca152e53734f7de8fda38cf"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision a55d3e1a18bb9ef0e4bccc9083fb13c3e0ad8969 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "accesskit_consumer",
+        "version": "0.38.0",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "f75c77dc052103040d9ff95469fe50f94cd327b147fec851a8cb709c8a379774"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/AccessKit--accesskit/1b5ec8b78e23-LICENSE-APACHE",
+          "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+          "provenance": "https://github.com/AccessKit/accesskit/blob/c88605b96d04431f9c3c792464a0f2f253480e94/LICENSE-APACHE",
+          "git_blob_sha1": "1b5ec8b78e237b5c3b3d812a7c0a6589d0f7161d"
+        },
+        {
+          "path": "third_party/licenses/registry/AccessKit--accesskit/31aa79387f27-LICENSE-MIT",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "provenance": "https://github.com/AccessKit/accesskit/blob/c88605b96d04431f9c3c792464a0f2f253480e94/LICENSE-MIT",
+          "git_blob_sha1": "31aa79387f27e730e33d871925e152e35e428031"
+        },
+        {
+          "path": "third_party/licenses/registry/AccessKit--accesskit/a32e00ce6be3-LICENSE.chromium",
+          "sha256": "845022e0c1db1abb41a6ba4cd3c4b674ec290f3359d9d3c78ae558d4c0ed9308",
+          "provenance": "https://github.com/AccessKit/accesskit/blob/c88605b96d04431f9c3c792464a0f2f253480e94/LICENSE.chromium",
+          "git_blob_sha1": "a32e00ce6be3620adca152e53734f7de8fda38cf"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision c88605b96d04431f9c3c792464a0f2f253480e94 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "binprot_derive",
+        "version": "0.1.7",
+        "source": "git+https://github.com/LaurentMazare/binprot-rs.git?rev=165b4d64d8f2a580af453f1e60deba41c28cd6df#165b4d64d8f2a580af453f1e60deba41c28cd6df",
+        "license_expression": "MIT/Apache-2.0",
+        "manifest_sha256": "5031c4732244f390cc3baadd11659ab9361050706b001a6b42e01d52f4a7f0a4"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/binprot-rs.txt",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "https://github.com/LaurentMazare/binprot-rs/blob/165b4d64d8f2a580af453f1e60deba41c28cd6df/LICENSE"
+        }
+      ],
+      "rationale": "Copied unchanged from the pinned workspace containing this nested derive crate. Manifest declaration remains verbatim; this does not select a license alternative or establish that all obligations are covered."
+    },
+    {
+      "package": {
+        "name": "block2",
+        "version": "0.5.1",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "5b1e38f82e1a70cf6493c2d2b0c6085bb671bd1c98316d2d71baea53674f227c"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/madsmtm--objc2/e9ab3babc0d8-LICENSE.txt",
+          "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+          "provenance": "https://github.com/madsmtm/objc2/blob/4fc083f1c6d6784577e38b0ee8dbd344481e2fd2/LICENSE.txt",
+          "git_blob_sha1": "e9ab3babc0d8602b83dccde8a462f8f3dc1e52ad"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 4fc083f1c6d6784577e38b0ee8dbd344481e2fd2 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "collections",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "78ad646689787c49b45719f87021558284e8dabc300a8bc136edfec8e622e164"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "derive_refineable",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "8a09e1e1f87538f249a0464c97d0e50881ef97207dbb3a83634afd64c8e1a0bb"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "gpui_apple",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "05106d47f1283bf85df3f69f0a99ebf12e02e4db25652950e17a0f5d620769a7"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "gpui_macos",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "410285b450b4e94d3b4f78491fa3f60aad6f620b04f9b1f52150fd08f53c68b1"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "gpui_macros",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "6eb76cf18ab69869a765edc59f4cda82240c5d52e9da67cfead5d2786f3153ee"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "gpui_platform",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "3c3087860015b55cc39679d72e06b5474787f644a20dbf94482b407d05d9e458"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "gpui_shared_string",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "586f1cd7ba88e4b063d70feb98da4ae5c40268b45613ee56b01e600249ca77ed"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "gpui_util",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "94d78f5e8a384d05b7bfb78421c0fa883d73938aa5935dcfe9fdc6c907c9693b"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "gpuio-counter-backend",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "f17cee5ed1b5befaaa24946677d15cf3338137253a9eb55680d4de9038d6d2b2"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence. Revalidated 2026-10-07: the sole manifest delta since 3b5649ab is the maintained accesskit_consumer path patch added in 630e8394. Package identity, Apache-2.0 declaration and root license bytes are unchanged."
+    },
+    {
+      "package": {
+        "name": "gpuio-document-sdk",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "f95a6eea16094cad96381ddef766264a20c41f4d8c156efd6d1590393f04c1c8"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval."
+    },
+    {
+      "package": {
+        "name": "gpuio-example-counter",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "a27277d8bf8f248293a1895667ef6dc8f7cd49db89a96fea7b6a17f1e92d2365"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices."
+    },
+    {
+      "package": {
+        "name": "gpuio-example-document",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "cb4ef3e17c0e99b13891214be7074d08fbe385ded36005c27e74203ae9aea5ce"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval."
+    },
+    {
+      "package": {
+        "name": "gpuio-extension-sdk",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "390dbc40205852003264a6464729d0d8e038f97298817aa4332013a1676c6c3e"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices."
+    },
+    {
+      "package": {
+        "name": "gpuio-native",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "3a7943a4d7acaf594c47b75553770c46cbc585f9e307fd4e5fa2bfa8ece03692"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party GPUIO crate under the repository Apache-2.0 license. Reviewed the current local manifest and workspace license inheritance; attribution is pinned to this manifest and the retained root license bytes. This is notice collection, not distribution approval. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence. Manifest pin reviewed on 2026-10-07 against 3b5649ab209f5cead00804ef7117050d72f637b7: later changes add macOS CoreFoundation/menu/image features and native test targets; the package Apache-2.0 declaration and attributed root license text are unchanged. This refresh does not approve the transitive dependency inventory."
+    },
+    {
+      "package": {
+        "name": "gpuio-portal",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "e0cbf56cb6d97ca1d900d74c56de3585321bbf7df9de71b2af82a57c44d33a21"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices."
+    },
+    {
+      "package": {
+        "name": "gpuio-protocol",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "5d2f151260271826bff32f971e7eee17db77e6bc53b102e8f131a441b1979e2d"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices."
+    },
+    {
+      "package": {
+        "name": "gpuio-signal-backend",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "2eada178e02c3d7400eac027a9af199449af3d1e7ce56308fa2284305fa79b02"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices. Revalidated 2026-10-05 after the maintained macOS/Apple path patches and optional presentation diagnostics: package identity/license declarations and root LICENSE bytes are unchanged; exact manifest delta is retained in the release evidence. Revalidated 2026-10-07: the sole manifest delta since 3b5649ab is the maintained accesskit_consumer path patch added in 630e8394. Package identity, Apache-2.0 declaration and root license bytes are unchanged."
+    },
+    {
+      "package": {
+        "name": "gpuio-wayland",
+        "version": "0.0.0",
+        "source": null,
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "a3b8a6731c50874a72c9b5ea360b18d29c4382ac15e02dad80fe52cfe4cecac3"
+      },
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "provenance": "GPUIO repository LICENSE; paired with this package manifest hash."
+        }
+      ],
+      "rationale": "First-party crate declares license.workspace=true or an explicit Apache-2.0 license in the GPUIO source tree. This supplies the project license; separately attributed adaptations retain their own notices."
+    },
+    {
+      "package": {
+        "name": "http_client",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "e8a34387ae069d8eecf63fe276d2613a27fad21699ce1129c055db7ca5043c87"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "lyon",
+        "version": "1.0.19",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "d0247358d21759f525010d1732021c966e3937d17723896c6d40291aaccf2b4a"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/nical--lyon/47f4fd0e8982-LICENSE-APACHE",
+          "sha256": "216486f29671a4262efe32af6d84a75bef398127f8c5f369b5c8305983887a06",
+          "provenance": "https://github.com/nical/lyon/blob/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-APACHE",
+          "git_blob_sha1": "47f4fd0e8982271e9b7662380fae36a1ac007cf1"
+        },
+        {
+          "path": "third_party/licenses/registry/nical--lyon/e6d4b179949c-LICENSE-MIT",
+          "sha256": "80f275e90d799911ed3830a7f242a2ef5a4ade2092fe0aa07bfb2d2cf2f2b95e",
+          "provenance": "https://github.com/nical/lyon/blob/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-MIT",
+          "git_blob_sha1": "e6d4b179949c58d7a4143d661ccdfecabcebcf54"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 56219c95c658d4f39de7b190d98e57d5773ba241 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "lyon_algorithms",
+        "version": "1.0.21",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "720190ce4c5bc91da57325dc7a51d3ac968352616272f3b036f4d16cc2166d0c"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/nical--lyon/47f4fd0e8982-LICENSE-APACHE",
+          "sha256": "216486f29671a4262efe32af6d84a75bef398127f8c5f369b5c8305983887a06",
+          "provenance": "https://github.com/nical/lyon/blob/994526f2766c7e9bc5bb16687232fd7e8999dbdf/LICENSE-APACHE",
+          "git_blob_sha1": "47f4fd0e8982271e9b7662380fae36a1ac007cf1"
+        },
+        {
+          "path": "third_party/licenses/registry/nical--lyon/e6d4b179949c-LICENSE-MIT",
+          "sha256": "80f275e90d799911ed3830a7f242a2ef5a4ade2092fe0aa07bfb2d2cf2f2b95e",
+          "provenance": "https://github.com/nical/lyon/blob/994526f2766c7e9bc5bb16687232fd7e8999dbdf/LICENSE-MIT",
+          "git_blob_sha1": "e6d4b179949c58d7a4143d661ccdfecabcebcf54"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 994526f2766c7e9bc5bb16687232fd7e8999dbdf recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "lyon_geom",
+        "version": "1.0.19",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "873e9c04bf5e64dd91c893b930bd79d5b6670e5147e8db896edee2038fc88b36"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/nical--lyon/47f4fd0e8982-LICENSE-APACHE",
+          "sha256": "216486f29671a4262efe32af6d84a75bef398127f8c5f369b5c8305983887a06",
+          "provenance": "https://github.com/nical/lyon/blob/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-APACHE",
+          "git_blob_sha1": "47f4fd0e8982271e9b7662380fae36a1ac007cf1"
+        },
+        {
+          "path": "third_party/licenses/registry/nical--lyon/e6d4b179949c-LICENSE-MIT",
+          "sha256": "80f275e90d799911ed3830a7f242a2ef5a4ade2092fe0aa07bfb2d2cf2f2b95e",
+          "provenance": "https://github.com/nical/lyon/blob/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-MIT",
+          "git_blob_sha1": "e6d4b179949c58d7a4143d661ccdfecabcebcf54"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 56219c95c658d4f39de7b190d98e57d5773ba241 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "lyon_path",
+        "version": "1.0.19",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "f37569f37541593a26986d3fa5fa6d62a0a2ceb9793607bd88ec0a909bbc17ec"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/nical--lyon/47f4fd0e8982-LICENSE-APACHE",
+          "sha256": "216486f29671a4262efe32af6d84a75bef398127f8c5f369b5c8305983887a06",
+          "provenance": "https://github.com/nical/lyon/blob/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-APACHE",
+          "git_blob_sha1": "47f4fd0e8982271e9b7662380fae36a1ac007cf1"
+        },
+        {
+          "path": "third_party/licenses/registry/nical--lyon/e6d4b179949c-LICENSE-MIT",
+          "sha256": "80f275e90d799911ed3830a7f242a2ef5a4ade2092fe0aa07bfb2d2cf2f2b95e",
+          "provenance": "https://github.com/nical/lyon/blob/56219c95c658d4f39de7b190d98e57d5773ba241/LICENSE-MIT",
+          "git_blob_sha1": "e6d4b179949c58d7a4143d661ccdfecabcebcf54"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 56219c95c658d4f39de7b190d98e57d5773ba241 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "lyon_tessellation",
+        "version": "1.0.22",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "065dd83441c47b65e0dc80ea496d3da8c1f91d4bde141d2e42947f7741ff0f3e"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/nical--lyon/47f4fd0e8982-LICENSE-APACHE",
+          "sha256": "216486f29671a4262efe32af6d84a75bef398127f8c5f369b5c8305983887a06",
+          "provenance": "https://github.com/nical/lyon/blob/b456b143215a1942a617c4672776b68b9a30feee/LICENSE-APACHE",
+          "git_blob_sha1": "47f4fd0e8982271e9b7662380fae36a1ac007cf1"
+        },
+        {
+          "path": "third_party/licenses/registry/nical--lyon/e6d4b179949c-LICENSE-MIT",
+          "sha256": "80f275e90d799911ed3830a7f242a2ef5a4ade2092fe0aa07bfb2d2cf2f2b95e",
+          "provenance": "https://github.com/nical/lyon/blob/b456b143215a1942a617c4672776b68b9a30feee/LICENSE-MIT",
+          "git_blob_sha1": "e6d4b179949c58d7a4143d661ccdfecabcebcf54"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision b456b143215a1942a617c4672776b68b9a30feee recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "media",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "3446115518d184b7cbd926a13ea3ca2cbddeed1b34e6654296c730617af7401e"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "objc-sys",
+        "version": "0.3.5",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "a53c0faf4873ad69640d01b1d64a32b4fa7a75a12b8b7980f6f2de9c1308a865"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/madsmtm--objc2/e9ab3babc0d8-LICENSE.txt",
+          "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+          "provenance": "https://github.com/madsmtm/objc2/blob/4fc083f1c6d6784577e38b0ee8dbd344481e2fd2/LICENSE.txt",
+          "git_blob_sha1": "e9ab3babc0d8602b83dccde8a462f8f3dc1e52ad"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 4fc083f1c6d6784577e38b0ee8dbd344481e2fd2 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "objc2",
+        "version": "0.5.2",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "1f14e0f35c5f9ca2b197f8941cf546eb21c93111df661f5a283749a9191e10f3"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/madsmtm--objc2/e9ab3babc0d8-LICENSE.txt",
+          "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+          "provenance": "https://github.com/madsmtm/objc2/blob/4fc083f1c6d6784577e38b0ee8dbd344481e2fd2/LICENSE.txt",
+          "git_blob_sha1": "e9ab3babc0d8602b83dccde8a462f8f3dc1e52ad"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 4fc083f1c6d6784577e38b0ee8dbd344481e2fd2 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "objc2-app-kit",
+        "version": "0.2.2",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "3ae36868a6318fb30bc564f207821b311ee1fb0081d29294266440be29b08280"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/madsmtm--objc2/e9ab3babc0d8-LICENSE.txt",
+          "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+          "provenance": "https://github.com/madsmtm/objc2/blob/e282618be4c3a3b9542957e0c8540e9588472ce8/LICENSE.txt",
+          "git_blob_sha1": "e9ab3babc0d8602b83dccde8a462f8f3dc1e52ad"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision e282618be4c3a3b9542957e0c8540e9588472ce8 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "objc2-core-data",
+        "version": "0.2.2",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "0e1849dfd4d11eaa221849615e90bde6902e4bfad1f5ddbb30882d377ee520ef"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/madsmtm--objc2/e9ab3babc0d8-LICENSE.txt",
+          "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+          "provenance": "https://github.com/madsmtm/objc2/blob/e282618be4c3a3b9542957e0c8540e9588472ce8/LICENSE.txt",
+          "git_blob_sha1": "e9ab3babc0d8602b83dccde8a462f8f3dc1e52ad"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision e282618be4c3a3b9542957e0c8540e9588472ce8 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "objc2-core-image",
+        "version": "0.2.2",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "695f382dee4539af619769936f35c32dfe3e808d982984e524a67b26d8281618"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/madsmtm--objc2/e9ab3babc0d8-LICENSE.txt",
+          "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+          "provenance": "https://github.com/madsmtm/objc2/blob/e282618be4c3a3b9542957e0c8540e9588472ce8/LICENSE.txt",
+          "git_blob_sha1": "e9ab3babc0d8602b83dccde8a462f8f3dc1e52ad"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision e282618be4c3a3b9542957e0c8540e9588472ce8 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "objc2-metal",
+        "version": "0.2.2",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "4b00c561d9ecb0441f2fe9c9fa85f747772548998c838e7b74e4217e1ea5c1f7"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/madsmtm--objc2/e9ab3babc0d8-LICENSE.txt",
+          "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+          "provenance": "https://github.com/madsmtm/objc2/blob/e282618be4c3a3b9542957e0c8540e9588472ce8/LICENSE.txt",
+          "git_blob_sha1": "e9ab3babc0d8602b83dccde8a462f8f3dc1e52ad"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision e282618be4c3a3b9542957e0c8540e9588472ce8 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "objc2-quartz-core",
+        "version": "0.2.2",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "1c09139b63daef0bad18254082fb6df7d36e1293ac9235b404903ecd74c5c5dd"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/madsmtm--objc2/e9ab3babc0d8-LICENSE.txt",
+          "sha256": "e353f37b12aefbb9f9b29490e837cfee05d9bda70804b3562839a3285c1df1e5",
+          "provenance": "https://github.com/madsmtm/objc2/blob/e282618be4c3a3b9542957e0c8540e9588472ce8/LICENSE.txt",
+          "git_blob_sha1": "e9ab3babc0d8602b83dccde8a462f8f3dc1e52ad"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision e282618be4c3a3b9542957e0c8540e9588472ce8 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "ocaml-boxroot-sys",
+        "version": "0.4.0",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "83f498787c402580b379747d19029a3023e321ac0a8d86d5806b2bb164bd9713"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/ocaml-rust--ocaml-boxroot/d474b9e07c8a-LICENSE",
+          "sha256": "ddfc2cb4681112f197d193c7d95352f1122da17710c7d2bcd429c0d29842840a",
+          "provenance": "https://gitlab.com/ocaml-rust/ocaml-boxroot/-/blob/45d6313d4065e8ff65e75c6fad038c8da0c7b3eb/LICENSE",
+          "git_blob_sha1": "d474b9e07c8aadc68a008c0d815cea0dcec0e469"
+        }
+      ],
+      "rationale": "Unchanged Boxroot project LICENSE from the exact revision recorded by this published crate's .cargo_vcs_info.json (rust/ocaml-boxroot-sys). GitLab file API commit, blob and SHA-256 verified against the raw response; Cargo manifest declares MIT. This supplies the original project notice, not a generic replacement or a completeness approval."
+    },
+    {
+      "package": {
+        "name": "ocaml-interop-derive",
+        "version": "0.12.0",
+        "source": "git+https://github.com/tizoc/ocaml-interop.git?rev=9f941c63b8a9dcd652c6535da196f48d7a4dcc75#9f941c63b8a9dcd652c6535da196f48d7a4dcc75",
+        "license_expression": "MIT",
+        "manifest_sha256": "d29093c76b2d1a0621f55567ea7c614a1e59593641aae03660e5366805e095d1"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/ocaml-interop.txt",
+          "sha256": "109e71b6294e28a0a324e3534da97b0e9ce3006c62d0a5aa05b3eab3d405fe1e",
+          "provenance": "https://github.com/tizoc/ocaml-interop/blob/9f941c63b8a9dcd652c6535da196f48d7a4dcc75/LICENSE"
+        }
+      ],
+      "rationale": "Copied unchanged from the pinned workspace containing this nested derive crate. Manifest declaration remains verbatim; this does not select a license alternative or establish that all obligations are covered."
+    },
+    {
+      "package": {
+        "name": "ocaml-sys",
+        "version": "0.26.0",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "ISC",
+        "manifest_sha256": "2bac029328922e2ecad35c9d0d1f427263a630bd72056dd56ddd3de8d63750bd"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/zshipko--ocaml-rs/b1dd5a19d283-LICENSE.md",
+          "sha256": "a0cfe5fc6edec353d01a640998b076364d240c3cfb0ac1f8b9bd2b940134a1a9",
+          "provenance": "https://github.com/zshipko/ocaml-rs/blob/9e913694c887763367a6ef12178d043c782e8a46/LICENSE.md",
+          "git_blob_sha1": "b1dd5a19d2830c849c2bcedc130d4c7ce366dbf0"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 9e913694c887763367a6ef12178d043c782e8a46 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "pathfinder_geometry",
+        "version": "0.5.1",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT/Apache-2.0",
+        "manifest_sha256": "141871f41ab4ac7af854e54f1f637fb168ffbc97fdb57c60608f11b8eb95f1d7"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/servo--pathfinder/16fe87b06e80-LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "provenance": "https://github.com/servo/pathfinder/blob/1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3/LICENSE-APACHE",
+          "git_blob_sha1": "16fe87b06e802f094b3fbb0894b137bca2b16ef1"
+        },
+        {
+          "path": "third_party/licenses/registry/servo--pathfinder/25597d5838fa-LICENSE-MIT",
+          "sha256": "0621878e61f0d0fda054bcbe02df75192c28bde1ecc8289cbd86aeba2dd72720",
+          "provenance": "https://github.com/servo/pathfinder/blob/1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3/LICENSE-MIT",
+          "git_blob_sha1": "25597d5838fa4cd7ff5c3c2bb1d1b4c3731eda7f"
+        }
+      ],
+      "rationale": "The published archive checksum matches Cargo.lock. Every packaged original manifest/source file matches the geometry subtree at revision 1cd5966d3d7c3d395b6886d1ed63eb7b306f9be3. Its root MIT/Apache notices are retained unchanged with verified Git blob hashes. The recorded VCS identity a5e98fac00f433fe2ff4b2135383d82491b8bfc5 remains unavailable; this establishes source-equivalent notice provenance, not the actual publishing commit or final license approval."
+    },
+    {
+      "package": {
+        "name": "pathfinder_simd",
+        "version": "0.5.6",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "8c786fc7a21f92ef487513268e52c99a4d889550670a2ec0e1277619e7127bfd"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/servo--pathfinder/16fe87b06e80-LICENSE-APACHE",
+          "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+          "provenance": "https://github.com/servo/pathfinder/blob/6c3c0466f451c5bd2007087728cd168798cd64e8/LICENSE-APACHE",
+          "git_blob_sha1": "16fe87b06e802f094b3fbb0894b137bca2b16ef1"
+        },
+        {
+          "path": "third_party/licenses/registry/servo--pathfinder/25597d5838fa-LICENSE-MIT",
+          "sha256": "0621878e61f0d0fda054bcbe02df75192c28bde1ecc8289cbd86aeba2dd72720",
+          "provenance": "https://github.com/servo/pathfinder/blob/6c3c0466f451c5bd2007087728cd168798cd64e8/LICENSE-MIT",
+          "git_blob_sha1": "25597d5838fa4cd7ff5c3c2bb1d1b4c3731eda7f"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 6c3c0466f451c5bd2007087728cd168798cd64e8 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "perf",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "5ced547836105042ac849a952225ef092fd9c14f274953ea65bee51f696e62ea"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "profiling",
+        "version": "1.0.18",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "00c84a390cdb283f2fea80bb6ccbfef8af8cd2005e79309057af1b5030d3e6a5"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/aclysma--profiling/139dce95d473-LICENSE-APACHE",
+          "sha256": "10d30a673cd5e9349bdc02aeb48f14b3386d27d0da32df8f0a555d4aa16aa551",
+          "provenance": "https://github.com/aclysma/profiling/blob/8271551172eb6fa4cba47369aedd93790c623df9/LICENSE-APACHE",
+          "git_blob_sha1": "139dce95d473c201a8561ef17536314d8b8cda65"
+        },
+        {
+          "path": "third_party/licenses/registry/aclysma--profiling/6a84e059ad8b-LICENSE-MIT",
+          "sha256": "c8167fdeeed46d3f244d3f85c5bf998ce889343691c32be2c61a8bc4b5c08333",
+          "provenance": "https://github.com/aclysma/profiling/blob/8271551172eb6fa4cba47369aedd93790c623df9/LICENSE-MIT",
+          "git_blob_sha1": "6a84e059ad8b43e03c2b06bc2af4dc1d8442808d"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 8271551172eb6fa4cba47369aedd93790c623df9 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "profiling-procmacros",
+        "version": "1.0.18",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "bd4fef29709a44e6769efb66e2f65bf555557b86516deb249ef3dd9907f597c1"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/aclysma--profiling/139dce95d473-LICENSE-APACHE",
+          "sha256": "10d30a673cd5e9349bdc02aeb48f14b3386d27d0da32df8f0a555d4aa16aa551",
+          "provenance": "https://github.com/aclysma/profiling/blob/8271551172eb6fa4cba47369aedd93790c623df9/LICENSE-APACHE",
+          "git_blob_sha1": "139dce95d473c201a8561ef17536314d8b8cda65"
+        },
+        {
+          "path": "third_party/licenses/registry/aclysma--profiling/6a84e059ad8b-LICENSE-MIT",
+          "sha256": "c8167fdeeed46d3f244d3f85c5bf998ce889343691c32be2c61a8bc4b5c08333",
+          "provenance": "https://github.com/aclysma/profiling/blob/8271551172eb6fa4cba47369aedd93790c623df9/LICENSE-MIT",
+          "git_blob_sha1": "6a84e059ad8b43e03c2b06bc2af4dc1d8442808d"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 8271551172eb6fa4cba47369aedd93790c623df9 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "pulp-wasm-simd-flag",
+        "version": "0.1.1",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "54146b6fcfec790328d3a093fc789a209dde6ef387b711f98a5374a5436b2b9f"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/sarah-quinones--pulp/84e3f4435bfe-LICENSE",
+          "sha256": "d64f878c89bd5f1e5ada7e4aad57690b122727cf5229b7b87ea1980c188da1d9",
+          "provenance": "https://github.com/sarah-quinones/pulp/blob/5eb07fd7b68edf0a5e19f71737d315f72a510295/LICENSE",
+          "git_blob_sha1": "84e3f4435bfe437a7e2a1db5f6d701ffd0638fae"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 5eb07fd7b68edf0a5e19f71737d315f72a510295 recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "refineable",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "6e9f6df6d35eb7557bb7ba4cd4be92659535731f9b7b48a69d319a89ffc24882"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "scheduler",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "466231bfc427ada26e65ad387bf8013df83a84a16950d9002654c7a6370b1994"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "sum_tree",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "e9fc02f616e2501341350019227181a04d0ef921a5fed0ac7f3ebc7ac6e2e8b0"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "svg_fmt",
+        "version": "0.4.5",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT/Apache-2.0",
+        "manifest_sha256": "84650d018d4259c31ab944439b642665668367ed4312a64a735ee2654d1056e5"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/nical--rust_debug/9ad7b40bcf7b-LICENSE",
+          "sha256": "7e98bed7f100747aaae7d82ab94fbe6b76fd6b84b09a3aaa413bff8196d0fbb1",
+          "provenance": "https://github.com/nical/rust_debug/blob/93f414cd572b5c2781df93dbdc068ed13443d05a/LICENSE",
+          "git_blob_sha1": "9ad7b40bcf7bb89a9866e5e2e8fdb370fb528e36"
+        }
+      ],
+      "rationale": "Unchanged repository notice files fetched at revision 93f414cd572b5c2781df93dbdc068ed13443d05a recorded by this published crate's .cargo_vcs_info.json. Git blob hashes verified before copying. All root notice alternatives and additional root notices retained; no alternative selected and no completeness approval implied."
+    },
+    {
+      "package": {
+        "name": "syntect",
+        "version": "5.3.0",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT",
+        "manifest_sha256": "5e684bef35f74140214f024f4d781bb9a6abd896f73b8525ff59cf0a74417d73"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/sethlopez--InspiredGitHub.tmtheme/953ca06490e3-LICENSE",
+          "sha256": "64f9ec83cd852c2e9ae9c63cab529b48919427445de3c38af7683bcfcf8e5c5a",
+          "git_blob_sha1": "953ca06490e3aee3d4dd4484ba0596fba113e05f",
+          "provenance": "https://github.com/sethlopez/InspiredGitHub.tmtheme/blob/18ddb271179e118cfc2dd83abf88b915b7328a25/LICENSE"
+        },
+        {
+          "path": "third_party/licenses/registry/braver--Solarized/a89770443c15-LICENSE",
+          "sha256": "5dc2079d54e3f8f30fa8c1bec303bddc84da7776b677700ef083252835c0f77c",
+          "git_blob_sha1": "a89770443c15ee877e97f9b650964a6aef0c4dd3",
+          "provenance": "https://github.com/braver/Solarized/blob/bcd6234b4f5f96d3fd27db079268b5757053072a/LICENSE"
+        },
+        {
+          "path": "third_party/licenses/registry/SublimeText--Spacegray/d9b0a4747e0c-LICENSE",
+          "sha256": "f7f5760fa33782054db76bf6b3df7f6b8a08de5fe92dbb435d758ab637cc6e9f",
+          "git_blob_sha1": "d9b0a4747e0c5b7a1f00251f693c721a7f522e11",
+          "provenance": "https://github.com/SublimeText/Spacegray/blob/2703e93f559e212ef3895edd10d861a4383ce93d/LICENSE"
+        },
+        {
+          "path": "third_party/licenses/registry/chriskempson--base16/33d142060d98-LICENSE.md",
+          "sha256": "7f56fcf24df1178b329a99b5160f7fd23dcdd75b0b633e468db2917e6ff061ca",
+          "git_blob_sha1": "33d142060d987f1ead6a9ec4dd29bb3b0d6c1497",
+          "provenance": "https://github.com/chriskempson/base16/blob/39fb23df970d4d6190d000271dec260250986012/LICENSE.md"
+        },
+        {
+          "path": "third_party/licenses/registry/altercation--solarized/ee08d7e44f15-LICENSE",
+          "sha256": "494aefdabf86acce06bd63001ad8aedad4ee38da23509d3f917d95aa3368b9a6",
+          "git_blob_sha1": "ee08d7e44f15108ef5359550399dad55955b56ca",
+          "provenance": "https://github.com/altercation/solarized/blob/e40cd4130e2a82f9b03ada1ca378b7701b1a9110/LICENSE"
+        }
+      ],
+      "rationale": "Root theme-repository license texts fetched unchanged at the three submodule commits recorded by syntect e4670846ecf16d8832db6c43d531bec466214e27. Git blob identities verified. The published default.themedump matches the exact syntect repository blob and Cargo.lock-verified crate. InspiredGitHub and both Solarized themes match decoded dump values exactly; four Base16 themes match after accounting for the historical generator ignoring root gutterSettings, without changing the shipped dump. Theme author metadata and further derivative attribution remain part of final review; root license collection is not a completeness approval. See docs/evidence/syntect-themes-och17.md. Additional unchanged original-author MIT notices are retained for Base16 (Chris Kempson) and Solarized (Ethan Schoonover), explicitly credited by those pinned theme sources. The Solarized notice comes from its last upstream snapshot before the braver submodule commit. The Base16 notice comes from a separately pinned 2022 snapshot, not a claimed 2017 generator/source revision; current upstream history does not provide a pre-2017 snapshot. These additive author notices do not replace the derivative repository licenses or establish exact generator provenance. See docs/evidence/syntect-themes-och17.md#original-author-notices."
+    },
+    {
+      "package": {
+        "name": "two-face",
+        "version": "0.5.2+bat-0.26.1",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0",
+        "manifest_sha256": "b292232565eab3261a41fadd95536dfd92a59a0d8e7675b147a7dbc397b7470f"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/two-face-assets.md",
+          "sha256": "66512fea2f515b498c2972b2cdf361b1405735ec934a85e48fbe39d917074a7f",
+          "provenance": "https://codeberg.org/CosmicHarper/two-face/src/tag/v0.5.2+bat-0.26.1/generated/acknowledgements_full.md"
+        }
+      ],
+      "rationale": "Readable asset acknowledgement listing already retained in this repository. All 78 path/text blocks emitted by the pinned crate acknowledgement::listing().to_md() match this listing byte-for-byte; the retained full listing has five additional blocks, not present in the upstream embedded subset. The crate archive SHA-256 915be7adc2ff6f4338acbf71f3eda0a146f46003b992a1669c674308610efdac matches Cargo.lock; packaged acknowledgement data and exporter source match the archive. Original listing bytes and additional notices preserved unchanged. This establishes readable coverage of the upstream embedded subset, not independent provenance/completeness review of every syntax/theme or of the five additional blocks. See docs/evidence/embedded-assets-och17.md."
+    },
+    {
+      "package": {
+        "name": "util_macros",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "592ab59473ef18d70f0372c8260f2944c7087271806ed6ee91a7eb1445ecf0ce"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "zlog",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "8a97e450941f99c6c409d348f06949c7d983a122a11a19bf244f2ae99f584226"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "ztracing",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "a857ee351bb0a5d8a0419766ba195e0a48406776242ac1fb50b3de6f91f8a7f9"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "ztracing_macro",
+        "version": "0.1.0",
+        "source": "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b",
+        "license_expression": "Apache-2.0",
+        "manifest_sha256": "f6e3a72766dfe5a92c57234cc15940d114f67a7e04e8e066d084883689e0ec41"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/zed-gpui.txt",
+          "sha256": "752daf2fb234ca4a1fa372c073fe127f44b7b90fd2529ae44273a64f9d53da7a",
+          "provenance": "https://github.com/zed-industries/zed/blob/a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b/LICENSE-APACHE"
+        }
+      ],
+      "rationale": "Package-local LICENSE-APACHE symlink resolves to this exact Apache text in the pinned Zed checkout; byte comparison passed. The separate GPL license is not substituted."
+    },
+    {
+      "package": {
+        "name": "zune-inflate",
+        "version": "0.2.54",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "license_expression": "MIT OR Apache-2.0 OR Zlib",
+        "manifest_sha256": "f3da162dd3818fcdf23c9ce34930d66064106873a692d6994abd49b80e60ea66"
+      },
+      "files": [
+        {
+          "path": "third_party/licenses/registry/etemesi254--zune-image/ee9ce454f54f-LICENSE.md",
+          "sha256": "e870d7fd7819a9f0453c62798cb52ae95d148a8c91dc2de1d983f997143c72de",
+          "provenance": "https://github.com/etemesi254/zune-image/blob/69502ce83fdfecdd0beefd677e2abb3781b29d98/LICENSE.md",
+          "git_blob_sha1": "ee9ce454f54f6dfd13d10218af4178f07497fde0"
+        },
+        {
+          "path": "third_party/licenses/registry/etemesi254--zune-image/582ec653390a-LICENSE-ZLIB",
+          "sha256": "7fa429541e55b1509909e058f2d21a37467e4958ec713b357f6e0cf9dc4ee352",
+          "provenance": "https://github.com/etemesi254/zune-image/blob/69502ce83fdfecdd0beefd677e2abb3781b29d98/LICENSE-ZLIB",
+          "git_blob_sha1": "582ec653390adaf4893b71f3e113a6ac4d392463"
+        }
+      ],
+      "rationale": "Published .cargo_vcs_info.json pins revision 69502ce83fdfecdd0beefd677e2abb3781b29d98. Its Cargo.toml.orig matches upstream zune-inflate/Cargo.toml byte-for-byte (Git blob 882d8114f2611f0a631ec6fbb4c791f6457645c1), establishing the repository despite the missing repository field. Retained unchanged upstream root copyright/licensing policy and full Zlib text. Full MIT/Apache texts were not present at that root; no license alternative is selected and completeness still requires review."
+    }
+  ]
+}

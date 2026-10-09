@@ -7,6 +7,13 @@ module Open_state = struct
   [@@deriving equal, sexp_of]
 end
 
+module Motion = struct
+  type t =
+    | Immediate
+    | Enter_and_switch
+  [@@deriving equal, sexp_of]
+end
+
 module Config = struct
   type t =
     { label : string
@@ -18,6 +25,7 @@ module Config = struct
     ; show_delay : Time_ns.Span.t
     ; hide_delay : Time_ns.Span.t
     ; skip_delay : Time_ns.Span.t
+    ; motion : Motion.t
     }
   [@@deriving equal, sexp_of]
 
@@ -35,6 +43,7 @@ module Config = struct
         ?(show_delay = Time_ns.Span.of_ms 250.)
         ?(hide_delay = Time_ns.Span.of_ms 80.)
         ?(skip_delay = Time_ns.Span.of_ms 300.)
+        ?(motion = Motion.Immediate)
         ()
     =
     let%bind.Or_error _ = Overlay.Config.create ~label ~width () in
@@ -52,6 +61,7 @@ module Config = struct
         ; show_delay
         ; hide_delay
         ; skip_delay
+        ; motion
         }
     else Or_error.error_string "tooltip delays must be in 0..60 seconds"
   ;;
@@ -59,6 +69,7 @@ end
 
 module Expert = struct
   let placement (t : Config.t) = t.placement
+  let motion (t : Config.t) = t.motion
   let is_disabled (t : Config.t) = t.disabled
 
   let to_wire (t : Config.t) : Gpuio_protocol.Wire.Tooltip.t =

@@ -2,6 +2,21 @@ open Core
 
 let max_stars = 32
 
+module Appearance = struct
+  type t =
+    { active : int64 option
+    ; inactive : int64 option
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t =
+    let valid =
+      Option.for_all ~f:(fun color -> Int64.(color >= 0L && color <= 0xffffffffL))
+    in
+    valid t.active && valid t.inactive
+  ;;
+end
+
 module Request = struct
   type t =
     | Set of int

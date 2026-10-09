@@ -25,6 +25,13 @@ module Order : sig
   val validate : t -> unit Or_error.t
 end
 
+module Axis : sig
+  type t =
+    | Vertical
+    | Horizontal
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Scroll_policy : sig
   type t =
     | Keep_position

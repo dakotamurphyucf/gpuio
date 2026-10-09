@@ -6,6 +6,16 @@ This document refines the accepted
 [managed-list contract](accepted-contracts.md#managed-list-contract). See the
 [acceptance evidence](../evidence/managed-lists-och13.md) for exact coverage.
 
+## Axis extension (OCH-41)
+
+The [horizontal-list contract](horizontal-managed-lists.md) extends the same
+ownership, paging and retained-row model to `Config.horizontal ~width`. The native
+engine supports both axes; perpendicular gestures remain available to ancestors.
+Use `component_with_config`/`paged_with_config` for reactive configuration changes.
+Existing vertical constructors remain compatible. Local integration and the
+remaining physical/platform scope are recorded in
+[horizontal integration evidence](../evidence/horizontal-list-integration-och41.md).
+
 ## Ownership and data
 
 `Gpuio.List_collection` is an immutable, ordered collection with unique typed
@@ -36,6 +46,18 @@ constructed by applications. Cursors are opaque application strings.
 
 `Gpuio_eio.List_paging` adds scoped Eio producers and UI-loop notifications. It
 cancels producer fibers on reset/cancel/close and suppresses queued completions.
+Two lazy workers bound active production including cancellation cleanup. Reset
+replaces queued demand with at most the latest request for each boundary; a worker
+cannot start that replacement until its prior producer has unwound and returned
+through the UI inbox. Idle workers wait without polling and consume at most two
+Scope task slots until the pager closes. This is a concurrency bound, not a bound
+on the bytes a loader retains. A loader's cancellation cleanup must eventually
+finish; protected cleanup deliberately holds its slot.
+
+Closing publishes the final cancelled-boundary snapshot to the reactive value,
+retains loaded data and suppresses application `on_change` callbacks. The boundary
+status may be Ready after cancellation, but a closed controller rejects requests;
+Ready is not a test of controller liveness.
 Its parent scope should be the conversation or application if loading must
 survive virtual-row deactivation. No viewport operation implicitly cancels
 conversation work. Applications pass I/O capabilities to the loader closure and
@@ -55,6 +77,14 @@ computations for viewport plus overscan, bounded tail prefetch and explicitly pi
 the pinned GPUI `ListState` for variable-height measurement and scrolling. Its
 synchronous render closure consumes available Rust descriptions or a positive
 estimated-height placeholder; it never calls OCaml.
+
+Inherited text metrics, rem size and display scale invalidate native row
+measurements before layout while preserving the logical row and pixel offset.
+This includes cached offscreen measurements: otherwise the next wheel event can
+cross an old row height and jump when that row is measured again. Paint-only
+text color/background/decoration changes retain those measurements. The
+invalidation uses the existing native list state; it does not reconstruct OCaml
+rows or add a frame callback across the bridge.
 
 An asynchronous native observation must be generated from actual layout, not
 only wheel events: resize, data changes and programmatic scrolling all change
@@ -79,6 +109,13 @@ row heights, exact key/pixel anchors through prepend/reorder/height changes and
 resize, tail jump, focused-row retention and disposal. The extended test also checks wheel pause, scrollbar drag, focused editor
 composition through the macOS text client, held selection, intentional source
 deletion and full-history resource bounds. These are local macOS checks.
+
+Wheel movement consumed by a list does not also move an ordinary ancestor.
+Nested child scrollers receive events first; unconsumed list-boundary and
+horizontal-only events remain available to ancestors. The native Frame observes
+actual position changes within each event and retains only a weak owner; it does
+not synthesize a second scroll operation. See the focused
+[routing regression](../evidence/scrolling-och11.md#milestone-07-managed-list-inside-an-ordinary-scroller).
 
 The first native metadata layer uses positive logical row IDs independent of
 native node handles. Consecutive IDs are encoded as runs: an initial 100,000-row
@@ -149,6 +186,21 @@ required rows. The OCaml driver discards only that pending candidate, schedules
 retention callbacks from the last accepted view, and retries without running
 Bonsai deactivation/reset hooks. Explicit source deletion or list removal still
 disposes the row. A historical unfocused selection alone does not pin it forever.
+For an ordinary cross-row text range, eviction of an unfocused endpoint retires
+the shared selection and releases that native owner. Rematerializing the logical
+row with a fresh node generation starts unselected; copying requires a fresh
+gesture. The native `list_selection_test.rs` fixture checks admission pins,
+clipboard results and weak-owner release for this transition. This is not a
+promise to copy text from rows that have never been materialized.
+
+An unfocused interior participant can be evicted without discarding surviving
+geometric endpoints. Copy then includes currently materialized eligible text and
+releases the evicted payload. A new node generation for that interior row joins
+the live range with its current text; it cannot restore old bytes. In contrast,
+an endpoint's retirement destroys the range itself. Updating a selected interior
+source retires shared geometry and requires a fresh gesture. The native
+`list_selection_interior_test.rs` checks these transitions through guarded
+admission with unchanged logical order and weak-owner release.
 
 Tests cover atomic rollback, explicit deletion, response-reservation release,
 source-generation validation, independent OCaml/Rust bin_prot fixtures, and an

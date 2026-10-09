@@ -18,6 +18,7 @@ use crate::text::text_view::{LinkClickHandlerFn, handle_link_click};
 use super::{
     inline::{Inline, InlineHighlight, InlineState, text_runs, text_size_ranges},
     inline_object::{InlineObject, MeasuredInlineObject},
+    inline_semantics::{self, Collector, visual_slot},
     node::LinkMark,
     utils::image_source,
 };
@@ -38,6 +39,7 @@ pub(super) type InlineRenderer = dyn Fn(&super::InlineRenderContext, &mut Window
 pub(super) enum InlineFlowItem {
     Object {
         text: SharedString,
+        fallback_text: Option<SharedString>,
         id: usize,
         renderer: Arc<InlineRenderer>,
         accessibility_label: SharedString,
@@ -58,6 +60,12 @@ pub(super) enum InlineFlowItem {
         width: Option<DefiniteLength>,
         height: Option<DefiniteLength>,
     },
+}
+
+pub(super) struct InlineFlowPrepaint {
+    elements: Vec<(AnyElement, Option<(Bounds<Pixels>, gpui::Hsla)>)>,
+    semantics: Vec<(usize, AnyElement)>,
+    runs: Vec<inline_semantics::Run>,
 }
 
 pub(crate) struct InlineFlowLayoutState {
@@ -82,6 +90,13 @@ struct InlineFlowLayout {
 
 #[derive(Clone)]
 enum PositionedFragment {
+    // Hard line breaks occupy logical text but have no painted glyph fragment.
+    LineBreak {
+        item_ix: usize,
+        offset: usize,
+        origin: gpui::Point<Pixels>,
+        height: Pixels,
+    },
     Object {
         item_ix: usize,
         origin: gpui::Point<Pixels>,
@@ -212,7 +227,41 @@ impl IntoElement for InlineFlow {
 
 impl Element for InlineFlow {
     type RequestLayoutState = InlineFlowLayoutState;
-    type PrepaintState = Vec<(AnyElement, Option<(Bounds<Pixels>, gpui::Hsla)>)>;
+    type PrepaintState = InlineFlowPrepaint;
+
+    fn a11y_role(&self) -> Option<gpui::Role> {
+        Some(gpui::Role::Group)
+    }
+
+    fn a11y_synthetic_children(
+        &mut self,
+        prepaint: &mut Self::PrepaintState,
+        builder: &mut gpui::A11ySubtreeBuilder,
+    ) {
+        // Geometry is collected from real leaves during prepaint. Proxies are
+        // then created after the visuals; interleave their IDs back into source
+        // order, preserving native child subtrees at their original slots.
+        let node = builder.parent_node();
+        let children = node.children().to_vec();
+        let visual_count = prepaint.elements.len();
+        debug_assert_eq!(children.len(), visual_count + prepaint.semantics.len());
+        if children.len() != visual_count + prepaint.semantics.len() {
+            return;
+        }
+        let mut ordered = Vec::with_capacity(children.len());
+        let mut semantics = prepaint.semantics.iter().enumerate().peekable();
+        for (slot, child) in children.iter().take(visual_count).enumerate() {
+            while let Some((index, (source_slot, _))) = semantics.peek() {
+                if *source_slot != slot {
+                    break;
+                }
+                ordered.push(children[visual_count + *index]);
+                semantics.next();
+            }
+            ordered.push(*child);
+        }
+        node.set_children(ordered);
+    }
 
     fn id(&self) -> Option<ElementId> {
         Some(self.id.clone())
@@ -303,7 +352,7 @@ impl Element for InlineFlow {
 
     fn prepaint(
         &mut self,
-        _id: Option<&GlobalElementId>,
+        id: Option<&GlobalElementId>,
         _inspector_id: Option<&InspectorElementId>,
         bounds: Bounds<Pixels>,
         request_layout: &mut Self::RequestLayoutState,
@@ -319,9 +368,70 @@ impl Element for InlineFlow {
         let typography = request_layout.typography.clone();
         let text_style = &typography.text_style;
         let mut elements = Vec::with_capacity(fragments.len());
+        let collector = Collector::new(window, cx);
 
         for fragment in fragments {
             match fragment {
+                PositionedFragment::LineBreak {
+                    item_ix,
+                    offset,
+                    origin,
+                    height,
+                } => {
+                    let InlineFlowItem::Text {
+                        text,
+                        links,
+                        state: source_state,
+                        ..
+                    } = &self.items[item_ix]
+                    else {
+                        unreachable!("line break belongs to a text item")
+                    };
+                    let area = Bounds::new(bounds.origin + origin, size(Pixels::ZERO, height));
+                    let link = links
+                        .iter()
+                        .find(|(range, _)| range.contains(&offset))
+                        .map(|(_, link)| link.clone());
+                    let snapshot = window.is_a11y_active().then(|| {
+                        super::accessible_runs::Snapshot::new(
+                            text.clone(),
+                            &[],
+                            offset..offset + 1,
+                            window.scale_factor(),
+                        )
+                        .with_binding(
+                            crate::GlobalState::global(cx)
+                                .text_view_state()
+                                .and_then(|view| {
+                                    let view = view.read(cx);
+                                    let projection = view.rendered_text()?;
+                                    let fragment = source_state
+                                        .lock()
+                                        .ok()?
+                                        .rendered_fragment
+                                        .clone()?
+                                        .slice(offset..offset + 1)?;
+                                    fragment
+                                        .matches(&projection, "\n")
+                                        .then(|| (view.semantic_attachments.clone(), fragment))
+                                }),
+                        )
+                    });
+                    collector.line_break(elements.len(), area, link, snapshot);
+                    // Keep the source-order slot present even when accessibility
+                    // is inactive; toggling it must not remount later controls.
+                    let mut element = visual_slot(elements.len(), div().w(px(0.)).h(height));
+                    element.prepaint_as_root(
+                        area.origin,
+                        size(
+                            AvailableSpace::Definite(px(0.)),
+                            AvailableSpace::Definite(height),
+                        ),
+                        window,
+                        cx,
+                    );
+                    elements.push((element, None));
+                }
                 PositionedFragment::Object {
                     item_ix,
                     origin,
@@ -339,7 +449,31 @@ impl Element for InlineFlow {
                     else {
                         continue;
                     };
+                    let mut snapshot = window
+                        .is_a11y_active()
+                        .then(|| {
+                            let view = crate::GlobalState::global(cx).text_view_state()?.read(cx);
+                            let projection = view.rendered_text()?;
+                            super::accessible_runs::Snapshot::for_object(
+                                &projection,
+                                view.semantic_attachments.clone(),
+                                selected,
+                                text.clone(),
+                            )
+                        })
+                        .flatten();
                     let object_size = object.metrics.size;
+                    if let Some(link) = link {
+                        collector.push(
+                            elements.len(),
+                            Bounds::new(bounds.origin + origin, object_size),
+                            accessibility_label,
+                            Some(link.clone()),
+                            snapshot.take(),
+                        );
+                    } else {
+                        collector.native(elements.len());
+                    }
                     let mut element = InlineObject::new(
                         ("inline-object", *id),
                         text.clone(),
@@ -355,6 +489,7 @@ impl Element for InlineFlow {
                             size(bounds.size.width, selection_bounds.size.height),
                         ),
                     )
+                    .accessible_text(snapshot)
                     .link(link.clone(), self.link_click_handler.clone())
                     .into_any_element();
                     element.prepaint_as_root(
@@ -443,6 +578,7 @@ impl Element for InlineFlow {
                         highlights,
                         self.link_click_handler.clone(),
                     )
+                    .semantic_sink(collector.clone(), elements.len())
                     .selection_source(source_state.clone(), source_range)
                     .text_style(text_style.clone())
                     .selection_bounds(Bounds::new(
@@ -450,7 +586,7 @@ impl Element for InlineFlow {
                         size(bounds.size.width, selection_bounds.size.height),
                     ))
                     .paint_origin(bounds.origin + origin + point(padding, Pixels::ZERO));
-                    let mut element = div()
+                    let element = div()
                         .font(text_style.font())
                         .text_color(text_style.color)
                         .when_some(text_style.background_color, |this, color| {
@@ -462,6 +598,7 @@ impl Element for InlineFlow {
                         .whitespace_nowrap()
                         .child(inline)
                         .into_any_element();
+                    let mut element = visual_slot(elements.len(), element);
                     window.with_rem_size(Some(typography.rem_size), |window| {
                         element.prepaint_as_root(
                             bounds.origin + origin + point(padding, Pixels::ZERO),
@@ -486,7 +623,18 @@ impl Element for InlineFlow {
                     else {
                         continue;
                     };
-                    let mut element = Self::image_element(
+                    if let Some(link) = link {
+                        collector.push(
+                            elements.len(),
+                            Bounds::new(bounds.origin + origin, fragment_size),
+                            title,
+                            Some(link.clone()),
+                            None,
+                        );
+                    } else {
+                        collector.native(elements.len());
+                    }
+                    let element = Self::image_element(
                         elements.len(),
                         url,
                         link,
@@ -494,6 +642,7 @@ impl Element for InlineFlow {
                         fragment_size,
                         self.link_click_handler.clone(),
                     );
+                    let mut element = visual_slot(elements.len(), element);
                     element.prepaint_as_root(
                         bounds.origin + origin,
                         size(
@@ -508,7 +657,14 @@ impl Element for InlineFlow {
             }
         }
 
-        elements
+        let runs = collector.finish();
+        inline_semantics::reveal(&runs, window, cx);
+        let semantics = inline_semantics::elements(&runs, id, &self.link_click_handler, window, cx);
+        InlineFlowPrepaint {
+            elements,
+            semantics,
+            runs,
+        }
     }
 
     fn paint(
@@ -533,12 +689,23 @@ impl Element for InlineFlow {
             }
         }
         let radius = crate::Theme::global(cx).tokens.radius.sm;
-        for (element, background) in prepaint {
+        for (element, background) in &mut prepaint.elements {
             if let Some((bounds, color)) = background {
                 window.paint_quad(gpui::fill(*bounds, *color).corner_radii(radius));
             }
             element.paint(window, cx);
         }
+        for (_, element) in &mut prepaint.semantics {
+            element.paint(window, cx);
+        }
+        for run in &prepaint.runs {
+            if let Some(link) = &run.link {
+                for fragment in &run.fragments {
+                    inline_semantics::record_preview_link(link, *fragment, window, cx);
+                }
+            }
+        }
+        inline_semantics::paint_focus(&prepaint.runs, window, cx);
     }
 }
 
@@ -547,12 +714,13 @@ impl From<&InlineFlowItem> for MeasureItem {
         match item {
             InlineFlowItem::Object {
                 text,
+                fallback_text,
                 id,
                 renderer,
                 style,
                 ..
             } => Self::Object {
-                text: text.clone(),
+                text: fallback_text.as_ref().unwrap_or(text).clone(),
                 id: *id,
                 renderer: renderer.clone(),
                 style: *style,
@@ -703,6 +871,14 @@ fn layout_measured_flow(
     let mut fragments = Vec::new();
     let mut max_width = Pixels::ZERO;
     let mut y = Pixels::ZERO;
+    let mut offset = 0;
+    let item_ends: Vec<_> = items
+        .iter()
+        .map(|item| {
+            offset += item.len();
+            offset
+        })
+        .collect();
 
     for line_range in line_ranges {
         let mut line_fragments = Vec::new();
@@ -860,6 +1036,21 @@ fn layout_measured_flow(
             fragments.push(positioned);
         }
 
+        // A soft-wrap boundary is only geometry. A hard newline remains part
+        // of the exact source item/link, including leading or repeated breaks.
+        let item_ix = item_ends.partition_point(|end| *end <= line_range.end);
+        if let Some(MeasureItem::Text { text, .. }) = items.get(item_ix) {
+            let start = item_ix.checked_sub(1).map_or(0, |index| item_ends[index]);
+            let offset = line_range.end - start;
+            if text.as_bytes().get(offset) == Some(&b'\n') {
+                fragments.push(PositionedFragment::LineBreak {
+                    item_ix,
+                    offset,
+                    origin: point(x, y),
+                    height: line_ascent + line_descent,
+                });
+            }
+        }
         max_width = max_width.max(line_width);
         y += line_ascent + line_descent;
     }
@@ -1366,7 +1557,9 @@ mod tests {
             .iter()
             .filter_map(|fragment| match fragment {
                 PositionedFragment::Text { text, origin, .. } => Some((text.trim(), origin.y)),
-                PositionedFragment::Image { .. } | PositionedFragment::Object { .. } => None,
+                PositionedFragment::Image { .. }
+                | PositionedFragment::Object { .. }
+                | PositionedFragment::LineBreak { .. } => None,
             })
             .collect::<Vec<_>>();
         let first_y = text_lines[0].1;

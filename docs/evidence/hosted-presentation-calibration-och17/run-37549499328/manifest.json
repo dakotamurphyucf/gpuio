@@ -1,0 +1,54 @@
+{
+  "checkout.log": {
+    "bytes": 336,
+    "sha256": "c3bf1ed22e521bb82d60de1c34c602ce1967557390095329904dee03560b1469"
+  },
+  "failed-steps.log": {
+    "bytes": 3810,
+    "sha256": "abc4a1f9771112029ee971cce2bf8908c7e867098d7f728a3d5ba22c5937f87a"
+  },
+  "jobs.json": {
+    "bytes": 67018,
+    "sha256": "9de40013470721f27f93f9b48020ac9ab118933a6defe9152f7d4a996642fa1c"
+  },
+  "metal-presentation-calibration.json": {
+    "bytes": 63532,
+    "sha256": "0e8be4301493e5b8ccf8f35de04a47d65e1e267a078c516c71597d1bab92621e"
+  },
+  "metal-presentation-display.json": {
+    "bytes": 35,
+    "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+  },
+  "metal-presentation-hook/report.json": {
+    "bytes": 76220,
+    "sha256": "676b21a954e060444aef371bc602748d7209c2435985a326593d85b3eb83f65a"
+  },
+  "packages/agent-chat/report.json": {
+    "bytes": 1534,
+    "sha256": "bfb76264217d730b8706cd53955169ae029b1eb0c34c07b8e991ba5d75b4dfc6"
+  },
+  "packages/gallery/report.json": {
+    "bytes": 3156,
+    "sha256": "356695427f5cfb23a5d7187c6039e8c35f1bc537e9b712ce5dafc8c7957f0ebd"
+  },
+  "packages/signal-studio/report.json": {
+    "bytes": 1592,
+    "sha256": "5fd6801d928bafac3599a6807a1de3f367f86353147bb29669092d544388fb86"
+  },
+  "repaired-checks.log": {
+    "bytes": 398,
+    "sha256": "6453b25faf465540ad88bb98539ba617bbd2fc09027a4ca1739867644ea85da9"
+  },
+  "run.json": {
+    "bytes": 13127,
+    "sha256": "eb934e024f6688e052b96241a78328d1f2b817f4113455f6253870cc1313c490"
+  },
+  "source-identity.json": {
+    "bytes": 171,
+    "sha256": "7fc8d6f73787d4d7dae197de8b8fc9dce7beb34fe3dd3443077c2f48ac474be6"
+  },
+  "source-merge.json": {
+    "bytes": 2646,
+    "sha256": "13410a115a4f8a3b94f31cd7396a2c11bf3a7a389d50d2ad43d4e07604320d80"
+  }
+}

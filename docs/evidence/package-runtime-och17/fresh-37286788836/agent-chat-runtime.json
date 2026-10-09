@@ -1,0 +1,63 @@
+{
+  "complete": true,
+  "platform": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "qualification": "existing Mac with denied development directories; not clean-machine or release approval",
+  "app": "agent_chat",
+  "archive_sha256": "0cac8f7afd2e50213e3c337dd63b1800aaef74ed2b74752f1eb37fe6ef6cbcbd",
+  "executable_sha256": "19c1c1ac5074fc97d74e3f074627d9dd5bc0034ac19025723bf6276c68136075",
+  "packaging_revision": "689b3fca50af5d0faad6629718cdc174a901243e",
+  "packaging_revision_scope": "packaging checkout; binary build revision is not attested",
+  "denied_paths": [
+    {
+      "path": "/Users/runner/work/gpuio/gpuio",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/opt/homebrew",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/usr/local",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/runner/.cargo",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/runner/.rustup",
+      "exists": true,
+      "denied": true
+    },
+    {
+      "path": "/Users/runner/.opam",
+      "exists": false
+    }
+  ],
+  "environment_keys": [
+    "HOME",
+    "LANG",
+    "LC_CTYPE",
+    "LOGNAME",
+    "PATH",
+    "TMPDIR",
+    "USER"
+  ],
+  "cwd": "/private/var/folders/nj/vtw8zd2j31d1gdrtntc5y4600000gn/T/gpuio-extracted-wer9pc6e",
+  "checks": [
+    "search",
+    "send",
+    "draft-retention",
+    "error-retry",
+    "tabs",
+    "windows",
+    "native-picker-eio-attachment",
+    "theme",
+    "close-policy"
+  ],
+  "clipboard_restored": true
+}

@@ -1,0 +1,54 @@
+{
+  "complete": true,
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "executable_sha256": "a36b6a03f0d855eadee6501c03b26aa5cc5c6a3c64261220568a5f480d4de3b6",
+  "checks": [
+    {
+      "case": "keyboard-action",
+      "label": "Inspect highlighted code"
+    },
+    {
+      "case": "keyboard-action",
+      "label": "Summarize native table"
+    },
+    {
+      "case": "inline-to-block-tab-and-keyboard"
+    },
+    {
+      "case": "changed-properties-native-pointer"
+    },
+    {
+      "case": "profile-remove-and-remount"
+    },
+    {
+      "case": "page-departure-source-release",
+      "events": [
+        [
+          "1",
+          "Inspect_code"
+        ],
+        [
+          "1",
+          "Summarize_table"
+        ],
+        [
+          "1",
+          "Open_badge"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_card"
+        ],
+        [
+          "1",
+          "Open_badge"
+        ]
+      ]
+    }
+  ],
+  "child_reaped": true
+}

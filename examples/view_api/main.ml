@@ -74,6 +74,7 @@ let worker native notification_read ~self_test =
         | Pointer_event _
         | Toast_dismissed _
         | Palette_dismissed _
+        | Palette_observed _
         | Command_invoked _ ) as event ->
         (match Reconciler.dispatch reconciler event with
          | Some Action.Increment ->
@@ -118,6 +119,8 @@ let worker native notification_read ~self_test =
       | Frame_requested _
       | Editor_event _
       | Editor_result _
+      | Menu_result _
+      | Palette_result _
       | Image_state _
       | Asset_response _
       | List_retained _
@@ -139,6 +142,22 @@ let worker native notification_read ~self_test =
       | Tree_input _
       | Table_input _
       | Animation_endpoint _
+      | Input_observed _
+      | Highlight_observed _
+      | Command_binding_observed _
+      | Menu_open_changed _
+      | Hover_changed _
+      | Choice_picker_event _
+      | Editor_search_observed _
+      | Document_diff_event _
+      | Document_preview_observed _
+      | Calendar_viewport_changed _
+      | Carousel_track_requested _
+      | Split_group_resized _
+      | List_input _
+      | Document_profile_event _
+      | Document_action _
+      | Table_columns_observed _
       | File_dialog_result _ -> ()
     in
     send (Hello (Wire.version, Wire.capabilities));
@@ -156,7 +175,7 @@ let worker native notification_read ~self_test =
     if self_test
     then
       Eio.Flow.copy_string
-        "TYPED_VIEW_PASS revisions=20 themes=true native_selection=true\n"
+        "TYPED_VIEW_PASS revisions=20 themes=true native_selection=not_exercised\n"
         (Eio.Stdenv.stdout env))
 ;;
 

@@ -39,6 +39,7 @@ let text ?(size = 14.) ?(tint = 0x9eadc2) value =
 let () =
   let argument name = Array.exists (Sys.get_argv ()) ~f:(String.equal name) in
   let self_test = argument "--self-test" in
+  let trace_events = self_test || argument "--trace-events" in
   let large = argument "--large" in
   let completed = ref false in
   App.run (fun env app ->
@@ -82,7 +83,7 @@ let () =
       E.of_thunk (fun () ->
         update (fun state ->
           { state with epoch = event.scene_revision, event.scene_generation });
-        if self_test
+        if trace_events
         then
           Eio.traceln
             "CANVAS_PUBLIC_EVENT: %s"

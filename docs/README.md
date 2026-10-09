@@ -4,6 +4,8 @@
 Read [current status](status.md) first: imported research status and absolute paths
 describe earlier experiments and are not current source dependencies.
 
+- [Build your first application](getting-started.md)
+- [API compatibility and limits](api-compatibility.md)
 - [Agent workspace composition](design/agent-workspace.md)
 - [Streaming documents](design/documents.md)
 - [Windows, tabs and split panes](design/windows.md)

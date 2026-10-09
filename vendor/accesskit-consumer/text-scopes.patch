@@ -1,0 +1,159 @@
+--- a/src/text.rs
++++ b/src/text.rs
+@@ -932,6 +932,10 @@
+ fn text_node_filter(root_id: NodeId, node: &Node) -> FilterResult {
+     if node.id() == root_id || node.role() == Role::TextRun {
+         FilterResult::Include
++    } else if node.is_text_input() || matches!(node.role(), Role::Document | Role::Terminal) {
++        // Independent editors/documents own their text and selection. Keep
++        // their semantic subtree, but do not fold its runs into this root.
++        FilterResult::ExcludeSubtree
+     } else {
+         FilterResult::ExcludeNode
+     }
+@@ -2834,3 +2838,145 @@
+         );
+     }
+ }
++
++#[cfg(test)]
++mod gpuio_text_scopes {
++    use crate::tests::nid;
++    use accesskit::{Node, NodeId, Role, TextPosition, TextSelection, Tree, TreeId, TreeUpdate};
++    use alloc::vec;
++
++    fn text(value: &str) -> Node {
++        let mut node = Node::new(Role::TextRun);
++        node.set_value(value);
++        node.set_character_lengths(
++            value
++                .chars()
++                .map(|c| c.len_utf8() as u8)
++                .collect::<alloc::vec::Vec<_>>(),
++        );
++        node
++    }
++
++    #[test]
++    fn independently_selected_child_text_stays_out_of_parent_ranges() {
++        for role in [
++            Role::TextInput,
++            Role::MultilineTextInput,
++            Role::PasswordInput,
++            Role::Document,
++            Role::Terminal,
++        ] {
++            let mut root = Node::new(Role::Document);
++            root.set_children(vec![NodeId(1), NodeId(2), NodeId(5)]);
++            root.set_text_selection(TextSelection {
++                anchor: TextPosition {
++                    node: NodeId(6),
++                    character_index: 1,
++                },
++                focus: TextPosition {
++                    node: NodeId(4),
++                    character_index: 0,
++                },
++            });
++            let mut heading = Node::new(Role::Heading);
++            heading.set_level(2);
++            heading.set_children(vec![NodeId(4)]);
++            let mut child = Node::new(role);
++            child.set_children(vec![NodeId(3)]);
++            child.set_text_selection(TextSelection {
++                anchor: TextPosition {
++                    node: NodeId(3),
++                    character_index: 2,
++                },
++                focus: TextPosition {
++                    node: NodeId(3),
++                    character_index: 0,
++                },
++            });
++            let mut link = Node::new(Role::Link);
++            link.set_children(vec![NodeId(6)]);
++            let tree = crate::Tree::new(
++                TreeUpdate {
++                    nodes: vec![
++                        (NodeId(0), root),
++                        (NodeId(1), heading),
++                        (NodeId(2), child),
++                        (NodeId(3), text("editor")),
++                        (NodeId(4), text("A😀")),
++                        (NodeId(5), link),
++                        (NodeId(6), text("終")),
++                    ],
++                    tree: Some(Tree::new(NodeId(0))),
++                    tree_id: TreeId::ROOT,
++                    focus: NodeId(0),
++                },
++                false,
++            );
++            let root = tree.state().root();
++            assert_eq!(root.document_range().text(), "A😀終", "nested {role:?}");
++            assert_eq!(root.text_selection().unwrap().text(), "A😀終");
++            assert_eq!(
++                root.text_selection_anchor()
++                    .unwrap()
++                    .to_global_utf16_index(),
++                4
++            );
++            assert_eq!(
++                root.text_selection_focus().unwrap().to_global_utf16_index(),
++                0
++            );
++            assert_eq!(root.document_end().to_global_usv_index(), 3);
++            let child = tree.state().node_by_id(nid(NodeId(2))).unwrap();
++            assert_eq!(child.document_range().text(), "editor");
++            assert_eq!(child.text_selection().unwrap().text(), "ed");
++            assert_eq!(
++                child
++                    .text_selection_anchor()
++                    .unwrap()
++                    .to_global_utf16_index(),
++                2
++            );
++            // Scope filtering never removes semantic nodes or their hierarchy.
++            assert_eq!(root.children().count(), 3);
++            assert_eq!(child.role(), role);
++            assert_eq!(
++                tree.state().node_by_id(nid(NodeId(1))).unwrap().role(),
++                Role::Heading
++            );
++            assert_eq!(
++                tree.state().node_by_id(nid(NodeId(5))).unwrap().role(),
++                Role::Link
++            );
++        }
++    }
++
++    #[test]
++    fn ordinary_structures_and_off_layout_runs_still_belong_to_the_document() {
++        let mut root = Node::new(Role::Document);
++        root.set_children(vec![NodeId(1)]);
++        let mut table = Node::new(Role::Table);
++        table.set_children(vec![NodeId(2)]);
++        let mut cell = Node::new(Role::Cell);
++        cell.set_children(vec![NodeId(3)]);
++        let mut label = Node::new(Role::Label);
++        label.set_children(vec![NodeId(4)]);
++        let tree = crate::Tree::new(
++            TreeUpdate {
++                nodes: vec![
++                    (NodeId(0), root),
++                    (NodeId(1), table),
++                    (NodeId(2), cell),
++                    (NodeId(3), label),
++                    (NodeId(4), text("off layout")),
++                ],
++                tree: Some(Tree::new(NodeId(0))),
++                tree_id: TreeId::ROOT,
++                focus: NodeId(0),
++            },
++            false,
++        );
++        assert_eq!(tree.state().root().document_range().text(), "off layout");
++        let label = tree.state().node_by_id(nid(NodeId(3))).unwrap();
++        assert_eq!(label.document_range().text(), "off layout");
++    }
++}

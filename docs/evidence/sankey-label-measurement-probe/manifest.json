@@ -1,0 +1,16 @@
+{
+  "base_commit": "efc1711",
+  "scope": "compile-only scratch probe; no runtime execution",
+  "files": [
+    {
+      "path": "compile.log",
+      "bytes": 459,
+      "sha256": "81ed5b1640030b5aa70f51fb1bfa1e94d785f403d27d33b614825d9c0dd271cd"
+    },
+    {
+      "path": "source.rs.txt",
+      "bytes": 645,
+      "sha256": "017c82267427c1799f7c9a15b4a42c06fcd1465c3fa0eabf1b75855f6f3d12c4"
+    }
+  ]
+}

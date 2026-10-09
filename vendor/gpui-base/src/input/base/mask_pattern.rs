@@ -186,9 +186,15 @@ impl MaskPattern {
                     let ch = mask_text_chars[text_index];
                     if token.is_match(ch) {
                         text_index += 1;
+                    } else if !token.is_sep() {
+                        // Only literals may be omitted from unformatted input.
+                        // Skipping a required slot lets validation accept text
+                        // that mask() would subsequently discard.
+                        return false;
                     }
                 }
-                text_index == mask_text.len()
+                // The cursor counts Unicode scalars, not UTF-8 bytes.
+                text_index == mask_text_chars.len()
             }
             Self::Number { separator, .. } => {
                 if mask_text.is_empty() {

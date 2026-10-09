@@ -49,7 +49,9 @@ fn series() -> data::Series {
 }
 fn dataset(contents: data::Contents) -> Data {
     Data {
-        version: 1,
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
         contents,
     }
 }
@@ -88,6 +90,236 @@ fn cases() -> Vec<Case> {
             samples,
         })
     };
+    use gpuio_protocol::chart_appearance as a;
+    use gpuio_protocol::chart_options::Orientation;
+    let series_override = |bar, path, marker| a::Series {
+        series: 1,
+        path,
+        marker,
+        bar,
+        legend: None,
+        area_baseline: None,
+    };
+    let mut single = series();
+    single.points.truncate(1);
+    single.points[0].y = Some(2.);
+    for orientation in [
+        Orientation::Vertical,
+        Orientation::Horizontal,
+        Orientation::VerticalReversed,
+        Orientation::HorizontalReversed,
+    ] {
+        for value in [2., -2.] {
+            let mut source = single.clone();
+            source.points[0].y = Some(value);
+            let mut config = options();
+            config.cartesian.orientation = orientation;
+            let mut appearance = style();
+            appearance.appearance.series.push(series_override(
+                Some(a::Bar {
+                    fill: Some(a::BarFill::BaseToTip(0xff0000ff, 0x0000ffff)),
+                    corners: Some(Corners {
+                        top_left: 0.,
+                        top_right: 0.,
+                        bottom_left: 0.,
+                        bottom_right: 0.,
+                    }),
+                }),
+                None,
+                None,
+            ));
+            add(
+                "appearance-base-tip",
+                dataset(data::Contents::Cartesian(vec![data::Layer::Bar(source)])),
+                config,
+                appearance,
+                vec![],
+            );
+        }
+        let mut source = single.clone();
+        source.points[0].y = Some(4.);
+        let mut config = options();
+        config.cartesian.orientation = orientation;
+        let mut appearance = style();
+        appearance.appearance.series.push(series_override(
+            Some(a::Bar {
+                fill: Some(a::BarFill::Values(1., 0xff0000ff, 3., 0x0000ffff)),
+                corners: None,
+            }),
+            None,
+            None,
+        ));
+        add(
+            "appearance-value-plateaus",
+            dataset(data::Contents::Cartesian(vec![data::Layer::Bar(source)])),
+            config,
+            appearance,
+            vec![],
+        );
+    }
+    let mut corners = style();
+    corners.appearance.series.push(series_override(
+        Some(a::Bar {
+            fill: Some(a::BarFill::Background(solid(0x00ff00ff))),
+            corners: Some(Corners {
+                top_left: 24.,
+                top_right: 0.,
+                bottom_right: 16.,
+                bottom_left: 0.,
+            }),
+        }),
+        None,
+        None,
+    ));
+    add(
+        "appearance-corners",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Bar(single)])),
+        options(),
+        corners,
+        vec![
+            sample(62., 2., 0, 0, 0),
+            sample(138., 2., 0, 255, 0),
+            sample(138., 158., 0, 0, 0),
+            sample(62., 158., 0, 255, 0),
+        ],
+    );
+    let mut marker_source = series();
+    for (i, point) in marker_source.points.iter_mut().enumerate() {
+        point.y = Some(i as f64);
+    }
+    let mut markers = style();
+    markers.appearance.series.push(series_override(
+        None,
+        None,
+        Some(a::Marker {
+            fill: Some(0x00ff00ff),
+            stroke: Some(0x0000ffff),
+            radius: Some(12.),
+            stroke_width: Some(4.),
+            ..Default::default()
+        }),
+    ));
+    markers.appearance.data.push(a::Datum {
+        series: 1,
+        datum: 2,
+        bar: None,
+        marker: Some(a::Marker {
+            radius: Some(24.),
+            ..Default::default()
+        }),
+    });
+    let mut dots = options();
+    dots.cartesian.dots = true;
+    add(
+        "appearance-markers",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Line(
+            marker_source,
+        )])),
+        dots,
+        markers,
+        vec![
+            sample(100., 80., 0, 255, 0),
+            sample(122., 80., 0, 0, 255),
+            sample(126., 80., 0, 0, 0),
+        ],
+    );
+    let mut area = style();
+    area.area_opacity = 0.01;
+    area.appearance.series.push(series_override(
+        None,
+        Some(a::Path {
+            fill: Some(solid(0x0000ff80)),
+            stroke: Some(a::Stroke {
+                visible: true,
+                width: Some(8.),
+                brush: solid(0x00ff00ff),
+            }),
+            curve: None,
+        }),
+        None,
+    ));
+    add(
+        "appearance-area",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Area(series())])),
+        options(),
+        area,
+        vec![sample(100., 80., 0, 0, 128), sample(50., 80., 0, 255, 0)],
+    );
+    for baseline in [0., 1.] {
+        for orientation in [
+            Orientation::Vertical,
+            Orientation::Horizontal,
+            Orientation::VerticalReversed,
+            Orientation::HorizontalReversed,
+        ] {
+            let mut config = options();
+            config.cartesian.orientation = orientation;
+            let mut appearance = style();
+            appearance.appearance.series.push(a::Series {
+                area_baseline: Some(baseline),
+                ..series_override(
+                    None,
+                    Some(a::Path {
+                        fill: Some(solid(0x0000ffff)),
+                        stroke: Some(a::Stroke {
+                            visible: false,
+                            width: None,
+                            brush: solid(0),
+                        }),
+                        curve: Some(gpuio_protocol::chart_options::Curve::Linear),
+                    }),
+                    None,
+                )
+            });
+            let at = |value: f32, blue| {
+                let value = if orientation.is_reversed() {
+                    1. - value
+                } else {
+                    value
+                };
+                let (x, y) = if orientation.is_horizontal() {
+                    (value * 200., 40.)
+                } else {
+                    (50., (1. - value) * 160.)
+                };
+                sample(x, y, 0, 0, blue)
+            };
+            add(
+                "area-baseline",
+                dataset(data::Contents::Cartesian(vec![data::Layer::Area(series())])),
+                config,
+                appearance,
+                vec![
+                    at(0.25, if baseline == 0. { 255 } else { 0 }),
+                    at(0.875, if baseline == 1. { 255 } else { 0 }),
+                ],
+            );
+        }
+    }
+    let mut line = series();
+    for point in &mut line.points {
+        point.y = Some(1.);
+    }
+    let mut path_gradient = style();
+    path_gradient.appearance.series.push(series_override(
+        None,
+        Some(a::Path {
+            stroke: Some(a::Stroke {
+                visible: true,
+                width: Some(8.),
+                brush: gradient(90., 0xff0000ff, 0x0000ffff),
+            }),
+            ..Default::default()
+        }),
+        None,
+    ));
+    add(
+        "appearance-path-gradient",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Line(line)])),
+        options(),
+        path_gradient,
+        vec![],
+    );
     add(
         "line",
         dataset(data::Contents::Cartesian(vec![data::Layer::Line(series())])),
@@ -106,6 +338,162 @@ fn cases() -> Vec<Case> {
     bars.points.truncate(2);
     bars.points[0].y = Some(1.);
     bars.points[1].y = Some(2.);
+    for orientation in [
+        Orientation::Vertical,
+        Orientation::Horizontal,
+        Orientation::VerticalReversed,
+        Orientation::HorizontalReversed,
+    ] {
+        for variant in 0..3 {
+            let mut dense_series = bars.clone();
+            dense_series.points[0].id = 90;
+            dense_series.points[1].id = 7;
+            dense_series.points[0].y = Some(2.);
+            let mut data = dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
+                dense_series,
+            )]));
+            data.bar_backgrounds = vec![
+                data::BarBackground {
+                    series: 1,
+                    datum: 7,
+                    brush: if variant == 2 {
+                        a::Brush::Checkerboard(0x0000ffff, 8.)
+                    } else {
+                        a::Brush::Solid(0x0000ffff)
+                    },
+                },
+                data::BarBackground {
+                    series: 1,
+                    datum: 90,
+                    brush: a::Brush::Solid(0x00ff00ff),
+                },
+            ];
+            let mut options = options();
+            options.cartesian.orientation = orientation;
+            let mut style = style();
+            if variant == 1 {
+                style.appearance.data.push(a::Datum {
+                    series: 1,
+                    datum: 7,
+                    marker: None,
+                    bar: Some(a::Bar {
+                        fill: Some(a::BarFill::Background(a::Brush::Solid(0xffff00ff))),
+                        corners: None,
+                    }),
+                });
+            }
+            let (first, second, empty) = if orientation.is_horizontal() {
+                ((100., 40.), (100., 120.), (100., 2.))
+            } else {
+                ((50., 80.), (150., 80.), (2., 80.))
+            };
+            let mut samples = vec![
+                sample(first.0, first.1, 0, 255, 0),
+                sample(empty.0, empty.1, 0, 0, 0),
+            ];
+            if variant != 2 {
+                let (r, g, b) = if variant == 1 {
+                    (255, 255, 0)
+                } else {
+                    (0, 0, 255)
+                };
+                samples.push(sample(second.0, second.1, r, g, b));
+            }
+            add(
+                if variant == 2 {
+                    "dense-background-pattern"
+                } else {
+                    "dense-background-solid"
+                },
+                data,
+                options,
+                style,
+                samples,
+            );
+        }
+    }
+    for categorical in [false, true] {
+        for orientation in [
+            Orientation::Vertical,
+            Orientation::VerticalReversed,
+            Orientation::Horizontal,
+            Orientation::HorizontalReversed,
+        ] {
+            let mut intervals = bars.clone();
+            intervals.points[0].y = Some(1.);
+            intervals.points[1].y = Some(3.);
+            let mut data = if categorical {
+                dataset(data::Contents::Categorical(
+                    vec![
+                        data::Category {
+                            id: 1,
+                            label: "A".into(),
+                        },
+                        data::Category {
+                            id: 2,
+                            label: "B".into(),
+                        },
+                    ],
+                    vec![data::CategoricalLayer::Bar(data::CategoricalSeries {
+                        id: intervals.id,
+                        name: intervals.name.clone(),
+                        points: intervals
+                            .points
+                            .iter()
+                            .enumerate()
+                            .map(|(i, p)| data::CategoricalPoint {
+                                id: p.id,
+                                category: i as i64 + 1,
+                                value: p.y,
+                                label: String::new(),
+                            })
+                            .collect(),
+                    })],
+                ))
+            } else {
+                dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
+                    intervals.clone(),
+                )]))
+            };
+            data.bar_baselines = intervals
+                .points
+                .iter()
+                .map(|p| data::BarBaseline {
+                    series: intervals.id,
+                    datum: p.id,
+                    baseline: 2.,
+                })
+                .collect();
+            data.bar_baselines.sort_by_key(|b| (b.series, b.datum));
+            let mut config = options();
+            config.cartesian.orientation = orientation;
+            let pixel = |category: usize, unit: f32, filled: bool| {
+                let projected = if orientation.is_reversed() {
+                    1. - unit
+                } else {
+                    unit
+                };
+                let (x, y) = if orientation.is_horizontal() {
+                    (projected * 200., (category as f32 + 0.5) * 80.)
+                } else {
+                    ((category as f32 + 0.5) * 100., (1. - projected) * 160.)
+                };
+                sample(x, y, if filled { 255 } else { 0 }, 0, 0)
+            };
+            add(
+                "bar-baseline",
+                data,
+                config,
+                style(),
+                vec![
+                    pixel(0, 0.25, true),
+                    pixel(0, 0.75, false),
+                    pixel(1, 0.25, false),
+                    pixel(1, 0.75, true),
+                ],
+            );
+        }
+    }
     add(
         "bar",
         dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
@@ -119,6 +507,271 @@ fn cases() -> Vec<Case> {
             sample(10., 80., 0, 0, 0),
         ],
     );
+    for (name, orientation, samples) in [
+        (
+            "bar-top",
+            gpuio_protocol::chart_options::Orientation::VerticalReversed,
+            vec![sample(50., 30., 255, 0, 0), sample(50., 120., 0, 0, 0)],
+        ),
+        (
+            "bar-left",
+            gpuio_protocol::chart_options::Orientation::Horizontal,
+            vec![sample(50., 40., 255, 0, 0), sample(150., 40., 0, 0, 0)],
+        ),
+        (
+            "bar-right",
+            gpuio_protocol::chart_options::Orientation::HorizontalReversed,
+            vec![sample(150., 40., 255, 0, 0), sample(50., 40., 0, 0, 0)],
+        ),
+    ] {
+        let mut options = options();
+        options.cartesian.orientation = orientation;
+        add(
+            name,
+            dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
+                bars.clone(),
+            )])),
+            options,
+            style(),
+            samples,
+        );
+    }
+    for (orientation, suffix) in [
+        (gpuio_protocol::chart_options::Orientation::Vertical, 0),
+        (gpuio_protocol::chart_options::Orientation::Horizontal, 1),
+        (
+            gpuio_protocol::chart_options::Orientation::VerticalReversed,
+            2,
+        ),
+        (
+            gpuio_protocol::chart_options::Orientation::HorizontalReversed,
+            3,
+        ),
+    ] {
+        for area in [false, true] {
+            let mut a = series();
+            let mut b = series();
+            b.id = 2;
+            for p in &mut a.points {
+                p.y = Some(1.);
+            }
+            for p in &mut b.points {
+                p.y = Some(2.);
+            }
+            let wrap = if area {
+                data::Layer::Area
+            } else {
+                data::Layer::Bar
+            };
+            let mut options = options();
+            options.cartesian.stacking = gpuio_protocol::chart_options::Stacking::Stacked;
+            options.cartesian.orientation = orientation;
+            let names = if area {
+                [
+                    "stack-area-up",
+                    "stack-area-right",
+                    "stack-area-down",
+                    "stack-area-left",
+                ]
+            } else {
+                [
+                    "stack-bar-up",
+                    "stack-bar-right",
+                    "stack-bar-down",
+                    "stack-bar-left",
+                ]
+            };
+            let at = |fraction: f32, red, blue| {
+                let fraction = if orientation.is_reversed() {
+                    1. - fraction
+                } else {
+                    fraction
+                };
+                if orientation.is_horizontal() {
+                    sample(200. * fraction, 80., red, 0, blue)
+                } else {
+                    sample(100., 160. * (1. - fraction), red, 0, blue)
+                }
+            };
+            let value = if area { 64 } else { 255 };
+            add(
+                names[suffix],
+                dataset(data::Contents::Cartesian(vec![wrap(a), wrap(b)])),
+                options,
+                style(),
+                vec![at(0.2, value, 0), at(0.7, 0, value)],
+            );
+        }
+    }
+    let category_data = |bar| {
+        let categories = [42, 7, 99]
+            .into_iter()
+            .map(|id| data::Category {
+                id,
+                label: format!("Category {id}"),
+            })
+            .collect();
+        let points = [42, 7, 99]
+            .into_iter()
+            .enumerate()
+            .map(|(i, category)| data::CategoricalPoint {
+                id: i as i64 + 1,
+                category,
+                value: if bar {
+                    [Some(1.), None, Some(2.)][i]
+                } else {
+                    Some([0., 1., 0.][i])
+                },
+                label: String::new(),
+            })
+            .collect();
+        let series = data::CategoricalSeries {
+            id: 1,
+            name: "Categories".into(),
+            points,
+        };
+        dataset(data::Contents::Categorical(
+            categories,
+            vec![if bar {
+                data::CategoricalLayer::Bar(series)
+            } else {
+                data::CategoricalLayer::Line(series)
+            }],
+        ))
+    };
+    add(
+        "categorical-point",
+        category_data(false),
+        options(),
+        style(),
+        vec![sample(50., 80., 255, 0, 0), sample(100., 80., 0, 0, 0)],
+    );
+    add(
+        "categorical-band-missing",
+        category_data(true),
+        options(),
+        style(),
+        vec![
+            sample(33., 120., 255, 0, 0),
+            sample(33., 40., 0, 0, 0),
+            sample(100., 120., 0, 0, 0),
+            sample(167., 40., 255, 0, 0),
+        ],
+    );
+    for categorical in [false, true] {
+        for orientation in [
+            gpuio_protocol::chart_options::Orientation::Vertical,
+            gpuio_protocol::chart_options::Orientation::Horizontal,
+            gpuio_protocol::chart_options::Orientation::VerticalReversed,
+            gpuio_protocol::chart_options::Orientation::HorizontalReversed,
+        ] {
+            for (x, y) in [(true, false), (false, true), (true, true), (false, false)] {
+                let mut options = options();
+                options.axes.x = x;
+                options.axes.y = y;
+                options.cartesian.orientation = orientation;
+                let mut style = style();
+                style.axis_color = 0x00ff00ff;
+                let contents = if categorical {
+                    data::Contents::Categorical(
+                        vec![data::Category {
+                            id: 42,
+                            label: "Alpha".into(),
+                        }],
+                        vec![],
+                    )
+                } else {
+                    data::Contents::Cartesian(vec![])
+                };
+                add(
+                    if categorical {
+                        "categorical-axes"
+                    } else {
+                        "numeric-axes"
+                    },
+                    dataset(contents),
+                    options,
+                    style,
+                    vec![],
+                );
+            }
+        }
+    }
+    for categorical in [false, true] {
+        for orientation in [
+            gpuio_protocol::chart_options::Orientation::Vertical,
+            gpuio_protocol::chart_options::Orientation::Horizontal,
+            gpuio_protocol::chart_options::Orientation::VerticalReversed,
+            gpuio_protocol::chart_options::Orientation::HorizontalReversed,
+        ] {
+            let mut options = options();
+            options.axes.x = true;
+            options.axes.y = true;
+            options.axes.grid = true;
+            options.cartesian.orientation = orientation;
+            let mut style = style();
+            style.x_axis.position = Some(0.25);
+            style.x_axis.line_width = 4.;
+            style.x_axis.line_color = Some(0x00ff00ff);
+            style.y_axis.position = Some(0.75);
+            style.y_axis.line_width = 4.;
+            style.y_axis.line_color = Some(0xff0000ff);
+            style.grid.x = Some(vec![gpuio_protocol::chart_axis::TickPosition::Fraction(
+                0.5,
+            )]);
+            style.grid.y = Some(vec![]);
+            style.grid.dashes = vec![8., 4., 2.];
+            style.grid.width = 4.;
+            style.grid.color = Some(0x0000ffff);
+            let horizontal = orientation.is_horizontal();
+            let mut samples = if horizontal {
+                vec![
+                    sample(50., 20., 0, 255, 0),
+                    sample(20., 120., 255, 0, 0),
+                    sample(100., 159., 0, 0, 0),
+                ]
+            } else {
+                vec![
+                    sample(20., 40., 0, 255, 0),
+                    sample(150., 20., 255, 0, 0),
+                    sample(0., 80., 0, 0, 0),
+                ]
+            };
+            for (distance, painted) in [
+                (3., true),
+                (10., false),
+                (13., true),
+                (18., false),
+                (24., true),
+                (27., false),
+            ] {
+                let (x, y) = if horizontal {
+                    (distance, 80.)
+                } else {
+                    (100., distance)
+                };
+                samples.push(sample(x, y, 0, 0, if painted { 255 } else { 0 }));
+            }
+            let contents = if categorical {
+                data::Contents::Categorical(
+                    vec![data::Category {
+                        id: 42,
+                        label: "Alpha".into(),
+                    }],
+                    vec![],
+                )
+            } else {
+                data::Contents::Cartesian(vec![])
+            };
+            add(
+                "custom-axis-grid",
+                dataset(contents),
+                options,
+                style,
+                samples,
+            );
+        }
+    }
     let slices = vec![
         data::Slice {
             id: 1,
@@ -137,6 +790,110 @@ fn cases() -> Vec<Case> {
         options(),
         style(),
         vec![sample(140., 80., 255, 0, 0), sample(60., 80., 0, 0, 255)],
+    );
+    for (name, ids, unknown, samples) in [
+        (
+            "ordinal-pie-before",
+            [1, 2],
+            Some(0x00ff00ff),
+            vec![sample(140., 80., 0, 0, 255), sample(60., 80., 255, 0, 0)],
+        ),
+        (
+            "ordinal-pie-reordered",
+            [2, 1],
+            Some(0x00ff00ff),
+            vec![sample(140., 80., 255, 0, 0), sample(60., 80., 0, 0, 255)],
+        ),
+        (
+            "ordinal-pie-unknown",
+            [3, 1],
+            Some(0x00ff00ff),
+            vec![sample(140., 80., 0, 255, 0), sample(60., 80., 0, 0, 255)],
+        ),
+        (
+            "ordinal-pie-fallback",
+            [3, 1],
+            None,
+            vec![sample(140., 80., 255, 0, 0), sample(60., 80., 0, 0, 255)],
+        ),
+    ] {
+        let mut style = style();
+        style.ordinal = Some(gpuio_protocol::chart_style::Ordinal {
+            domain: vec![
+                gpuio_protocol::chart_style::Key::Slice(2),
+                gpuio_protocol::chart_style::Key::Slice(1),
+            ],
+            range: vec![0xff0000ff, 0x0000ffff],
+            unknown,
+        });
+        add(
+            name,
+            dataset(data::Contents::Pie(
+                ids.map(|id| data::Slice {
+                    id,
+                    label: format!("Slice {id}"),
+                    value: 1.,
+                })
+                .to_vec(),
+            )),
+            options(),
+            style,
+            samples,
+        );
+    }
+    let mut fixed_pie = options();
+    fixed_pie.pie.radius = gpuio_protocol::chart_options::PieRadius::Pixels(50.);
+    fixed_pie.pie.labels = false;
+    add(
+        "pie-fixed-radius",
+        dataset(data::Contents::Pie(slices.clone())),
+        fixed_pie.clone(),
+        style(),
+        vec![
+            sample(140., 80., 255, 0, 0),
+            sample(160., 80., 0, 0, 0),
+            sample(60., 80., 0, 0, 255),
+            sample(40., 80., 0, 0, 0),
+        ],
+    );
+    fixed_pie.pie.slice_radii = vec![gpuio_protocol::chart_options::SliceRadii {
+        slice: 1,
+        inner: 20.,
+        outer: 35.,
+    }];
+    add(
+        "pie-variable-radius",
+        dataset(data::Contents::Pie(slices.clone())),
+        fixed_pie.clone(),
+        style(),
+        vec![
+            sample(110., 80., 0, 0, 0),
+            sample(128., 80., 255, 0, 0),
+            sample(144., 80., 0, 0, 0),
+            sample(60., 80., 0, 0, 255),
+        ],
+    );
+    let mut reordered = slices.clone();
+    reordered.reverse();
+    add(
+        "pie-radius-reordered",
+        dataset(data::Contents::Pie(reordered)),
+        fixed_pie.clone(),
+        style(),
+        vec![
+            sample(90., 80., 0, 0, 0),
+            sample(72., 80., 0, 0, 255),
+            sample(56., 80., 0, 0, 0),
+            sample(140., 80., 255, 0, 0),
+        ],
+    );
+    fixed_pie.pie.slice_radii[0].inner = 35.;
+    add(
+        "pie-equal-radii",
+        dataset(data::Contents::Pie(slices.clone())),
+        fixed_pie,
+        style(),
+        vec![sample(128., 80., 0, 0, 0), sample(60., 80., 0, 0, 255)],
     );
     let mut donut = options();
     donut.pie.inner_radius = 0.5;
@@ -234,6 +991,41 @@ fn cases() -> Vec<Case> {
             sample(100., 80., 128, 0, 0),
         ],
     );
+    for (name, mode) in [
+        ("sankey-target", LinkColor::Target),
+        ("sankey-gradient", LinkColor::Gradient),
+    ] {
+        let mut o = options();
+        o.sankey.link_color = mode;
+        add(
+            name,
+            dataset(data::Contents::Sankey(
+                vec![
+                    data::Node {
+                        id: 1,
+                        label: "source".into(),
+                    },
+                    data::Node {
+                        id: 2,
+                        label: "target".into(),
+                    },
+                ],
+                vec![data::Edge {
+                    id: 1,
+                    source: 1,
+                    target: 2,
+                    value: 1.,
+                }],
+            )),
+            o,
+            style(),
+            if mode == LinkColor::Target {
+                vec![sample(100., 80., 0, 0, 128)]
+            } else {
+                vec![]
+            },
+        );
+    }
     // A later line must paint above an earlier bar, across primitive types.
     let mut line = bars.clone();
     line.id = 2;
@@ -253,8 +1045,19 @@ fn cases() -> Vec<Case> {
     gradient.gradient_end = Some(0x0000ffff);
     add(
         "gradient",
-        dataset(data::Contents::Cartesian(vec![data::Layer::Bar(bars)])),
+        dataset(data::Contents::Cartesian(vec![data::Layer::Bar(
+            bars.clone(),
+        )])),
         options(),
+        gradient.clone(),
+        vec![],
+    );
+    let mut reversed = options();
+    reversed.cartesian.orientation = gpuio_protocol::chart_options::Orientation::VerticalReversed;
+    add(
+        "gradient-reversed",
+        dataset(data::Contents::Cartesian(vec![data::Layer::Bar(bars)])),
+        reversed,
         gradient,
         vec![],
     );
@@ -308,6 +1111,57 @@ async fn exercise(
                     "{} plot clip",
                     case.name
                 );
+                if matches!(case.name, "appearance-base-tip" | "appearance-value-plateaus") {
+                    let horizontal = case.options.cartesian.orientation.is_horizontal();
+                    let (first, last) = if horizontal {
+                        (pixel(&image, bounds, scale, 20., 80.), pixel(&image, bounds, scale, 180., 80.))
+                    } else { (pixel(&image, bounds, scale, 100., 20.), pixel(&image, bounds, scale, 100., 140.)) };
+                    let data::Contents::Cartesian(layers) = &case.data.contents else { panic!() };
+                    let negative = layers[0].series().points[0].y.unwrap() < 0.;
+                    let tip_at_start = !horizontal ^ case.options.cartesian.orientation.is_reversed() ^ negative;
+                    let (base, tip) = if tip_at_start { (last, first) } else { (first, last) };
+                    assert!(base[0] > tip[0] + 100 && tip[2] > base[2] + 100,
+                        "{} signed orientation {:?}, negative={negative}: base{base:?} tip{tip:?}", case.name, case.options.cartesian.orientation);
+                    if case.name == "appearance-value-plateaus" {
+                        assert!(base[0] > 247 && base[2] < 8 && tip[2] > 247 && tip[0] < 8,
+                            "value endpoints remain plateaus: {base:?} {tip:?}");
+                    }
+                }
+                if case.name == "dense-background-pattern" {
+                    let (left, top) = if case.options.cartesian.orientation.is_horizontal() { (80., 110.) } else { (140., 60.) };
+                    let mut blue = 0;
+                    let mut gap = 0;
+                    for y in 0..24 {
+                        for x in 0..24 {
+                            let p = pixel(&image, bounds, scale, left + x as f32, top + y as f32);
+                            blue += usize::from(p[2] > 180 && p[0] < 30 && p[1] < 30);
+                            gap += usize::from(p[0] < 30 && p[1] < 30 && p[2] < 30);
+                        }
+                    }
+                    assert!(blue > 32 && gap > 32, "dense checker must retain colored and transparent cells: blue={blue} gap={gap}");
+                }
+                if case.name == "appearance-path-gradient" {
+                    let first = pixel(&image, bounds, scale, 20., 80.);
+                    let last = pixel(&image, bounds, scale, 180., 80.);
+                    assert!(first[0] > last[0] + 100 && last[2] > first[2] + 100,
+                        "path brush spans its prepared bounds: {first:?} {last:?}");
+                }
+                if case.name == "sankey-gradient" {
+                    let left = pixel(&image, bounds, scale, 35., 80.);
+                    let right = pixel(&image, bounds, scale, 165., 80.);
+                    assert!(left[0] > right[0] + 50 && right[2] > left[2] + 50,
+                        "ribbon blends source red to target blue: {left:?} {right:?}");
+                    // The pinned Metal shader adds +/-2/255 RGB and +/-3/255
+                    // alpha dither. On black at half opacity, adjacent samples
+                    // may differ by ~8 levels plus the gradient slope/rounding.
+                    // A restarted triangle gradient is much larger than this.
+                    for x in 40..160 {
+                        let before = pixel(&image, bounds, scale, (x - 1) as f32, 80.);
+                        let after = pixel(&image, bounds, scale, x as f32, 80.);
+                        assert!(before[0].abs_diff(after[0]) <= 10 && before[2].abs_diff(after[2]) <= 10,
+                            "gradient must not restart at triangle boundaries: {x}: {before:?} {after:?}");
+                    }
+                }
                 if case.name == "gradient" {
                     let top = pixel(&image, bounds, scale, 150., 20.);
                     let bottom = pixel(&image, bounds, scale, 150., 140.);
@@ -315,6 +1169,40 @@ async fn exercise(
                         top[0] > bottom[0] + 50 && bottom[2] > top[2] + 50,
                         "gradient follows vertical value axis: {top:?} {bottom:?}"
                     );
+                }
+                if case.name == "gradient-reversed" {
+                    let top = pixel(&image, bounds, scale, 150., 20.);
+                    let bottom = pixel(&image, bounds, scale, 150., 140.);
+                    assert!(
+                        bottom[0] > top[0] + 50 && top[2] > bottom[2] + 50,
+                        "gradient mirrors reversed value axis: {top:?} {bottom:?}"
+                    );
+                }
+                if matches!(case.name, "numeric-axes" | "categorical-axes") {
+                    let green = |left: f32, top: f32, right: f32, bottom: f32| {
+                        let mut count = 0;
+                        for y in ((f32::from(bounds.origin.y) + top) * scale).ceil() as u32
+                            ..((f32::from(bounds.origin.y) + bottom) * scale).floor() as u32 {
+                            for x in ((f32::from(bounds.origin.x) + left) * scale).ceil() as u32
+                                ..((f32::from(bounds.origin.x) + right) * scale).floor() as u32 {
+                                let p = image.get_pixel(x, y).0;
+                                count += usize::from(p[1] > 32 && p[1].saturating_sub(p[0]) > 30
+                                    && p[1].saturating_sub(p[2]) > 30);
+                            }
+                        }
+                        count
+                    };
+                    let horizontal = case.options.cartesian.orientation.is_horizontal();
+                    let (left, bottom) = if horizontal {
+                        (case.options.axes.x, case.options.axes.y)
+                    } else { (case.options.axes.y, case.options.axes.x) };
+                    assert_eq!(green(0., 40., 2., 120.) > 0, left,
+                        "{} left axis at scale {scale}, {:?}, x={} y={}", case.name,
+                        case.options.cartesian.orientation, case.options.axes.x, case.options.axes.y);
+                    assert_eq!(green(40., 158., 160., 160.) > 0, bottom,
+                        "{} bottom axis at scale {scale}, {:?}, x={} y={}", case.name,
+                        case.options.cartesian.orientation, case.options.axes.x, case.options.axes.y);
+                    assert_eq!(pixel(&image, bounds, scale, 100., 80.), [0, 0, 0, 255]);
                 }
                 eprintln!(
                     "CHART_PAINT_GPU {} scale={} meshes={} quads={} vertices={} retained_bytes={}",
@@ -332,7 +1220,7 @@ async fn exercise(
             .unwrap();
     }
     eprintln!(
-        "GPUIO_NATIVE_CHART_PAINT_OK scale={scale}: all seven families, mixed layer ordering, donut holes, area alpha, hollow/filled candles, bar corners/gradient and clipping; hidden-window GPU pixels only"
+        "GPUIO_NATIVE_CHART_PAINT_OK scale={scale}: all seven families, mixed layer ordering, donut holes, area alpha, hollow/filled candles, bar corners/gradient, Sankey endpoint gradients and clipping; hidden-window GPU pixels only"
     );
 }
 pub(crate) fn run() {

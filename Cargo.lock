@@ -29,8 +29,6 @@ dependencies = [
 [[package]]
 name = "accesskit_consumer"
 version = "0.38.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d10a236f96f87d70732e44520046785431ef01d5bcd6b041317bfadd2f88245"
 dependencies = [
  "accesskit",
  "hashbrown 0.16.1",
@@ -2109,7 +2107,6 @@ dependencies = [
 [[package]]
 name = "gpui"
 version = "0.2.2"
-source = "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b"
 dependencies = [
  "accesskit",
  "anyhow",
@@ -2131,6 +2128,7 @@ dependencies = [
  "gpui_macros",
  "gpui_shared_string",
  "gpui_util",
+ "hdrhistogram",
  "heapless",
  "http_client",
  "image",
@@ -2205,6 +2203,7 @@ dependencies = [
  "smol",
  "sum_tree",
  "tracing",
+ "unicode-bidi",
  "unicode-segmentation",
  "web-time",
 ]
@@ -2212,7 +2211,6 @@ dependencies = [
 [[package]]
 name = "gpui_apple"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b"
 dependencies = [
  "anyhow",
  "block",
@@ -2281,7 +2279,6 @@ dependencies = [
 [[package]]
 name = "gpui_macos"
 version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed.git?rev=a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b#a57ba9b17c433ea1ebfdec8f649f4fa5a402d03b"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -2448,10 +2445,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "gpuio-document-sdk"
+version = "0.0.0"
+dependencies = [
+ "gpui-base",
+ "gpuio-extension-sdk",
+]
+
+[[package]]
 name = "gpuio-example-counter"
 version = "0.0.0"
 dependencies = [
  "gpuio-extension-sdk",
+]
+
+[[package]]
+name = "gpuio-example-document"
+version = "0.0.0"
+dependencies = [
+ "gpuio-document-sdk",
 ]
 
 [[package]]
@@ -2480,6 +2492,7 @@ dependencies = [
 name = "gpuio-native"
 version = "0.0.0"
 dependencies = [
+ "accesskit_macos",
  "async-channel",
  "async-io",
  "binprot",
@@ -2489,7 +2502,9 @@ dependencies = [
  "futures-lite",
  "gpui",
  "gpui-base",
+ "gpui_apple",
  "gpui_platform",
+ "gpuio-document-sdk",
  "gpuio-extension-sdk",
  "gpuio-plot",
  "gpuio-portal",
@@ -2501,13 +2516,17 @@ dependencies = [
  "lyon",
  "objc2 0.6.4",
  "objc2-app-kit 0.3.2",
+ "objc2-core-foundation",
  "objc2-foundation 0.3.2",
  "objc2-user-notifications",
  "ocaml-interop",
  "raw-window-handle",
+ "regex-automata",
+ "regex-syntax",
  "resvg",
  "ropey",
  "roxmltree 0.21.1",
+ "serde_json",
  "syntect",
  "taffy",
  "two-face",
@@ -2538,6 +2557,7 @@ name = "gpuio-protocol"
 version = "0.0.0"
 dependencies = [
  "binprot",
+ "unicode-properties",
 ]
 
 [[package]]
@@ -2623,6 +2643,16 @@ name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+
+[[package]]
+name = "hdrhistogram"
+version = "7.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f49d1053f4708f0af3cf9fc5bffc7e68a914a3c45becb231c80068c9c3f78bea"
+dependencies = [
+ "byteorder",
+ "num-traits",
+]
 
 [[package]]
 name = "heapless"
@@ -3864,6 +3894,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536"
 dependencies = [
  "bitflags 2.13.2",
+ "block2 0.6.2",
  "dispatch2",
  "objc2 0.6.4",
 ]

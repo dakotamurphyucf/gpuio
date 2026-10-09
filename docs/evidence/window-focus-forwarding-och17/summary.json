@@ -1,0 +1,64 @@
+{
+  "base_revision": "4c2c06c6",
+  "production_change": "macOS window forwards accessibilityFocusedUIElement to content view",
+  "runs": [
+    {
+      "name": "carousel-focus-native-001",
+      "complete": false,
+      "cases": 1,
+      "error": "AssertionError: ('Unexpected Tab target', 'Card draft', ['AXWindow', 'GPUIO \u00b7 Component Studio 1'])",
+      "executable": "GALLERY_EXECUTABLE_SHA256 83f4d9bf0ecc9e422d607f996772720fd42686af0050644f1be82fd7a07d893f /Users/dakotamurphy/gpuio/_build/default/examples/gallery/main.exe"
+    },
+    {
+      "name": "carousel-focus-native-002",
+      "complete": false,
+      "cases": 1,
+      "error": "AssertionError: ('Unexpected Tab target', 'Card draft', ['AXWindow', 'GPUIO \u00b7 Component Studio 1'], 'target AXFocused', True)",
+      "executable": "GALLERY_EXECUTABLE_SHA256 83f4d9bf0ecc9e422d607f996772720fd42686af0050644f1be82fd7a07d893f /Users/dakotamurphy/gpuio/_build/default/examples/gallery/main.exe"
+    },
+    {
+      "name": "carousel-focus-native-003",
+      "complete": true,
+      "cases": 12,
+      "error": null,
+      "executable": "GALLERY_EXECUTABLE_SHA256 0fd4939eb126602d11fbd82c0ecfc9a0b42e48b2ddba51471bbd6fb415112928 /Users/dakotamurphy/gpuio/_build/default/examples/gallery/main.exe"
+    },
+    {
+      "name": "carousel-focus-installed-001",
+      "complete": true,
+      "cases": 12,
+      "error": null,
+      "executable": "GALLERY_EXECUTABLE_SHA256 a401c170395ba2c0631f6452ae0c1737e21dfd54a086142218bce16067057f77 /Users/dakotamurphy/gpuio/scratch/agents/root-20261007-access-check/focus-forwarder-consumer/consumer/_build/default/main.exe"
+    }
+  ],
+  "native_tests": {
+    "passed": 1187,
+    "ignored": 2
+  },
+  "vendor_reconstruction_tracked_files": 244,
+  "focused_input": {
+    "complete": true,
+    "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+    "checks": [
+      {
+        "case": "draft-identity-selection-focus-and-native-undo"
+      },
+      {
+        "case": "masked-owner-metadata-without-reading-value"
+      },
+      {
+        "case": "read-only-owner-remains-noneditable"
+      },
+      {
+        "case": "independent-window-identity-and-close"
+      },
+      {
+        "case": "remounted-native-editor-matches-current-controller"
+      }
+    ],
+    "executable_sha256": "0fd4939eb126602d11fbd82c0ecfc9a0b42e48b2ddba51471bbd6fb415112928",
+    "revision": "4c2c06c6718f2bd661480e8177754943626b1330",
+    "dirty": true,
+    "child_reaped": true
+  }
+}

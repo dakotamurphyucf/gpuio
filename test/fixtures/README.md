@@ -44,3 +44,15 @@ rectangle/ellipse/polygon hit regions. Rust constructs it in
 `tests/common/canvas_fixture.rs`; OCaml independently constructs it in
 `test/canvas/scene_codec_test.ml`. Both decode and compare the complete value.
 Regenerate deliberately with `cargo run -p gpuio-protocol --example emit_canvas_fixture`.
+
+The current `chart-view-v2-{labels,rich-labels,inspection}.hex` envelopes use
+chart style schema -8 for native pattern brushes (view/options/data remain
+-2/9/1). This revision changes only their nested style version byte from `fff9`
+(-7) to `fff8` (-8); their default brush fields remain unchanged. Older named
+chart fixtures remain historical rejection/compatibility evidence.
+
+Area-baseline configuration appends a float option to appearance series and
+advances current chart style from -8 to -9. `chart-appearance-v2.hex` adds the
+omitted option byte after its series legend; `chart-appearance.hex` remains
+historical. The three current `chart-view-v2-*` fixtures contain empty appearance
+series, so only their style tag changes (`fff8` to `fff7`).

@@ -1,0 +1,47 @@
+{
+  "source_base": "cd9b3b3",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "717e0311cf6cae1b8ecebfbdaaaeb54e5b1c241a0d7fa21394f8d678435070bf",
+  "files": [
+    {
+      "path": "radar-input-baseline.log",
+      "bytes": 588668,
+      "sha256": "8c050a55dfc27662345e1747074330bc5ec087827cf39bfa60bab3b9345fda7b"
+    },
+    {
+      "path": "radar-input-clippy.log",
+      "bytes": 588275,
+      "sha256": "9bd135dbac8e9fbc8aa747e1b14401a331f2a255cd6b38bc5629d5cdf1cb3242"
+    },
+    {
+      "path": "radar-input-fixed.log",
+      "bytes": 589620,
+      "sha256": "556e390fc3e84aece032277fd7aebc0732c4ae9f286b77760dbced2ac7e06fcc"
+    },
+    {
+      "path": "radar-input-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-input-retirement-baseline.log",
+      "bytes": 588674,
+      "sha256": "6f08852b4cd0705a768933b9771a8669219bfb43c89039c7fe6c7495df2f7b53"
+    },
+    {
+      "path": "radar-input-routing-baseline.log",
+      "bytes": 588755,
+      "sha256": "ff9ef09d454007b8db9263cdadc9997d799bd51871115397791fffd792b7ba03"
+    },
+    {
+      "path": "radar-input-stale-baseline.log",
+      "bytes": 588754,
+      "sha256": "1f3f7eb667fcfc5174d0b6a397c4c6320bba776082796cfb33e949b969f91645"
+    },
+    {
+      "path": "radar-input-suite.log",
+      "bytes": 700698,
+      "sha256": "9c803326ce015ad6cdbfa9b7633d4c28b5f700d58c7fc1236322a0b5d19c31b9"
+    }
+  ]
+}

@@ -23,7 +23,10 @@ module Cell = struct
     { metadata; view }
   ;;
 
-  let text ~column text = create ~column ~copy_text:text (Gpuio.View.text text)
+  let text ~column text =
+    let%map.Or_error metadata = T.Cell.create ~column ~copy_text:text in
+    { metadata; view = Gpuio.View.Expert.table_text metadata }
+  ;;
 end
 
 module Controller = struct
@@ -55,6 +58,7 @@ module Output = struct
     ; source : 'data D.t
     ; selection : Row.t Selection.t
     ; viewport : V.Viewport.t option
+    ; column_viewport : T.Column_viewport.t option
     ; active_rows : int
     ; active_cells : int
     ; budget_exhausted : bool
@@ -72,6 +76,7 @@ module Output = struct
   ;;
 
   let viewport t = t.viewport
+  let column_viewport t = t.column_viewport
   let active_rows t = t.active_rows
   let active_cells t = t.active_cells
   let budget_exhausted t = t.budget_exhausted
@@ -120,12 +125,33 @@ module Pending = struct
   [@@deriving sexp_of]
 end
 
+module Column_observation = struct
+  type t =
+    { query : int64
+    ; config : Config.t
+    ; viewport : T.Column_viewport.t
+    }
+  [@@deriving sexp_of]
+end
+
+module Preparation = struct
+  type t =
+    { query : int64
+    ; order : (V.Order.t[@sexp.opaque])
+    ; config : Config.t
+    ; rows : Row.t list
+    }
+  [@@deriving sexp_of]
+end
+
 module Model = struct
   type t =
     { query : int64 option
     ; requested : Row.t list
+    ; preparation : Preparation.t option
     ; pins : Row.t list
     ; observation : Observation.t option
+    ; column_observation : Column_observation.t option
     ; selection : Row.t Selection.t
     ; serial : int64
     ; displayed_serial : int64
@@ -137,8 +163,10 @@ module Model = struct
   let empty =
     { query = None
     ; requested = []
+    ; preparation = None
     ; pins = []
     ; observation = None
+    ; column_observation = None
     ; selection = Empty
     ; serial = 0L
     ; displayed_serial = 0L
@@ -150,7 +178,8 @@ end
 
 module Action = struct
   type t =
-    | Observe of Observation.t * Row.t list * Row.t list
+    | Observe of int64 * Observation.t * Row.t list * Row.t list
+    | Observe_columns of Column_observation.t
     | Retain of int64 * Row.t list
     | Input of int64 * Config.t * Row.t Request.t
     | Commands of int64 * Row.t Target.t list
@@ -183,6 +212,75 @@ let repaired_selection input selection =
   | Error _ -> Selection.Empty
 ;;
 
+(* Anticipation changes only bounded materialization. The native viewport and
+   its eventual observation still own actual geometry and scroll clamping. *)
+let prepare_scroll input (model : Model.t) targets =
+  let pins =
+    List.filter model.pins ~f:(D.contains_ref input.source) |> Set.of_list (module Row)
+  in
+  let capacity = Int.max 0 (Config.max_active_rows input.config - Set.length pins) in
+  let count = D.length input.source in
+  let observation =
+    Option.filter model.observation ~f:(fun observed ->
+      Int64.equal observed.query input.query
+      && same_order observed.order input.metadata.order
+      && Config.equal observed.config input.config
+      && observed.viewport.visible_last > observed.viewport.visible_first)
+  in
+  let span =
+    Option.value_map observation ~default:capacity ~f:(fun observed ->
+      observed.viewport.visible_last - observed.viewport.visible_first + 1)
+    |> Int.max 1
+    |> Int.min capacity
+  in
+  let initial =
+    Option.value_map observation ~default:0 ~f:(fun observed ->
+      observed.viewport.visible_first)
+  in
+  let clamp first = Int.clamp_exn first ~min:0 ~max:(Int.max 0 (count - span)) in
+  let position row = D.index input.source (Row.id row) |> Option.value_exn in
+  let destination =
+    List.fold targets ~init:None ~f:(fun destination target ->
+      match target with
+      | Target.Scroll_to (row, _) -> Some (clamp (position row))
+      | Scroll_to_end -> Some (clamp count)
+      | Reveal (row, _) ->
+        let row = position row in
+        let first = Option.value destination ~default:initial in
+        (* Keep the extra safety row out of the nearest-edge decision. *)
+        let visible = Int.max 1 (span - 1) in
+        if row < first
+        then Some (clamp row)
+        else if row >= first + visible
+        then Some (clamp (row - visible + 1))
+        else destination
+      | Set_selection _ | Scroll_to_column _ | Reset_columns -> destination)
+  in
+  Option.map destination ~f:(fun first ->
+    let overscan =
+      Float.iround_up_exn (Config.overscan input.config /. Config.row_height input.config)
+      |> Int.min capacity
+    in
+    let last = Int.min count (first + span) in
+    let positions =
+      List.range first last
+      @ List.range (Int.max 0 (first - overscan)) first
+      @ List.range last (Int.min count (last + overscan))
+    in
+    let rows =
+      List.filter_map positions ~f:(fun index ->
+        D.nth input.source index
+        |> Option.bind ~f:(fun (id, _) -> D.row_ref input.source id))
+      |> List.filter ~f:(fun row -> not (Set.mem pins row))
+      |> fun rows -> List.take rows capacity
+    in
+    { Preparation.query = input.query
+    ; order = input.metadata.order
+    ; config = input.config
+    ; rows
+    })
+;;
+
 let apply_action context input (model : Model.t) action =
   match input with
   | B.Computation_status.Inactive -> model
@@ -203,13 +301,18 @@ let apply_action context input (model : Model.t) action =
                 then selection
                 else model.selection)
          }
-     | Observe (observation, requested, pins)
-       when current observation.query
+     | Observe_columns observation
+       when current observation.query && Config.equal observation.config input.config ->
+       { model with column_observation = Some observation }
+     | Observe (serial, observation, requested, pins)
+       when Int64.equal serial model.serial
+            && current observation.query
             && same_order observation.order input.metadata.order
             && Config.equal observation.config input.config ->
        { model with
          query = Some input.query
        ; requested
+       ; preparation = None
        ; pins
        ; observation = Some observation
        }
@@ -231,6 +334,8 @@ let apply_action context input (model : Model.t) action =
                selection = repaired_selection input selection
              ; selection_tick = Int64.succ model.selection_tick
              ; pending = None
+             ; preparation =
+                 (if Option.is_some model.pending then None else model.preparation)
              }
            | Activate _ | Context _ | Resize _ | Move _ | Sort _ | Copy _ -> model))
      | Commands (query, targets) when current query ->
@@ -253,8 +358,13 @@ let apply_action context input (model : Model.t) action =
         | Error _ -> model
         | Ok (serial, reversed) ->
           let commands = List.rev reversed in
-          { model with serial; pending = Some { query; commands } })
-     | Observe _ | Retain _ | Input _ | Commands _ -> model)
+          let preparation =
+            match prepare_scroll input model targets with
+            | Some _ as prepared -> prepared
+            | None -> if Option.is_some model.pending then None else model.preparation
+          in
+          { model with serial; pending = Some { query; commands }; preparation })
+     | Observe _ | Observe_columns _ | Retain _ | Input _ | Commands _ -> model)
 ;;
 
 let fill =
@@ -272,9 +382,15 @@ let active_rows input model =
     |> List.dedup_and_sort ~compare:Row.compare
   in
   let requested =
-    if Option.exists model.query ~f:(Int64.equal input.query)
-    then List.filter model.requested ~f:(D.contains_ref input.source)
-    else []
+    match model.preparation with
+    | Some prepared
+      when Int64.equal prepared.query input.query
+           && same_order prepared.order input.metadata.order
+           && Config.equal prepared.config input.config -> prepared.rows
+    | None | Some _ ->
+      if Option.exists model.query ~f:(Int64.equal input.query)
+      then List.filter model.requested ~f:(D.contains_ref input.source)
+      else []
   in
   let max_active = Config.max_active_rows input.config in
   if List.length pins > max_active
@@ -358,6 +474,9 @@ let inner
       ~config
       ~key
       ~style
+      ~headers
+      ~header_presentation
+      ~render_row_presentation
       ~query_generation
       ~on_request
       ~lifetime
@@ -425,13 +544,17 @@ let inner
         Managed_rows.assoc
           (module Row)
           members
-          ~f:(fun row data _ graph ->
-            Managed_rows.assoc
-              (module C.Id)
-              columns
-              ~f:(fun _ column lifetime graph ->
-                render_cell ~row ~data ~column ~lifetime graph)
-              graph)
+          ~f:(fun row data lifetime graph ->
+            let presentation = render_row_presentation ~row ~data ~lifetime graph in
+            let cells =
+              Managed_rows.assoc
+                (module C.Id)
+                columns
+                ~f:(fun _ column lifetime graph ->
+                  render_cell ~row ~data ~column ~lifetime graph)
+                graph
+            in
+            B.map2 presentation cells ~f:(fun presentation cells -> presentation, cells))
           graph)
       graph
     |> B.map ~f:(fun queries -> Map.data queries |> List.hd_exn)
@@ -443,13 +566,15 @@ let inner
     and inject = inject
     and active = active
     and rendered = rendered
+    and headers = headers
+    and header_presentation = header_presentation
     and style = style in
     let open Or_error.Let_syntax in
     let%bind rows, exhausted = active in
     let schema = C.Collection.to_list (Config.columns input.config) in
     let%bind cells =
       List.map rows ~f:(fun row ->
-        let cells = Map.find_exn rendered row in
+        let _, cells = Map.find_exn rendered row in
         let%map cells =
           List.map schema ~f:(fun column ->
             let%bind cell = Map.find_exn cells (C.id column) in
@@ -459,6 +584,13 @@ let inner
           |> Or_error.all
         in
         D.Expert.row_key row, cells)
+      |> Or_error.all
+    in
+    let%bind row_presentations =
+      List.map rows ~f:(fun row ->
+        let presentation, _ = Map.find_exn rendered row in
+        Or_error.map presentation ~f:(fun presentation ->
+          D.Expert.row_key row, presentation))
       |> Or_error.all
     in
     let query = input.query in
@@ -476,14 +608,20 @@ let inner
            |> Sexp.to_string
            |> Key.of_string_exn)
         ~style
+        ~headers
+        ~header_presentation
+        ~row_presentations
         ~config:input.config
         ~query_generation:query
         ~order:metadata.order
         ~commands:(pending_commands input model)
+        ~on_column_viewport:(fun viewport ->
+          guarded (Observe_columns { query; config; viewport }))
         ~on_viewport:(fun viewport ->
           guarded
             (Observe
-               ( { query; order; config; viewport }
+               ( model.serial
+               , { query; order; config; viewport }
                , refs viewport.requested
                , refs viewport.pinned )))
         ~on_retain:(fun keys -> guarded (Retain (query, refs keys)))
@@ -508,6 +646,13 @@ let inner
         { Controller.submit = (fun targets -> guarded (Commands (query, targets))) }
     ; selection = pending_selection input model
     ; viewport
+    ; column_viewport =
+        Option.bind model.column_observation ~f:(fun observation ->
+          if
+            Int64.equal observation.query query
+            && Config.equal observation.config input.config
+          then Some observation.viewport
+          else None)
     ; active_rows = List.length rows
     ; active_cells = List.length rows * List.length schema
     ; budget_exhausted =
@@ -534,6 +679,12 @@ let component
       ~config
       ?key
       ?(style = B.return fill)
+      ?(scrollbar = B.return None)
+      ?(headers = B.return [])
+      ?(header_presentation = B.return Gpuio.Table_presentation.Header.empty)
+      ?(render_row_presentation =
+        fun ~row:_ ~data:_ ~lifetime:_ _ ->
+          B.return (Ok Gpuio.Table_presentation.Row.empty))
       ?(query_generation = B.return 0L)
       ?(on_request = B.return (fun _ -> E.Ignore))
       ~render_cell
@@ -557,6 +708,9 @@ let component
           ~config
           ~key
           ~style
+          ~headers
+          ~header_presentation
+          ~render_row_presentation
           ~query_generation
           ~on_request
           ~lifetime
@@ -564,8 +718,11 @@ let component
           graph)
       graph
   in
-  let%arr outputs = outputs in
-  Map.data outputs |> List.hd_exn
+  let%arr outputs = outputs
+  and scrollbar = scrollbar in
+  let%bind.Or_error output = Map.data outputs |> List.hd_exn in
+  let%map.Or_error view = Gpuio.View.with_scrollbar output.Output.view scrollbar in
+  { output with Output.view }
 ;;
 
 module Paging = Virtual_list.Paging
@@ -592,6 +749,10 @@ let paged
       ~config
       ?key
       ?style
+      ?scrollbar
+      ?headers
+      ?header_presentation
+      ?render_row_presentation
       ?(auto_load = B.return true)
       ?on_request
       ~render_cell
@@ -603,7 +764,19 @@ let paged
     B.map snapshot ~f:(fun s -> s.Gpuio.Table_paging.Snapshot.generation)
   in
   let output =
-    component source ~config ?key ?style ~query_generation ?on_request ~render_cell graph
+    component
+      source
+      ~config
+      ?key
+      ?style
+      ?scrollbar
+      ?headers
+      ?header_presentation
+      ?render_row_presentation
+      ~query_generation
+      ?on_request
+      ~render_cell
+      graph
   in
   let demand =
     let%arr snapshot = snapshot

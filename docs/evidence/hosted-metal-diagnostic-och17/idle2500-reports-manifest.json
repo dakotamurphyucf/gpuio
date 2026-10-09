@@ -1,0 +1,42 @@
+{
+  "idle2500-publication.json": {
+    "bytes": 115,
+    "sha256": "9e0cf362e6e268cac54dbae9c799ee898fae99f89f850ca02b14b1be9913bfe9"
+  },
+  "metal-presentation-idle2500.yml": {
+    "bytes": 2675,
+    "sha256": "71fc98a7cd85c27bc3034483df5bfd9e46f2bd825b28318324ceb464d29c3ce5"
+  },
+  "idle2500-results/display-check.log": {
+    "bytes": 228,
+    "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+  },
+  "idle2500-results/display-setup.log": {
+    "bytes": 228,
+    "sha256": "bb3757a2a3981f4a7eb048a8403f51dc4a1d259aa325df16794ccdcf98c5aa6a"
+  },
+  "idle2500-results/displays.json": {
+    "bytes": 2424,
+    "sha256": "1f152902bd036b183f45604c8d9e04f400f8734b94a163b2c40f60a8bf72de5e"
+  },
+  "idle2500-results/native-hook/build.jsonl": {
+    "bytes": 3425937,
+    "sha256": "40c9daa419b5e75a4ba2ffa4dc3a73d1097058c5bfbd47451c0a2273aa9d42c6"
+  },
+  "idle2500-results/native-hook/build.log": {
+    "bytes": 33288,
+    "sha256": "27f704f85c4628c59ff09fa2221f895b6a09aac3cbca152d6decdf34d7c6cfe2"
+  },
+  "idle2500-results/native-hook/native.log": {
+    "bytes": 124,
+    "sha256": "0b80d9f07325aa514fa755f1d1e1f16c801742d5f6080582d0009f57940ad0c2"
+  },
+  "idle2500-results/native-hook/report.json": {
+    "bytes": 80396,
+    "sha256": "840538d05eacccfbcacf76c0b9077686dc8a08deecdfe513d3f6e89414102dc0"
+  },
+  "idle2500-results/toolchain.log": {
+    "bytes": 92,
+    "sha256": "0a1551c79aa14473f0bf2dde82f74052eee994b6fe01ca17794f51fc7bc3f14f"
+  }
+}

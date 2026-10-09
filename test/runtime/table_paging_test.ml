@@ -421,3 +421,37 @@ let%expect_test
     Bonsai_driver.Expert.invalidate_observers driver);
   [%expect {| |}]
 ;;
+
+let%expect_test "retired query completions do not notify current application state" =
+  with_scope ~capacity:1 (fun scope inbox ->
+    let changes = ref [] in
+    let t =
+      P.create
+        ~scope
+        ~query:"old"
+        (empty ())
+        ~before:(More None)
+        ~after:(More None)
+        ~load:(fun request ->
+          Ok { P.Page.rows = [ id (P.Request.query request), () ]; next = End })
+        ~on_change:(fun snapshot ->
+          Bonsai.Effect.of_thunk (fun () -> changes := snapshot.query :: !changes))
+      |> ok
+    in
+    request t Before;
+    request t After;
+    for _ = 1 to 4 do
+      Eio.Fiber.yield ()
+    done;
+    P.reset t ~query:"new" (empty ()) ~before:End ~after:End |> ok;
+    print_s [%sexp (List.rev !changes : string list)];
+    settle inbox;
+    print_s [%sexp (List.rev !changes : string list), (names t : string list)];
+    P.close t;
+    settle inbox);
+  [%expect
+    {|
+    (old old new)
+    ((old old new) ())
+  |}]
+;;

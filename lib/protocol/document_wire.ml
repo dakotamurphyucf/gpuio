@@ -63,6 +63,7 @@ module Mode = struct
     | Markdown
     | Code of string
     | Diff
+    | Html
   [@@deriving bin_io, equal, sexp_of]
 end
 
@@ -96,9 +97,48 @@ module Side = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Markdown_options = struct
+  module Frontmatter = struct
+    type t =
+      | Disabled
+      | Code_block
+      | Description_list
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  type t =
+    { frontmatter : Frontmatter.t
+    ; mdx : bool
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Activation = struct
+  module Source = struct
+    type t =
+      | Mouse of Pointer_wire.Button.t
+      | Keyboard
+      | Touch of { long_press : bool }
+    [@@deriving bin_io, equal, sexp_of]
+  end
+
+  type t =
+    { source : Source.t
+    ; modifiers : Pointer_wire.Modifiers.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid { source; modifiers = { shift; control; alt; command; function_ } } =
+    match source with
+    | Mouse _ -> true
+    | Keyboard | Touch _ -> not (shift || control || alt || command || function_)
+  ;;
+end
+
 module Navigation = struct
   type t =
     | Link of string
     | Line of string option * Side.t * int64
+    | Link_activated of string * Activation.t
   [@@deriving bin_io, equal, sexp_of]
 end

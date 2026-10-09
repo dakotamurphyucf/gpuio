@@ -104,9 +104,12 @@ pub(super) fn element<T: 'static>(
         state.query = Some(query.clone());
         state.composing = composing;
         let popup = state.popup.clone();
-        popup
-            .borrow_mut()
-            .reconcile(&options, &appearance, focused, window.viewport_size());
+        popup.borrow_mut().reconcile(
+            &options,
+            &appearance,
+            focused,
+            crate::window_frame::content_bounds(window).size,
+        );
         (options, popup)
     };
     let trigger = popup_state.borrow().trigger.clone();
@@ -221,12 +224,15 @@ pub(super) fn element<T: 'static>(
                 choose,
                 owner,
                 pointer,
+                menu: false,
+                decoration: None,
                 selected_style,
             },
             window,
         );
         base = base.child(
             deferred(super::popup::Surface {
+                geometry: None,
                 placement: Placement::default(),
                 trigger: popup_state.borrow().trigger.clone(),
                 content: popup.into_any_element(),

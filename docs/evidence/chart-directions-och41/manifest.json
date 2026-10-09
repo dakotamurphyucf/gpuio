@@ -1,0 +1,222 @@
+{
+  "base_commit": "529230a7c2ed0d990dac39d415fe99c3b0d8e775",
+  "scope": "Local macOS Cartesian value-direction qualification; no whole catalog or release acceptance",
+  "archive_sha256": "450ab7b3fb367b4b54afe30e4b0d5809ec7daf4479dcc2afeb0765cec326a8a6",
+  "files": [
+    {
+      "path": "binary.json",
+      "bytes": 123,
+      "sha256": "4512787876a1bd6e13477dc183d61427c47ab7ab044822cbe97d268aff5b05c3"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 1336,
+      "sha256": "e340fb4de53bc228b281fd61c88f35afd7da945f9f489933a8e47321dc604bd7"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 82,
+      "sha256": "6e1453ea9c1ef0c20b76675b08f9e8c930bf10a19af1097d06b47b389abcaa58"
+    },
+    {
+      "path": "images/gallery-chart-horizontal-reversed.png",
+      "bytes": 394707,
+      "sha256": "ff1188f5b1176de7de4356d6c7a5dde18e8211be5608c254d9549364eaa51c54"
+    },
+    {
+      "path": "images/gallery-chart-horizontal.png",
+      "bytes": 394870,
+      "sha256": "64540cf66b548bfd374178176a1c3e318111c84b5e6e9e092ed2008b970e1793"
+    },
+    {
+      "path": "images/gallery-chart-vertical-reversed.png",
+      "bytes": 391347,
+      "sha256": "51dda8251b852f8b21e1dd1c08e1b6fd95342e86770d4c9a954190f233cf5b03"
+    },
+    {
+      "path": "images/gallery-chart-vertical.png",
+      "bytes": 388825,
+      "sha256": "fecff35f0c36c182f5727908d21627198179f7ac73c74edfc67673ed8cadcf7a"
+    },
+    {
+      "path": "images/gallery-charts.png",
+      "bytes": 390932,
+      "sha256": "d255f7c1975e6e9810ed896b8edb78035dc726f1d9a3cb584201548811bc575d"
+    },
+    {
+      "path": "logs/chart-orientation-clippy.log",
+      "bytes": 588425,
+      "sha256": "855347631a82376b0d71ce22874919c00d50619c57d5479dfd391da7cf17fabc"
+    },
+    {
+      "path": "logs/chart-orientation-gpu.log",
+      "bytes": 593801,
+      "sha256": "f34964c832991102341306d2fb31c30d0973fde5f1226a23db839779cb2a1fb3"
+    },
+    {
+      "path": "logs/chart-orientation-installed-final.log",
+      "bytes": 4144,
+      "sha256": "c12f6ebe7201219b092b6e6b50c1d8c21e1766d259c9ff61fc50d0a099293abe"
+    },
+    {
+      "path": "logs/chart-orientation-installed.log",
+      "bytes": 205301,
+      "sha256": "dd451ef576be142758ea665803538b6c6c512c6ea86663f8303b182e6177791e"
+    },
+    {
+      "path": "logs/chart-orientation-native-full.log",
+      "bytes": 693288,
+      "sha256": "fe677309588079eb722926fa5361dce8b0df3846ece06807d7a4dcbff446f5a2"
+    },
+    {
+      "path": "logs/chart-orientation-native.log",
+      "bytes": 594714,
+      "sha256": "0f6aae3fc93ab0d526e2f22d98898a44def0efc09530beb880e252b67c83d214"
+    },
+    {
+      "path": "logs/chart-orientation-ocaml-full.log",
+      "bytes": 505665,
+      "sha256": "57b7b3e86bf258844ff025150c767c018d7da6541913b9a312ca3196c4d1e489"
+    },
+    {
+      "path": "logs/chart-orientation-ocaml.log",
+      "bytes": 100226,
+      "sha256": "79d782984fce3f6e3e579700e279497f53153462d30649193ff15a35cc64de1d"
+    },
+    {
+      "path": "logs/chart-orientation-protocol.log",
+      "bytes": 737,
+      "sha256": "04a3b311d47f5e79f0805bbc05dc8919e8cd475e868a2d44f1607de10316d8ac"
+    },
+    {
+      "path": "logs/chart-orientation-rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source/docs/catalog/charts-review.md",
+      "bytes": 9472,
+      "sha256": "74f340e3a9f40d36aa8df452d429fbd69892cdeb7e7a1dd687665bee3333711d"
+    },
+    {
+      "path": "source/docs/catalog/families.json",
+      "bytes": 71361,
+      "sha256": "7c095c6a5065ba94d87aac18b29d9558c40b7aca3c002991831e88846e1842f7"
+    },
+    {
+      "path": "source/docs/design/chart-directions.md",
+      "bytes": 2116,
+      "sha256": "d60174f8f06eefcc5ffc7e1373f012edc226354d12d6e0b00d55dc7bb1ae46d0"
+    },
+    {
+      "path": "source/docs/design/charts.md",
+      "bytes": 45534,
+      "sha256": "a18a46d5e9d1ba443fd0109affe2c1b0f21d7043a874bc7aff9ed938a8ecc826"
+    },
+    {
+      "path": "source/docs/evidence/chart-directions-och41.md",
+      "bytes": 4836,
+      "sha256": "2b327bf446bdf1eb1f418cebbd689f67aa83d903f0674439ef6bbf42bb31fd8b"
+    },
+    {
+      "path": "source/docs/status.md",
+      "bytes": 47242,
+      "sha256": "17fbd8670369544d95a7359060c1e7d0eee85abb5b008c90250e392cd5be71b3"
+    },
+    {
+      "path": "source/examples/README.md",
+      "bytes": 3305,
+      "sha256": "b33dfe6c093a54adef323f16bdb79fb4c0b8593ea886a207a47f58f2982ab6da"
+    },
+    {
+      "path": "source/examples/gallery/README.md",
+      "bytes": 69897,
+      "sha256": "e11ff811fcd2d1c0d83f23acc0684c7be522e2b73d6d894f7d8d067acd56ef5d"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.md",
+      "bytes": 6642,
+      "sha256": "97bca449b15010e57ec4fe91b1f8aabb0be23b2c2713dfd1c7a14e1758352b9c"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.ml",
+      "bytes": 7040,
+      "sha256": "456442e02e142ef98ded3d1f278efe7107899a500d336cdccae1c6dd95616406"
+    },
+    {
+      "path": "source/lib/core/chart_options.ml",
+      "bytes": 4340,
+      "sha256": "8d42752b156448c51fbfd77dd4a78b2731cfc8d84bacccd1e6c51171051d18bf"
+    },
+    {
+      "path": "source/lib/core/chart_options.mli",
+      "bytes": 4926,
+      "sha256": "caf4de5bb29da6d638d5eafacf87dd8effeee349b16f95445f12cfa9dc4362ad"
+    },
+    {
+      "path": "source/lib/protocol/chart_options_wire.ml",
+      "bytes": 2911,
+      "sha256": "4fc68a8a2b373e156637a7a32ee0c0f2caa487f5c0a5c8c7451a42bcdd060ef3"
+    },
+    {
+      "path": "source/rust/native/src/chart_geometry.rs",
+      "bytes": 31094,
+      "sha256": "83b0e70e6f21145edb4dda5b76ca299e3640348918597ab6ef26c70190e88a0a"
+    },
+    {
+      "path": "source/rust/native/src/chart_geometry/tests.rs",
+      "bytes": 28039,
+      "sha256": "b8d47f2e088c0a3862d1f3a0c6b91f30611157314bfd11c23751b8a1f9166404"
+    },
+    {
+      "path": "source/rust/native/src/chart_hit.rs",
+      "bytes": 20437,
+      "sha256": "408a01527214fb779f8f21c14017ac95cb19087d2e7b7f52beeea355b13d077b"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint.rs",
+      "bytes": 23667,
+      "sha256": "ac8985544f5f91779ddc374b7d27227c5b279f7a91f129c37d19e80da6413b9b"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint/native_test.rs",
+      "bytes": 14332,
+      "sha256": "6b0e4199b6b69a46a793299c13c950791dbc2902dd9228e446e08d8bafea8e5b"
+    },
+    {
+      "path": "source/rust/native/src/chart_presentation.rs",
+      "bytes": 11645,
+      "sha256": "bbf3ffbf73cec08834ac9f212c799708518fbceb584ceba61779d27ac51de5ee"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_options.rs",
+      "bytes": 4488,
+      "sha256": "9945afd20d7442db027163749e5718623cd0d31f70d588592eb5e05dc00a8d86"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_options.rs",
+      "bytes": 3266,
+      "sha256": "c83029039c48dd1041d84d72881da123f1611d2921b23ea8bc3aec13f9f723dd"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_options.rs",
+      "bytes": 4687,
+      "sha256": "a578d5bdc4e4ab63c99d6b9b1165b049b3c14d9ba32f2e09ec2d6abceffa98cd"
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "bytes": 342517,
+      "sha256": "b2e8ad7fc7f41f55827e891ddd4fa6842dec8ea0d1add2a08902badc677fd8de"
+    },
+    {
+      "path": "source/test/chart/chart_options_test.ml",
+      "bytes": 4341,
+      "sha256": "c406d70f42dbaf92e85aee434e3f18ae55a74e2c077f9b21fd34d2ede36bff50"
+    },
+    {
+      "path": "tracked.patch",
+      "bytes": 40439,
+      "sha256": "e30130f561f7cc46440f61544ac031ed813f219700728f6ef2c9afae5c6d9815"
+    }
+  ]
+}

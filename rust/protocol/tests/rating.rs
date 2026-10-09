@@ -150,3 +150,70 @@ fn malformed_configuration_and_policy_reject() {
     }
     assert!(!good.can_apply(Request::Set(6)));
 }
+
+#[test]
+fn appearance_has_independent_bytes_and_strict_rgba_bounds() {
+    use gpuio_protocol::rating::Appearance;
+    let node = NodeId::from_parts(0, 1).unwrap();
+    let transaction = |appearances: Vec<Option<Appearance>>| {
+        Message::Apply(Transaction {
+            window: WindowId::from_parts(0, 1).unwrap(),
+            base: 0,
+            revision: 1,
+            operations: appearances
+                .into_iter()
+                .map(|a| Op::SetRatingAppearance(node, a))
+                .collect(),
+        })
+    };
+    let message = transaction(vec![
+        Some(Appearance {
+            active: Some(0x11223344),
+            inactive: Some(0xffffffff),
+        }),
+        Some(Appearance {
+            active: None,
+            inactive: Some(0),
+        }),
+        Some(Appearance {
+            active: None,
+            inactive: None,
+        }),
+        None,
+    ]);
+    let bytes = encode(&message);
+    assert_eq!(
+        hex(&bytes),
+        include_str!("../../../test/fixtures/rating-appearance.hex").trim()
+    );
+    assert_eq!(decode(&bytes), Ok(message));
+    for end in 0..bytes.len() {
+        assert!(decode(&bytes[..end]).is_err());
+    }
+    let mut extra = bytes;
+    extra.push(0);
+    assert!(decode(&extra).is_err());
+    for invalid in [-1, 0x100000000, i64::MAX] {
+        for appearance in [
+            Appearance {
+                active: Some(invalid),
+                inactive: None,
+            },
+            Appearance {
+                active: None,
+                inactive: Some(invalid),
+            },
+        ] {
+            assert!(!appearance.is_valid());
+            assert!(decode(&encode(&transaction(vec![Some(appearance)]))).is_err());
+        }
+    }
+    assert_eq!(
+        hex(&encode(&Message::Hello(VERSION, CAP_RATING_APPEARANCE))),
+        "0003fc0000000000000002"
+    );
+    assert_eq!(
+        hex(&encode(&Message::Hello(VERSION, CAPABILITIES))),
+        "0003fcffffffffffffff7f"
+    );
+}

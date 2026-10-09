@@ -168,8 +168,8 @@ pub(crate) fn run() {
                     },
                     |window, cx| {
                         cx.new(|cx| {
-                            let view = View::new(id, session.clone(), transport.clone());
-                            window_host::watch(&view, window, cx);
+                            let mut view = View::new(id, session.clone(), transport.clone());
+                            window_host::watch(&mut view, window, cx);
                             view
                         })
                     },

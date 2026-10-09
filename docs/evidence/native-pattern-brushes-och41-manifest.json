@@ -1,0 +1,137 @@
+{
+  "archive": "native-pattern-brushes-och41-logs.tar.gz",
+  "sha256": "0036a1e7e7177f4d21a4758a1d148b152e9b4f683c02260acfad5cdca3aacc5d",
+  "members": [
+    {
+      "path": "pattern-protocol-second.log",
+      "bytes": 58911,
+      "sha256": "762967442d8059a5186833b970773fde36b4e6163de3d63a380ac0bb33683be7"
+    },
+    {
+      "path": "pattern-protocol-style-final.log",
+      "bytes": 750,
+      "sha256": "88e4363646ff59c3c426ef4e336da8c00c761055bf185fd361234bef22cc01cf"
+    },
+    {
+      "path": "pattern-native-all.log",
+      "bytes": 700286,
+      "sha256": "48666dad5c63b9df9a0513e4402aea11f05508fd59380a24037c951045b88625"
+    },
+    {
+      "path": "pattern-native-view-gpu.log",
+      "bytes": 590222,
+      "sha256": "89054c8b497d54665a3945a509654910bf1659722f57c958e90332118365168d"
+    },
+    {
+      "path": "pattern-dune-full.log",
+      "bytes": 705858,
+      "sha256": "d0e86a312f5902295c96913f7b1d3087d7d2ed2e2be29a74baf95876ff8c8b7c"
+    },
+    {
+      "path": "pattern-clippy.log",
+      "bytes": 588425,
+      "sha256": "8562f10d8e37d6d4c6d841b091959b56e43b1909d0dd395fa5d81579f6c10434"
+    },
+    {
+      "path": "pattern-rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pattern-gallery.log",
+      "bytes": 14527,
+      "sha256": "c9e9ffda7b44f8cb0a03bb7549d67e4e869d6b86743b759e75b84e3b046e9397"
+    },
+    {
+      "path": "pattern-gallery-second.log",
+      "bytes": 24073,
+      "sha256": "3a9d1e197ef725c9856f1bf9c4ed15b7a6256a6f515d87e29c4d2ca02a39a2b1"
+    },
+    {
+      "path": "pattern-gallery-final.log",
+      "bytes": 26994,
+      "sha256": "3b4d62c3a53b2115f278246f3f3a4918472069f98dcf6d4ca2f876a6a3e9c8be"
+    },
+    {
+      "path": "pattern-consumer-build.log",
+      "bytes": 100850,
+      "sha256": "2d6b49c28c5cededcc7bd1acbe9e49d60d4d684faa268c5d55be2e16e75d5ea6"
+    },
+    {
+      "path": "pattern-consumer-native.log",
+      "bytes": 28119,
+      "sha256": "9972c68e95e816ee6c95a7d3061e2d2e6b2fef5730f6e4c54b07b4ad18520464"
+    },
+    {
+      "path": "pattern-source-record.json",
+      "bytes": 4538,
+      "sha256": "d9351de6ae01722dca70e3cbd2cc9cee1432e2ea5d8a006739aba7a67ecfe576"
+    },
+    {
+      "path": "pattern-gallery-images/gallery-failure.png",
+      "bytes": 456558,
+      "sha256": "70c5ad865aaa57b392b1a0814118ae48f2cb9d126793176293675dd942aa8a71"
+    },
+    {
+      "path": "pattern-gallery-second-images/gallery-failure.png",
+      "bytes": 467601,
+      "sha256": "23d942b6b75d1a6d6b921fcf2ce2c622439b5aa2e0dfd4a5b48ffdcde2a59f12"
+    },
+    {
+      "path": "pattern-consumer-images/gallery-pattern-theme-dark-area-checkerboard-pattern.png",
+      "bytes": 399528,
+      "sha256": "4c65c7cceac0b4a12187b3261f754ff3fb97b9acb0652deba1a5b9e9baa37822"
+    },
+    {
+      "path": "pattern-consumer-images/gallery-pattern-theme-dark-area-slash-pattern.png",
+      "bytes": 424616,
+      "sha256": "42090c5ba8dead94ecd1327e5a99c490f6eedb65f4c93a00e074d7515b2364d2"
+    },
+    {
+      "path": "pattern-consumer-images/gallery-pattern-theme-dark-bar-checkerboard-pattern.png",
+      "bytes": 410009,
+      "sha256": "f9266bfbebf2d335d84c88d3bb10e8836ef7d7ed8fec610dd246433a2acc328e"
+    },
+    {
+      "path": "pattern-consumer-images/gallery-pattern-theme-dark-bar-slash-pattern.png",
+      "bytes": 457967,
+      "sha256": "33fee26aac20704da83bd912f7acc8dca6be9950d5cd0cb73a1486aff6d2e76a"
+    },
+    {
+      "path": "pattern-consumer-images/gallery-pattern-theme-light-area-checkerboard-pattern.png",
+      "bytes": 396060,
+      "sha256": "318a8614ac8c723686f2d61dcb3c166a4e516b8cd898c71b5dc9e3a44b4ba022"
+    },
+    {
+      "path": "pattern-consumer-images/gallery-pattern-theme-light-area-slash-pattern.png",
+      "bytes": 417357,
+      "sha256": "780bb359ea10975f92608d90b3d6bcc2f52d511e867ef8053619b5732feac39b"
+    },
+    {
+      "path": "pattern-consumer-images/gallery-pattern-theme-light-bar-checkerboard-pattern.png",
+      "bytes": 406429,
+      "sha256": "bd3a41a3458a74347e8a1e3e5396c32be9d15c2e1c6ddba8f12c34531f60278e"
+    },
+    {
+      "path": "pattern-consumer-images/gallery-pattern-theme-light-bar-slash-pattern.png",
+      "bytes": 457574,
+      "sha256": "62d732b882f338aba9e1b1414b6ca540f7a3849da0b2d7eb88a98ee26f9993f5"
+    },
+    {
+      "path": "pattern-gallery-final-images/gallery-marks-radar-checkerboard-pattern.png",
+      "bytes": 386162,
+      "sha256": "2448f8910d8b93e45ab606c9206a6c64e07104cecb650fad26fae1f3b123f234"
+    },
+    {
+      "path": "pattern-gallery-final-images/gallery-marks-stacked-areas-slash-pattern.png",
+      "bytes": 452322,
+      "sha256": "1ee9801fd7afee2628e4db552cab973cf071d1979fa76c771ce782e522acca95"
+    },
+    {
+      "path": "pattern-gallery-final-images/gallery-marks-mixed-layers-checkerboard-pattern.png",
+      "bytes": 429077,
+      "sha256": "c27a6c3b2626d37af67f7c630258535b044ac80a618498d5c3dbb90c4ebc5c43"
+    }
+  ],
+  "total_bytes": 8404813
+}

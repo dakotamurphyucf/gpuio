@@ -1,0 +1,134 @@
+{
+  "source_base": "e41b7d6643d85b6b3209535067704d48befc0ea4",
+  "scope": "Standalone rich inspection target metadata; no View/native attachment or platform acceptance",
+  "archive_sha256": "8ab76a9d0dbdf38bb5908c7c825003037c742d2f29d6b0069aa62a3423e414a6",
+  "source_files": [
+    {
+      "path": "lib/core/chart_inspection_content.ml",
+      "bytes": 3026,
+      "sha256": "e9992d133025cf54d3d07a184a221aa5a7f35cd0cb3afa080beb256052594400"
+    },
+    {
+      "path": "lib/core/chart_inspection_content.mli",
+      "bytes": 2685,
+      "sha256": "54d750f15bccf53d45a32de49067ff963138c1a55c96c36d1e98ed30706a51b2"
+    },
+    {
+      "path": "lib/protocol/chart_inspection_content_wire.ml",
+      "bytes": 2494,
+      "sha256": "00994ae1fed515c9826f7e3f69d27f777ecb5d189ee5ec9848864054efa95037"
+    },
+    {
+      "path": "lib/protocol/chart_selection_wire.ml",
+      "bytes": 1377,
+      "sha256": "dbd78cac4c41857d94797220a87c19d5877465f48e6eef0d960f12905f671795"
+    },
+    {
+      "path": "rust/protocol/src/chart_inspection_content.rs",
+      "bytes": 3721,
+      "sha256": "e502c0c0e1780f7844893e50d7de0433950592b40e695d4a3accd08b97fb8818"
+    },
+    {
+      "path": "rust/protocol/src/chart_selection.rs",
+      "bytes": 1769,
+      "sha256": "157eab4207cb34c786c3aca40bf75123d41b250c532c33ef3a0ecfead79e0c94"
+    },
+    {
+      "path": "rust/protocol/src/decode.rs",
+      "bytes": 82678,
+      "sha256": "976c1e692d9f8b605ca7cff58a24ba6cbfdc7238de714e2d49e9377d5fa56c1c"
+    },
+    {
+      "path": "rust/protocol/src/lib.rs",
+      "bytes": 5391,
+      "sha256": "d894eca2587cc81fb4b8c6b1f541d2864f2983272d3ac625de90d76e89b63f78"
+    },
+    {
+      "path": "rust/protocol/src/decode/chart_inspection_content.rs",
+      "bytes": 2097,
+      "sha256": "8541a68d87000aeddeaf9812dc7a38ad61c03356dc4dc045925ce86737881b5f"
+    },
+    {
+      "path": "rust/protocol/tests/chart_inspection_content.rs",
+      "bytes": 8933,
+      "sha256": "660998f082cb25796387791dd6d70767065ab6baddab524a07c3907bff43eac5"
+    },
+    {
+      "path": "test/chart/chart_inspection_content_test.ml",
+      "bytes": 6638,
+      "sha256": "96f8e0e2b82f96a5a590efb3e52ef00d55d2f88424c2d0b21fe8b22b71c55fef"
+    }
+  ],
+  "files": [
+    {
+      "path": "chart-expect.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "clippy.log",
+      "bytes": 588425,
+      "sha256": "195826cc086dad0ebded842729d0dc22d226b29fc2d8920a3650a680ccebdd7b"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 633,
+      "sha256": "2d3f9b8d0fca919e2b4da3656bcb10d3fc779d8dfa879f9d8d38fd87b72026c5"
+    },
+    {
+      "path": "dune.log",
+      "bytes": 705818,
+      "sha256": "b0dae6758611e3b592cde202627a892518c7cda85d955ff93d7d8f22f53cd6ce"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 115,
+      "sha256": "5f4bc12e0952af471fd5f1ae57aea29b0f2db7bd72b2c94c96a86810a5de6c8e"
+    },
+    {
+      "path": "example-audit.log",
+      "bytes": 139,
+      "sha256": "cef39fa7fa76419fc76e9570a2839a7fe5dce1fcd8dcbcf7d3e7a2518a7f011c"
+    },
+    {
+      "path": "final-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "final-protocol-lint.log",
+      "bytes": 137,
+      "sha256": "46b25d7dde8b8de9862663c620bf11834336eeccff5e0f4fce26b69d8eca7828"
+    },
+    {
+      "path": "final-protocol-target.log",
+      "bytes": 678,
+      "sha256": "ae2eb05af9d8ef23c1cfb91e223f410b9ef1d9bf7470266d3281b3d3e821dc36"
+    },
+    {
+      "path": "final-results.json",
+      "bytes": 1028,
+      "sha256": "b2bee5c7106c358af452f5f208605736f952291c823d11d9823b402c49df5b36"
+    },
+    {
+      "path": "ocaml-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "protocol.log",
+      "bytes": 58506,
+      "sha256": "ffbc193092fed72851bd18425ca243cfdfdb87db7845033238b008f529deb4eb"
+    },
+    {
+      "path": "rust-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

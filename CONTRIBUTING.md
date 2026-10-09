@@ -37,3 +37,14 @@ Use a branch such as `och-18-repository-scaffold`, with the Linear ticket in the
 PR description, validation and remaining limitations. `main` is the default
 branch. Keep accepted contracts current in versioned docs and link reviewed
 commits back to Linear. One repository and release train covers both languages.
+
+For every new example component, add an adjacent Markdown walkthrough and link
+it from its owning README. Update the walkthrough when behavior, structure or
+commands change. Maintain the explicit [coverage inventory](examples/coverage-guide.md)
+and run `python3 scripts/audit_example_docs.py`; a present file or passing build
+does not substitute for reviewing its explanation. Keep application, Bonsai,
+GPUIO and Eio/native responsibilities clear, including lifetime and adaptation.
+Assume readers are also new to Bonsai: explain the example's actual functions,
+types and GPUIO calls, introduce the reactive syntax it uses, and trace a concrete
+event through effects, state and view updates. A feature overview alone is not a
+component walkthrough.

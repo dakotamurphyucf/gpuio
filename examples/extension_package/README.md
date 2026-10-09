@@ -1,5 +1,9 @@
 # A separately packaged native counter
 
+Read the [OCaml consumer API](ocaml/gpuio_example_counter.md) and
+[Rust component factory](rust/src/lib.md) for the paired codecs, native lifecycle,
+static composition, commands, and diagnostic limitations.
+
 This example contains an ordinary OCaml library in `ocaml/` and an independently
 consumable Rust crate in `rust/`. The Rust implementation imports only the public
 `gpuio-extension-sdk` and its pinned GPUI re-export. `schema.txt` is the exact
@@ -11,6 +15,8 @@ native activation sends a typed value observation. Values are 0â€“100, steps 1â€
 Payloads have fixed lengths and are validated before indexing. Each callback uses
 the revocable SDK event sink. Pointer disabling leaves keyboard and accessibility
 activation available; hidden/disabled/obsolete instances reject callbacks.
+The accessible button reports disabled state from its current event lease. The
+host group alone does not propagate that metadata to controls inside the package.
 
 The crate declares SDK version `=0.0.0`, patched to the selected GPUIO checkout by
 the application composer. These are experimental source packages, not published

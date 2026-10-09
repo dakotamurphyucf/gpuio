@@ -1,0 +1,62 @@
+{
+  "run": "https://github.com/dakotamurphyucf/gpuio/actions/runs/37592517665",
+  "head_sha": "249d65fec7794fd4967937eb80af40340697477e",
+  "archive_sha256": "7bf1155a8a28033061da16aa42b625cde64a336835c10928706210688c899bf3",
+  "files": [
+    {
+      "path": "run.json",
+      "bytes": 68293,
+      "sha256": "c12f74b04cce084f50fe4ec332794472ae87ae87ab1b48e2602808d2a785ef98"
+    },
+    {
+      "path": "failed-steps.log",
+      "bytes": 1335610,
+      "sha256": "bfb14f336a5cffcb4aa2c1ea65c01217d5d2dda79148bcc179b2881b330a9da7"
+    },
+    {
+      "path": "macOS-ARM64/tests.log",
+      "bytes": 636384,
+      "sha256": "5d83f1a5aee316d1f3405d4de17831068814be014bbd665650b837ad703e72f8"
+    },
+    {
+      "path": "Linux-X64/tests.log",
+      "bytes": 4124,
+      "sha256": "570a97755b2cfe7b20690e62c64fada92dbeb8d5b7fc1a8ad95cc5d790f0b6bb"
+    },
+    {
+      "path": "macos/metal-presentation-hook/report.json",
+      "bytes": 76394,
+      "sha256": "e18dabb0f506bd4ac3cbfd31592c0dfb0170d2e21f91d64cdda4fec5d2435279"
+    },
+    {
+      "path": "macos/metal-presentation-calibration.json",
+      "bytes": 63444,
+      "sha256": "e71b197000e6b4d7fb63b54a958f1988094ec2a6221471dc537cc3b4b4a8593b"
+    },
+    {
+      "path": "macos/metal-presentation-display.json",
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "linux-gui-status.json",
+      "bytes": 103,
+      "sha256": "121491f7b851dafa9afa687d056eb094cb961e0512734721772c9bf462f5b85b"
+    },
+    {
+      "path": "gallery/report.json",
+      "bytes": 3156,
+      "sha256": "4865c90798f3fcee8736e5be286da979d86e512bf108eb0166f85020b2a25521"
+    },
+    {
+      "path": "agent-chat/report.json",
+      "bytes": 1534,
+      "sha256": "dd212070af21702e7e52d2b8837840e9b7cbe228deaa9b7a0b44ddac76e565a6"
+    },
+    {
+      "path": "signal-studio/report.json",
+      "bytes": 1592,
+      "sha256": "93bb32bb5ca0054619e698f9c93aa91fb6e63c51bdd0fdf97c8f7428abd89a09"
+    }
+  ]
+}

@@ -1,0 +1,487 @@
+{
+  "base_commit": "1d623f77338f686b7c47c4545597b5dd291f2068",
+  "scope": "Local rich node-label integration and beginner documentation checkpoint",
+  "archive_sha256": "364d9b24c84684eef0f410709c5fec402a7849ce5c307c240007512aa2c45152",
+  "files": [
+    {
+      "path": "binary.json",
+      "bytes": 130,
+      "sha256": "1d24a538ff8752abdd02d52e0ac3d6cb272e7125a3b0a97fe4f7d7295d5c0f6d"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 1247,
+      "sha256": "f3bcc1478c397178b4fc9e73f77836e4a8242f727d6990efcb2cb2a5e2818a40"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 82,
+      "sha256": "6e1453ea9c1ef0c20b76675b08f9e8c930bf10a19af1097d06b47b389abcaa58"
+    },
+    {
+      "path": "final-results.json",
+      "bytes": 1358,
+      "sha256": "69f56fc2907b71a28e8b7aa57c19154c1f807c6b291d900c13d472e9a275b5ea"
+    },
+    {
+      "path": "images/chart-node-labels-consumer-images/gallery-sankey-default-flows.png",
+      "bytes": 375243,
+      "sha256": "e6f89fcfa5c093a743cf37376f8a00c246dbcb4c3318c99122d33974d0bfdb48"
+    },
+    {
+      "path": "images/chart-node-labels-consumer-images/gallery-sankey-hide-target-label.png",
+      "bytes": 375590,
+      "sha256": "b95e13a05d6dce2cc2eef9e3d46b0aeb7a35d0bd180866bd308f0a02881c08fa"
+    },
+    {
+      "path": "images/chart-node-labels-consumer-images/gallery-sankey-rich-flow-labels.png",
+      "bytes": 388143,
+      "sha256": "bb0145762a934c4f3882a5076e042807b3a766585e99ae679e70d3ce1a420fd6"
+    },
+    {
+      "path": "images/chart-node-labels-images/gallery-sankey-default-flows.png",
+      "bytes": 375243,
+      "sha256": "e6f89fcfa5c093a743cf37376f8a00c246dbcb4c3318c99122d33974d0bfdb48"
+    },
+    {
+      "path": "images/chart-node-labels-images/gallery-sankey-hide-target-label.png",
+      "bytes": 375590,
+      "sha256": "b95e13a05d6dce2cc2eef9e3d46b0aeb7a35d0bd180866bd308f0a02881c08fa"
+    },
+    {
+      "path": "images/chart-node-labels-images/gallery-sankey-rich-flow-labels.png",
+      "bytes": 388143,
+      "sha256": "bb0145762a934c4f3882a5076e042807b3a766585e99ae679e70d3ce1a420fd6"
+    },
+    {
+      "path": "logs/chart-node-labels-clippy-final.log",
+      "bytes": 588278,
+      "sha256": "7bcdd1f3043b648cfc70d6b5ab6c4824377de199de122f91e888fa7a1a336465"
+    },
+    {
+      "path": "logs/chart-node-labels-clippy.log",
+      "bytes": 589918,
+      "sha256": "9fa5d43b149bd0d445c8384104c06e874ed849313e2a51d8465b53691db4c1f4"
+    },
+    {
+      "path": "logs/chart-node-labels-consumer-rerun.log",
+      "bytes": 12076,
+      "sha256": "25d8e72bd06d5bd283bbb46ca2a6da467b79ee264a8b68d671c5f563187908df"
+    },
+    {
+      "path": "logs/chart-node-labels-consumer.log",
+      "bytes": 202879,
+      "sha256": "f2abd1a0921d23cfc9e73c7f855c7bd3463fba01ab8079943562df089aa9b489"
+    },
+    {
+      "path": "logs/chart-node-labels-core-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-node-labels-core-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-node-labels-core.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-node-labels-dune.log",
+      "bytes": 705910,
+      "sha256": "1f145b523f16efb7547119a38750d56104b8948d12e4f91e4fb50034ffb33bb4"
+    },
+    {
+      "path": "logs/chart-node-labels-gallery-old-binary-failure.log",
+      "bytes": 14688,
+      "sha256": "0c26ac4206467266c76d4d9ef74d1451883f8a6487b8060fa4c9c730f153600d"
+    },
+    {
+      "path": "logs/chart-node-labels-gallery.log",
+      "bytes": 12020,
+      "sha256": "b04c588eb5c04a29eb660678cfb114680c7f56c9febd5b8412da3922eaeb7f52"
+    },
+    {
+      "path": "logs/chart-node-labels-native-focused.log",
+      "bytes": 588829,
+      "sha256": "9564d88af723049e01352dffb8f562bba95a98527505d26e7069345c4c6f003d"
+    },
+    {
+      "path": "logs/chart-node-labels-native.log",
+      "bytes": 695909,
+      "sha256": "7c46048f07b8ddbd44943bf8fb27dd10c9d57417b14ebb6079f6c42ddc9dc085"
+    },
+    {
+      "path": "logs/chart-node-labels-protocol-final.log",
+      "bytes": 559,
+      "sha256": "7121ed87a076b38af72b76d2926b7041c0c6b8393834e865abb3f56a329ab8e2"
+    },
+    {
+      "path": "logs/chart-node-labels-protocol.log",
+      "bytes": 488,
+      "sha256": "1bfc3ccaca3ea5c25335849ea40250fc586ce7ce3687f1838809e3c6a64ef49d"
+    },
+    {
+      "path": "logs/chart-node-labels-rustfmt-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-node-labels-rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-node-labels-style-core.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-node-labels-style-protocol.log",
+      "bytes": 56109,
+      "sha256": "1941b87d6cf6405119302e1119342c6211748e1048ccc0c6c75be3c9b910066a"
+    },
+    {
+      "path": "source/docs/catalog/charts-review.md",
+      "bytes": 11640,
+      "sha256": "f1b39173c78d7ebaf7fca2262b12d3d5477f1869255ba93b61b065eb3248f154"
+    },
+    {
+      "path": "source/docs/design/chart-inspection.md",
+      "bytes": 4465,
+      "sha256": "c01d0f73297711e50c0eeb6c0048d628633f498be2d60f5177be5a23fc5379e5"
+    },
+    {
+      "path": "source/docs/design/chart-node-labels.md",
+      "bytes": 3508,
+      "sha256": "b325f7006bc3f66d06ccb2e9d110da7efc6ceb5b008bc98336f2cde3cbff1cae"
+    },
+    {
+      "path": "source/docs/design/chart-ordinal-colors.md",
+      "bytes": 5498,
+      "sha256": "b0981d5a091a5016d9a572a0c34c56287c2a883188bd8c9d8f5b1ae04824f298"
+    },
+    {
+      "path": "source/docs/design/charts.md",
+      "bytes": 47029,
+      "sha256": "cf7322411edcb34bc15264ba73378d67e53696304ce69321f64062698a30b796"
+    },
+    {
+      "path": "source/docs/design/sankey-presentation.md",
+      "bytes": 3175,
+      "sha256": "8344884e3a0dc3b2685ac9032d12be5e9b0e3b580797c8b6b05ef84aa451ecb1"
+    },
+    {
+      "path": "source/docs/evidence/chart-node-labels-och41.md",
+      "bytes": 6032,
+      "sha256": "03cff790f74d529f34731ccb8d0b6015904af1259469509ce63a33c638879e8f"
+    },
+    {
+      "path": "source/docs/evidence/example-walkthroughs-och48.md",
+      "bytes": 9752,
+      "sha256": "a413773bfe877243f801e04e30a6d2ef2206845df6bfe5ecdc774040c5dbb296"
+    },
+    {
+      "path": "source/docs/status.md",
+      "bytes": 52891,
+      "sha256": "9ecfc67f2498e7c45182c819fc2fe1c772c7951b6e3e5e2d6327fe9b2d0f540f"
+    },
+    {
+      "path": "source/examples/agent_chat/README.md",
+      "bytes": 20303,
+      "sha256": "780a30cba4a9e702549e74cac46d39cc0baa1d2d57b5123fba6183373c1135fc"
+    },
+    {
+      "path": "source/examples/agent_chat/application.md",
+      "bytes": 8806,
+      "sha256": "b25ea92d12b4e6c4dd3b35cf2f17b24fd28b9ec8194dfbce55cf0ffde9d3986e"
+    },
+    {
+      "path": "source/examples/agent_chat/main.md",
+      "bytes": 4276,
+      "sha256": "40bb5daf4bfbbbe390d560fcc5108c26b39d241078b5d8dba43190680dd762b8"
+    },
+    {
+      "path": "source/examples/agent_chat/model/fake_backend.md",
+      "bytes": 8570,
+      "sha256": "913a4c166def2b869fe909c1104f48b6ed0ded8f6642274f52a266c04a352e3c"
+    },
+    {
+      "path": "source/examples/agent_chat/runtime/chat_message.md",
+      "bytes": 6083,
+      "sha256": "fcaeefac9dacb8b4f30bc313af1ebdb6e9e2cd71e5ffdae9b7edb7f08f8d398f"
+    },
+    {
+      "path": "source/examples/agent_chat/runtime/chat_motion.md",
+      "bytes": 8139,
+      "sha256": "6a9f69c0ebfe0f7c69711e26d5833046d1d6afa6679bb46d3a6fb83dda4f89d5"
+    },
+    {
+      "path": "source/examples/charts/README.md",
+      "bytes": 5466,
+      "sha256": "8e95e9bfdb7909150df3430f171778c110fa181c3bfb3b6faaa4e3a6ceca4813"
+    },
+    {
+      "path": "source/examples/charts/gallery.md",
+      "bytes": 3183,
+      "sha256": "52b09c5f9ec46e6e009e2ccf67431f285467d6dafb2983448e1d33f35ac9b2b4"
+    },
+    {
+      "path": "source/examples/charts/main.md",
+      "bytes": 9442,
+      "sha256": "e143d220f52ad4b9b387419cedb228696958eecc15b57adf62e26fd12566e1cf"
+    },
+    {
+      "path": "source/examples/charts/samples/categorical.md",
+      "bytes": 5374,
+      "sha256": "d4bae159cf07ebd07f33f9b1f8b57b6779838627b316543d5247a64001d20ce2"
+    },
+    {
+      "path": "source/examples/charts/samples/gpuio_chart_samples.md",
+      "bytes": 7173,
+      "sha256": "3f6be16da555790ca94f876520a7ac38ee2f2dde41731576a0dc4255f425dcb7"
+    },
+    {
+      "path": "source/examples/charts/samples/inspection.md",
+      "bytes": 3829,
+      "sha256": "7918b1562ea8f1c76ef5abbc3c3fa4763db97e013b7beb8e5f4a60bc7b2f1b1f"
+    },
+    {
+      "path": "source/examples/charts/samples/ordinal_colors.md",
+      "bytes": 4985,
+      "sha256": "ad7945a5b4b1a71a3cc299b655d99f1b0c5e4b49cca4f0edd1b541e3a7c84fbe"
+    },
+    {
+      "path": "source/examples/charts/samples/sankey_presentation.md",
+      "bytes": 6833,
+      "sha256": "00723115154cf04c4238762cf258b88ddaf7365bab7d110c997022af9808e6ba"
+    },
+    {
+      "path": "source/examples/charts/samples/sankey_presentation.ml",
+      "bytes": 2346,
+      "sha256": "706611ac0118b748620e071a6379ccb5ff7c6a0c643202cf5dff0d3b91e8d6ef"
+    },
+    {
+      "path": "source/examples/charts/samples/sankey_presentation.mli",
+      "bytes": 390,
+      "sha256": "dd004c533f97c5626ba94628dabe1cc0678f278818b29b368f885c969bc1df23"
+    },
+    {
+      "path": "source/examples/charts/samples/stacked.md",
+      "bytes": 5072,
+      "sha256": "16c996e15ffb7161441bc939c159facf68ed3a36be6f96291c86ff1339c5cab5"
+    },
+    {
+      "path": "source/examples/combobox/README.md",
+      "bytes": 991,
+      "sha256": "6d3397f752295b5251188b3db8ae0721ba32f84a7b78a65c7199feed8ae40ff4"
+    },
+    {
+      "path": "source/examples/combobox/main.md",
+      "bytes": 7229,
+      "sha256": "a07e7caa18fea1a5e3568055c247e7db82c6acefcff6481b7f1c79215d421375"
+    },
+    {
+      "path": "source/examples/controls/README.md",
+      "bytes": 588,
+      "sha256": "1b0afa7d457ea77eb1cf0ca10468c9c1225327e8431a326bb82de50ea021a7d4"
+    },
+    {
+      "path": "source/examples/controls/main.md",
+      "bytes": 6777,
+      "sha256": "9b7ce263ff78ef10dd5193d9fc46829abb96ad6e8412c03ce2e380340fce5678"
+    },
+    {
+      "path": "source/examples/coverage.json",
+      "bytes": 55516,
+      "sha256": "8494853e2c32ccf7afea9f809c72e3ea218805ca14a148a63616db93e8214c16"
+    },
+    {
+      "path": "source/examples/coverage.md",
+      "bytes": 38080,
+      "sha256": "b55d2103f1cf3ddd42a699502803cc4dd4f0cf1222c6039796fd985cff3008bc"
+    },
+    {
+      "path": "source/examples/gallery/README.md",
+      "bytes": 71744,
+      "sha256": "487cc98d66fe1308b2964ee69daa54f76b4b4b393e191a1a97de290d6dfac522"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.md",
+      "bytes": 10494,
+      "sha256": "316afaf7b14ee1c330f60b4eb2342ec14e47b8ecc75ad45f43e60eb35221ed4a"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.ml",
+      "bytes": 12772,
+      "sha256": "958f7710e33ba7df0dac12d1f2ff2e781124985bbe2dffab5ddb4d3fa3136575"
+    },
+    {
+      "path": "source/examples/menus/main.md",
+      "bytes": 10566,
+      "sha256": "63f706e09f6e6e12bc77ab284c707c5fb45f2bb1bbd9ccf261ccff0c069c2f20"
+    },
+    {
+      "path": "source/examples/text_input/README.md",
+      "bytes": 1685,
+      "sha256": "d35404e416deb3bd1c0ba66d7edd5d4cca76bd786e9fbdd6cefd7e65df0cda21"
+    },
+    {
+      "path": "source/examples/text_input/main.md",
+      "bytes": 10019,
+      "sha256": "1893b79f147f9f46b31297b3d080feee6cf22511f109d2fc9c7844ce98360888"
+    },
+    {
+      "path": "source/lib/core/chart_node_labels.ml",
+      "bytes": 2053,
+      "sha256": "741a38c7ba86184ec85c98e06655771717edc296b831e044fc1811baff26b53f"
+    },
+    {
+      "path": "source/lib/core/chart_node_labels.mli",
+      "bytes": 1117,
+      "sha256": "8c17d3229acaf752a0f3b20e331a0a4be4a020813187775036eedd9bc2f8adde"
+    },
+    {
+      "path": "source/lib/core/chart_style.ml",
+      "bytes": 3869,
+      "sha256": "f780967cf795a8c6c20ee4d635cb95143d86030942313e5bbc88c28ecc091004"
+    },
+    {
+      "path": "source/lib/core/chart_style.mli",
+      "bytes": 3155,
+      "sha256": "b70dce8ba9ddde1bba445a5570d642ff92d4387b37979fbe3bfe630b7d7cc62e"
+    },
+    {
+      "path": "source/lib/protocol/chart_node_labels_wire.ml",
+      "bytes": 1231,
+      "sha256": "86d443f2a7bae622b929e764c13a44715edab34bc0ce3ffc2ae1a3e7a26d8816"
+    },
+    {
+      "path": "source/lib/protocol/chart_style_wire.ml",
+      "bytes": 1957,
+      "sha256": "3fbd8dba5936da9bd528364d916618710501990cac25aca57fa9570df0ea14b2"
+    },
+    {
+      "path": "source/rust/native/src/chart_geometry.rs",
+      "bytes": 35613,
+      "sha256": "8dd90bc4edaf63813f051f40b6229448bb9aaff531d4af187019e0e1af60984f"
+    },
+    {
+      "path": "source/rust/native/src/chart_node_labels.rs",
+      "bytes": 8571,
+      "sha256": "1aa973d504dfe93b47783c58dcd6975a56245275ed99b0e63ba3c6674d711f27"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint.rs",
+      "bytes": 24564,
+      "sha256": "2ce61de8c00acf96a943aaf547e378ed9bbf3fd654cbc4d843346925c2bedbd3"
+    },
+    {
+      "path": "source/rust/native/src/chart_paint/sankey_tests.rs",
+      "bytes": 4702,
+      "sha256": "7d6a58e4fabd5f703c50fd90f61fdcf15d33976a3f80507e43da113fcc8daf6a"
+    },
+    {
+      "path": "source/rust/native/src/chart_presentation.rs",
+      "bytes": 13288,
+      "sha256": "8a1223c314bc5940be09bd090e805d6a41c7921fe7d799cf93eaad6026a295f3"
+    },
+    {
+      "path": "source/rust/native/src/chart_view.rs",
+      "bytes": 23829,
+      "sha256": "9227f977df8530e2560d9a002c5707d0344888870f0b5d2aa4547560c20ff58c"
+    },
+    {
+      "path": "source/rust/native/src/lib.rs",
+      "bytes": 10951,
+      "sha256": "2527d50705e0602ee0552802fb5e194428b81dc8a37b2aefc55418bcf65e0b02"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_node_labels.rs",
+      "bytes": 1861,
+      "sha256": "2fbd11926fc69f7d3bd26d2716885bc7f60dd7dc7686b5b8a52389f6c6457a11"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_style.rs",
+      "bytes": 3828,
+      "sha256": "e11691ec765686883e833f649db0bf9eb256380872fe5192261287a447bec52d"
+    },
+    {
+      "path": "source/rust/protocol/src/decode.rs",
+      "bytes": 82482,
+      "sha256": "60fb8f03ea991dc54e8a4afcce721752ded48da29c7bd7ce55543514be7613ee"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_node_labels.rs",
+      "bytes": 1182,
+      "sha256": "2ac33e76fa7816b81d9516fef33e82f48c56c5ffdd9e5177e9ff46b29fee3560"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_style.rs",
+      "bytes": 2099,
+      "sha256": "f6e154f934f8c7cf9a36d50e2baf8bc3c68073b5d8348730068ff35920aa5489"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_view.rs",
+      "bytes": 1038,
+      "sha256": "5932cc7d9821bafb5c0a67ce6d6313d2c1bb3d541696142cf863dcda09b8389e"
+    },
+    {
+      "path": "source/rust/protocol/src/lib.rs",
+      "bytes": 5175,
+      "sha256": "4352956286b112b839d26a3df8d33e9dc7f63c4b97b62551a75f48ca0f6c7221"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_node_labels.rs",
+      "bytes": 5322,
+      "sha256": "98e3f92b0d2195d5797d3e792d096d2c227d46d64663a835d634890d30b1870e"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_style.rs",
+      "bytes": 7306,
+      "sha256": "0f34f0a20dad4b1b06d2296bae008c8bbf68ca5507d15bb7d84a88e2791bb0e8"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_view.rs",
+      "bytes": 4950,
+      "sha256": "829b17e2a9ab8cfe6f5faad30ec748a1ac5c2432d4a82f36f6f020a050c3a10a"
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "bytes": 357813,
+      "sha256": "247d709d9ae126fc6db34dddc75356d1cfd4a863bfc143530edd0b2e99f85a32"
+    },
+    {
+      "path": "source/test/chart/chart_node_labels_test.ml",
+      "bytes": 3822,
+      "sha256": "7a524e44d9147d032b0b995d5f7d4cf67265363cd66fdf349e6a04908617087b"
+    },
+    {
+      "path": "source/test/chart/chart_style_test.ml",
+      "bytes": 6335,
+      "sha256": "1ad0ca329b74c775ccbb7c96e543f74a7db7a43f5a6452240fdbaac874d24b02"
+    },
+    {
+      "path": "source/test/chart/chart_view_test.ml",
+      "bytes": 5334,
+      "sha256": "9aeef1dd2e6ab0a02abba466dd2a8de74ac37d05c87dcbecd476daf5ad36644f"
+    },
+    {
+      "path": "source/test/chart/dune",
+      "bytes": 401,
+      "sha256": "5476a7bc7ea1d3a6af5e9b899923e9dade32f6a67c0226b3f4e0867b4b736ca4"
+    },
+    {
+      "path": "source/test/fixtures/chart-v4-node-labels-view.hex",
+      "bytes": 525,
+      "sha256": "28993f5a81e42cc11b42a33ec04e6744a572a2052f865485128b4898bc1489c2"
+    },
+    {
+      "path": "tracked.patch",
+      "bytes": 91530,
+      "sha256": "afecc3553eb5ad219cff8af7292d30151f0fe605f37ce58cd204a38ae6f3eabf"
+    }
+  ]
+}

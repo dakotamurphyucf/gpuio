@@ -1,0 +1,38 @@
+AX_WAIT A little context goes a long way
+AX_PRESS Markdown & code
+AX_WAIT Markdown preview
+GALLERY_REVEAL_SCROLL Document content bounds (593.0, 790.5, 770.0, 350.0) point (583.0, 717.83)
+GALLERY_REVEAL_SCROLL Document content bounds (593.0, 618.5, 770.0, 350.0) point (583.0, 717.83)
+DOCUMENT_SCROLL_TARGET [593.0, 543.5, 770.0, 350.0] point (978.0, 718.5)
+DOCUMENT_SCROLL_TARGET [593.0, 463.5, 770.0, 350.0] point (978.0, 638.5)
+DOCUMENT_CONTROL_CLIPPED Inspect highlighted code (605.0, 745.5, 746.0, 23.0) [593.0, 383.5, 770.0, 350.0]
+DOCUMENT_SCROLL_TARGET [593.0, 383.5, 770.0, 350.0] point (978.0, 558.5)
+GALLERY_FOCUS_READY Inspect highlighted code requests= 1
+AX_WAIT (Data Inspect_code)
+GALLERY_FOCUS_READY Summarize native table requests= 1
+AX_WAIT (Data Summarize_table)
+GALLERY_REVEAL_SCROLL Native review controls bounds (593.0, 737.0, 770.0, 318.0) point (1177.6, 717.83)
+GALLERY_FOCUS_READY Review details requests= 1
+AX_WAIT (Data Open_badge)
+AX_WAIT (Data Open_card)
+AX_WAIT (Data Open_card)
+GALLERY_FOCUS_READY Review details requests= 1
+AX_WAIT (Data Open_badge)
+GALLERY_FOCUS_READY Show review end requests= 1
+AX_WAIT (Data Open_card)
+GALLERY_FOCUS_READY Show review start requests= 1
+GALLERY_FOCUS_READY Show review end requests= 1
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "<frozen runpy>", line 287, in run_path
+  File "<frozen runpy>", line 98, in _run_module_code
+  File "<frozen runpy>", line 88, in _run_code
+  File "scripts/test_macos_document_profile.py", line 314, in <module>
+    main()
+    ~~~~^^
+  File "scripts/test_macos_document_profile.py", line 229, in main
+    exited_to = wait_for_tab_exit(mac, report['tab_exit_observations'])
+  File "scripts/test_macos_document_profile.py", line 38, in wait_for_tab_exit
+    assert title != 'Open scroll review', 'Tab entered the clipped profile control'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Tab entered the clipped profile control

@@ -1,0 +1,209 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "bd984097b2371500b2f7533838ff9458d0350cca496642d584b4182feb3deeaa",
+  "application_revision": "47924139e52c691182cfe6c9593501186f83fd30",
+  "driver_base_revision": "91008304e464da35e239afef29417d6386f073fa",
+  "installed_gallery_sha256": "b978ed554931821f88572e1fe283d2a03123ef636667d669208b369be187a115",
+  "runs": {
+    "gallery-installed-selection-001": {
+      "returncode": 0
+    },
+    "gallery-installed-buttons-001": {
+      "returncode": 1
+    },
+    "gallery-installed-buttons-002": {
+      "returncode": 1
+    },
+    "gallery-installed-command-tooltip-001": {
+      "returncode": 1
+    },
+    "gallery-installed-command-tooltip-002": {
+      "returncode": 1
+    },
+    "gallery-installed-command-tooltip-003": {
+      "returncode": 0
+    }
+  },
+  "files": [
+    {
+      "path": "gallery-installed-buttons-001/driver.patch",
+      "sha256": "29aa249754ec2eb753d5ed9983f9765e0760683eeecddcb35e51d5f4339f1f5f"
+    },
+    {
+      "path": "gallery-installed-buttons-001/exit.json",
+      "sha256": "8869ca5e7f3ae989b151917c32f706ea8b83fd8d2ab5fd425117c4860c4e595f"
+    },
+    {
+      "path": "gallery-installed-buttons-001/images/gallery-button-busy.png",
+      "sha256": "4755909da8edeb1ad93a988503bc160997031063b5b9fc48e82dd82d558e9c12"
+    },
+    {
+      "path": "gallery-installed-buttons-001/images/gallery-failure.png",
+      "sha256": "ae128140d6ca5f4716798995b136c3877b157e9e3e8c1809aa30226f14db9552"
+    },
+    {
+      "path": "gallery-installed-buttons-001/metadata.json",
+      "sha256": "c29bc14b4bb3fec582e980e0ceb912e71d1d0ee956d45b4c8fe55ec367e57d86"
+    },
+    {
+      "path": "gallery-installed-buttons-001/run.log",
+      "sha256": "4a1b8c51394001e180698b10b40ccffd0ae8ce6d46cbce15f8ca641ff50ecf1a"
+    },
+    {
+      "path": "gallery-installed-buttons-002/driver.patch",
+      "sha256": "ae55f8ebea55294a0ccb5f3e26d1b3c94b88e7313dfb7955b2beddc2db2a31bb"
+    },
+    {
+      "path": "gallery-installed-buttons-002/exit.json",
+      "sha256": "8869ca5e7f3ae989b151917c32f706ea8b83fd8d2ab5fd425117c4860c4e595f"
+    },
+    {
+      "path": "gallery-installed-buttons-002/images/gallery-button-busy.png",
+      "sha256": "3fd5d0ada3b7b990155334674ba7c138812974a24f2418caf59131a69240ac18"
+    },
+    {
+      "path": "gallery-installed-buttons-002/images/gallery-button-styles-dark.png",
+      "sha256": "447f6fda4bb3b8678b4bf8ded1a6084ea0f3028b11f2a3f1227f187f8f5a3218"
+    },
+    {
+      "path": "gallery-installed-buttons-002/images/gallery-button-styles-light.png",
+      "sha256": "befcc087fd11f8966935c55f7fc30cbb82398a87bbc833520a0c0a7aaf6e2577"
+    },
+    {
+      "path": "gallery-installed-buttons-002/images/gallery-failure.png",
+      "sha256": "505ee17e85997045670872bac1b56ea97e50f532fa9fc0ef5292f17fe4d2432c"
+    },
+    {
+      "path": "gallery-installed-buttons-002/images/gallery-link-loading.png",
+      "sha256": "8fb9b68ad7bc96acf460ed95247c3693378b81975202cc865d879bc048797471"
+    },
+    {
+      "path": "gallery-installed-buttons-002/images/gallery-menu-right-end.png",
+      "sha256": "5248773af611da912191c43c4297adc0f8587fc136af2af1c9433344a32d89ba"
+    },
+    {
+      "path": "gallery-installed-buttons-002/images/gallery-menu-right.png",
+      "sha256": "0ed573c4a0d45ed33611b20bb0a9dd532ab1eaccdb48dccce2988742b3cd90f5"
+    },
+    {
+      "path": "gallery-installed-buttons-002/metadata.json",
+      "sha256": "38df131b68ffdf1cab46183a755de110181f7a2b19d3f8976215887f8e8242cc"
+    },
+    {
+      "path": "gallery-installed-buttons-002/run.log",
+      "sha256": "40340223adff1d7c6cbeb74c97a827c08e906f558b54b78d35faea9e6399cfab"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-001/driver.patch",
+      "sha256": "949025530b2b1851cf874f35dcef5b09e7318d6c2939d13080dfb88ed6d6f85a"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-001/exit.json",
+      "sha256": "8869ca5e7f3ae989b151917c32f706ea8b83fd8d2ab5fd425117c4860c4e595f"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-001/images/gallery-failure.png",
+      "sha256": "07bcc21ebed09c4c45cad7b66606e476f976800ec19f4711c5e7fbb9dc1a8892"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-001/metadata.json",
+      "sha256": "d55207185644532046b9a359930cc24fe718389225cf1144a3551ff63397beae"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-001/run.log",
+      "sha256": "c8bd70768dc0124fdba4bc77d6e80c68cb893aba2dfeaac7de68578b4c9f10ee"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-002/driver.patch",
+      "sha256": "71bf2c34612107855058bfaad0fa8cedff841875fd8df485d86abff1e9fd76f4"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-002/exit.json",
+      "sha256": "8869ca5e7f3ae989b151917c32f706ea8b83fd8d2ab5fd425117c4860c4e595f"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-002/images/gallery-failure.png",
+      "sha256": "efc0f37965494ffd62aa96a1aa43d70d8c17c1cee722674fa7c900eb51f7bf48"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-002/metadata.json",
+      "sha256": "7ea90803e09144c05a7bc3acb08dbc423efa53bdc5c41582a507b0c80e23c137"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-002/run.log",
+      "sha256": "4e7af121796b837dcc4ad2234c0df68b40c4cc36f0fe51c1dbb6256c7ff96a54"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-003/driver.patch",
+      "sha256": "ce1929abb7ec2b6bb570ed013f1ec66f8e11082e59078de35c91724c1193c6a1"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-003/exit.json",
+      "sha256": "df4d721d233a2334088d2d2e0110346ae9e509ff46bf0b379fbcfa85c715af4d"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-003/images/gallery-command-tooltip.png",
+      "sha256": "9dca8200ee9bb6d38ca0175bed1f46ccd07de1a9ba2e158ab1cf9069833565a3"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-003/metadata.json",
+      "sha256": "c9f934b16bbdbbbbac7d1540e8a22222108b8a5c684ef6ebd09b305a274e5215"
+    },
+    {
+      "path": "gallery-installed-command-tooltip-003/run.log",
+      "sha256": "6bdff1bb4625eba94b2dd5d01c3f2434ab1e050b903de341f98d3824134d017a"
+    },
+    {
+      "path": "gallery-installed-selection-001/driver.patch",
+      "sha256": "e2717b5dacca98147edf606e18d3cddd96b958c43672b9c61fc811e331b0dcfb"
+    },
+    {
+      "path": "gallery-installed-selection-001/exit.json",
+      "sha256": "df4d721d233a2334088d2d2e0110346ae9e509ff46bf0b379fbcfa85c715af4d"
+    },
+    {
+      "path": "gallery-installed-selection-001/images/gallery-selection.png",
+      "sha256": "d6a687d1f1e5094abe4cbebbccd034ad7ce9b7b97fc49a5776d4e16cc1a7492c"
+    },
+    {
+      "path": "gallery-installed-selection-001/images/gallery-single-group-horizontal.png",
+      "sha256": "b52d097a3e31d8b16b2553ca8856bf74f06893bd6b5e74b6f04b8b2289cd7209"
+    },
+    {
+      "path": "gallery-installed-selection-001/images/gallery-single-group-vertical.png",
+      "sha256": "8efb5f329bd2698a5bdb37644166c92a3be1d35b1e808a9dbf3e4b219826aa8a"
+    },
+    {
+      "path": "gallery-installed-selection-001/metadata.json",
+      "sha256": "b079be77fd766828cf79a95e831a9177831c4d2406bb97a833a90cf83c98fe6c"
+    },
+    {
+      "path": "gallery-installed-selection-001/run.log",
+      "sha256": "dbb6b513ffe5e9edf97d6a4ce4423a31cbd4313428a2e1e02a7ed75c6c39b2bd"
+    },
+    {
+      "path": "gallery-split-diagnostic-001/images/gallery-failure.png",
+      "sha256": "3358b93e6402ba96040e6bcc5bc89456eb7fc0d44711ff3a95da35e73b01393f"
+    },
+    {
+      "path": "gallery-split-diagnostic-001.log",
+      "sha256": "d75ea799ca28653326bb4ccf4c71f55a87d858282f739410371186a88b5c19d1"
+    },
+    {
+      "path": "installed-actions-final-driver.patch",
+      "sha256": "92c0483633fc27782d5d81d14cd62cac20cdfe39ef58e73d1fb6dc7d3e037c47"
+    },
+    {
+      "path": "run_split_diagnostic.py",
+      "sha256": "bd780ff458457083ef8eb7eeb27d3618ca5e1b7d8db899e97a681e595c8e9425"
+    },
+    {
+      "path": "split-diagnostic-metadata.json",
+      "sha256": "aa23b6c34b6f82f3afeaf759d2c348d6cdcdb0ecdbde180921bd0ecd05f2b232"
+    },
+    {
+      "path": "split_identity_diagnostic.py",
+      "sha256": "05d3895c6e40d5de7177bf269ca0a5bdced10df82d62fd2d355df6a50e14e18b"
+    }
+  ]
+}

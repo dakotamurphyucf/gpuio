@@ -18,11 +18,24 @@ impl State {
     }
 
     pub fn from_index(config: Config, index: Arc<Index>) -> Result<Self, &'static str> {
+        Self::from_index_for_axis(config, index, gpui::Axis::Vertical)
+    }
+
+    pub fn from_index_for_axis(
+        config: Config,
+        index: Arc<Index>,
+        axis: gpui::Axis,
+    ) -> Result<Self, &'static str> {
         if !config.is_valid() {
             return Err("invalid list configuration");
         }
-        let handle = ListState::new(index.len(), ListAlignment::Top, px(config.overscan as f32))
-            .with_uniform_item_height(px(config.estimated_height as f32));
+        let handle = ListState::new_for_axis(
+            axis,
+            index.len(),
+            ListAlignment::Top,
+            px(config.overscan as f32),
+        )
+        .with_uniform_item_extent(px(config.estimated_height as f32));
         if config.scroll_policy == ScrollPolicy::FollowTailWhenAtEnd {
             handle.set_follow_mode(FollowMode::Tail);
         }
@@ -83,7 +96,7 @@ impl State {
         // reapplies hints to the entire list.
         self.handle
             .clone()
-            .with_uniform_item_height(px(self.config.estimated_height as f32));
+            .with_uniform_item_extent(px(self.config.estimated_height as f32));
         self.index = next;
         self.restore(anchor);
         Ok(true)
@@ -96,14 +109,22 @@ impl State {
     /// Configuration changes are uncommon. Rebuild native measurement policy,
     /// preserving the logical anchor and whether tail following was paused.
     pub fn configure(&mut self, config: Config) -> Result<bool, &'static str> {
-        if self.config == config {
+        self.configure_for_axis(config, self.handle.axis())
+    }
+
+    pub fn configure_for_axis(
+        &mut self,
+        config: Config,
+        axis: gpui::Axis,
+    ) -> Result<bool, &'static str> {
+        if self.config == config && self.handle.axis() == axis {
             return Ok(false);
         }
         let anchor = self.anchor();
         let following = self.handle.is_following_tail();
         let old_policy = self.config.scroll_policy;
         let last_scroll = self.last_scroll;
-        let mut next = Self::from_index(config, self.index.clone())?;
+        let mut next = Self::from_index_for_axis(config, self.index.clone(), axis)?;
         if old_policy == next.config.scroll_policy && !following {
             next.handle.pause_following_tail();
         }

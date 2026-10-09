@@ -376,3 +376,47 @@ fn retention_response_releases_the_single_inflight_reservation() {
     assert_eq!(queue.drain(10), vec![reply]);
     queue.submit(message, 100).unwrap();
 }
+
+#[test]
+fn list_axis_updates_preserve_metadata_and_reject_incompatible_input_atomically() {
+    let mut tree = Tree::new(window());
+    tree.apply(&tx(&tree, initial(100_000))).unwrap();
+    let before = tree.get(node(0)).unwrap().list_index.clone().unwrap();
+    let bytes = tree.retained_bytes();
+    assert_eq!(tree.get(node(0)).unwrap().list_axis, Axis::Vertical);
+    tree.apply(&tx(&tree, vec![Op::SetListAxis(node(0), Axis::Horizontal)]))
+        .unwrap();
+    assert!(Arc::ptr_eq(
+        &before,
+        tree.get(node(0)).unwrap().list_index.as_ref().unwrap()
+    ));
+    assert_eq!(tree.retained_bytes(), bytes);
+    for operations in [
+        vec![Op::SetListAxis(node(1), Axis::Horizontal)],
+        vec![Op::SetListAxis(node(1), Axis::Vertical)],
+        vec![Op::SetTreeInput(node(0), true)],
+        vec![Op::ScrollList(
+            node(0),
+            ScrollRequest {
+                serial: 1,
+                target: ScrollTarget::FocusTreeRow(1),
+            },
+        )],
+    ] {
+        let revision = tree.revision();
+        let mut changes = vec![Op::SetText(node(1), "must roll back".into())];
+        changes.extend(operations);
+        assert_eq!(tree.apply(&tx(&tree, changes)), Err(ErrorCode::InvalidTree));
+        assert_eq!(tree.revision(), revision);
+        assert_eq!(tree.retained_bytes(), bytes);
+        assert_eq!(tree.get(node(1)).unwrap().text.as_ref(), "one mounted row");
+        assert_eq!(tree.get(node(0)).unwrap().list_axis, Axis::Horizontal);
+    }
+    tree.apply(&tx(&tree, vec![Op::SetListAxis(node(0), Axis::Vertical)]))
+        .unwrap();
+    assert_eq!(tree.get(node(0)).unwrap().list_axis, Axis::Vertical);
+    assert!(Arc::ptr_eq(
+        &before,
+        tree.get(node(0)).unwrap().list_index.as_ref().unwrap()
+    ));
+}

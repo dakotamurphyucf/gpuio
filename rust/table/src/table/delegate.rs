@@ -4,13 +4,22 @@ use std::ops::Range;
 
 use gpui::{
     App, Context, Div, InteractiveElement as _, IntoElement, ParentElement as _, Pixels,
-    SharedString, Stateful, Styled as _, Window, div,
+    SharedString, Stateful, StyleRefinement, Styled as _, Window, div,
 };
 
 use crate::{
-    Appearance, Size, h_flex,
+    Appearance, Size, StyledExt as _, h_flex,
     table::{Column, ColumnGroup, RowKey, Selection, TableEvent, TableState},
 };
+
+/// Native whole-row interaction state supplied after default decoration.
+#[derive(Clone, Debug)]
+pub struct RowPresentation {
+    pub selected: bool,
+    pub focused: bool,
+    /// Native hover refinement, installed once after host composition.
+    pub hover: Option<StyleRefinement>,
+}
 
 /// A delegate trait for providing data and rendering for a table.
 #[allow(unused)]
@@ -109,6 +118,20 @@ pub trait TableDelegate: Sized + 'static {
             .child(label.clone())
     }
 
+    /// Identified group extension. Existing delegates keep their label renderer;
+    /// hosts can resolve retained content using the exact level and leaf range.
+    fn render_group_header(
+        &mut self,
+        _level: usize,
+        columns: Range<usize>,
+        label: &SharedString,
+        width: Pixels,
+        window: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> impl IntoElement {
+        self.render_group_th(label, columns.len(), width, window, cx)
+    }
+
     /// Render the header cell at the given column index, default to the column name.
     fn render_th(
         &mut self,
@@ -131,6 +154,22 @@ pub trait TableDelegate: Sized + 'static {
         cx: &mut Context<TableState<Self>>,
     ) -> Stateful<Div> {
         div().id(("row", row_ix))
+    }
+
+    /// Refine a real row after native selection decoration. The default
+    /// keeps existing delegates unchanged. Hosts must retain geometry/semantics.
+    fn finish_row(
+        &mut self,
+        row_ix: usize,
+        state: RowPresentation,
+        row: Stateful<Div>,
+        window: &mut Window,
+        cx: &mut Context<TableState<Self>>,
+    ) -> Stateful<Div> {
+        match state.hover {
+            Some(style) => row.hover(move |row| row.refine_style(&style)),
+            None => row,
+        }
     }
 
     /// Render from retained Rust descriptions. No host-language call or I/O.

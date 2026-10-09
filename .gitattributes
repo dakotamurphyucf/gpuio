@@ -1,1 +1,12 @@
 vendor/** linguist-vendored
+
+# Unified patches use a single space for an unchanged empty context line,
+# including when that context is the final line of the patch.
+third_party/patches/*.patch whitespace=-blank-at-eol,-blank-at-eof
+vendor/accesskit-macos/*.patch whitespace=-blank-at-eol
+
+# Upstream license texts are retained byte-for-byte, including terminal blank lines.
+third_party/licenses/** whitespace=-blank-at-eof
+
+# Boxroot's unchanged upstream heading is seven equals signs, not a conflict.
+third_party/licenses/registry/ocaml-rust--ocaml-boxroot/d474b9e07c8a-LICENSE conflict-marker-size=32

@@ -1,0 +1,12 @@
+use std::{sync::Arc, thread};
+use gpui::{Font, TextRun, TextSystem, WindowTextSystem, px};
+
+pub fn measure_on_worker(text_system: Arc<TextSystem>, font: Font, text: String, size: f32) -> thread::JoinHandle<f32> {
+    thread::spawn(move || {
+        // A private cache for this preparation; never borrow a window's frame cache.
+        let worker_text = WindowTextSystem::new(text_system);
+        let run = TextRun { len: text.len(), font, color: gpui::black(), background_color: None, underline: None, strikethrough: None };
+        let line = worker_text.shape_line(text.into(), px(size), &[run], None);
+        f32::from(line.width)
+    })
+}

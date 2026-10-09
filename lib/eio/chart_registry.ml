@@ -428,7 +428,7 @@ let accepts_event t source ~data_revision ~data_generation observation =
     &&
       (match observation with
       | Failed Wrong_application -> true
-      | Failed (Unavailable_data | Render_limit | Native_failure)
+      | Failed (Unavailable_data | Render_limit | Native_failure | Invalid_config)
       | Ready _ | Selection_changed _ -> false)
   | Some id ->
     if before_data

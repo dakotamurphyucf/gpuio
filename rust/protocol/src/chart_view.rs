@@ -2,30 +2,63 @@ use crate::{ResourceId, chart_options::Options, chart_sampling::Policy, chart_st
 use binprot::macros::BinProtWrite;
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Config {
+    pub version: i64,
     pub source: Option<ResourceId>,
     pub label: String,
     pub options: Options,
     pub sampling: Policy,
     pub style: Style,
+    pub radar_labels: Vec<i64>,
+    pub inspection_content: Vec<crate::chart_inspection_content::Entry>,
     pub legend: bool,
     pub disabled: bool,
 }
 impl Config {
+    pub fn retained_bytes(&self) -> usize {
+        std::mem::size_of::<Self>()
+            + self.label.capacity()
+            + self.style.heap_bytes()
+            + self.options.heap_bytes()
+            + self.radar_labels.capacity() * std::mem::size_of::<i64>()
+            + crate::chart_inspection_content::heap_bytes(&self.inspection_content)
+    }
+
     pub fn is_valid(&self) -> bool {
-        self.label.len() <= 1024
+        self.version == -2
+            && crate::chart_inspection_content::is_valid(&self.inspection_content)
+            && self.radar_labels.len() <= 64
+            && self.radar_labels.iter().all(|id| *id > 0)
+            && self
+                .radar_labels
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                == self.radar_labels.len()
+            && self.label.len() <= 1024
             && self.label.bytes().any(|b| !matches!(b, 9..=13 | 32))
             && !self.label.bytes().any(|b| matches!(b, 0 | 10 | 13))
             && self.options.is_valid()
             && self.sampling.is_valid()
             && self.style.is_valid()
     }
+
+    /// Radar wrappers precede inspection wrappers in the retained child array.
+    pub fn content_slot_count(&self) -> usize {
+        self.radar_labels.len() + self.inspection_content.len()
+    }
 }
+
+pub const MAX_CONFIG_BYTES: usize = crate::chart_style::MAX_STYLE_BYTES
+    + crate::chart_options::MAX_OPTIONS_BYTES
+    + crate::chart_inspection_content::MAX_BYTES
+    + 2 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub enum Error {
     WrongApplication,
     UnavailableData,
     RenderLimit,
     NativeFailure,
+    InvalidConfig,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, BinProtWrite)]
 pub struct Metrics {

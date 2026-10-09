@@ -1,0 +1,57 @@
+{
+  "source_base": "90f212b",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "95bd57e62ff557483fc91d4e4268d4056144eddf9245fa8c0f420510235282b5",
+  "files": [
+    {
+      "path": "radar-action-ax.log",
+      "bytes": 589094,
+      "sha256": "33a28c0d3b1e7c25ca49be4fee27924b8deb03cc8b34146852d1e59332215b42"
+    },
+    {
+      "path": "radar-action-baseline.log",
+      "bytes": 588737,
+      "sha256": "2e7206d02d908ee9862d681ad9b5149dc8425cb1ea1684936661f5879cf07492"
+    },
+    {
+      "path": "radar-action-clippy.log",
+      "bytes": 588275,
+      "sha256": "a6de4e309d0112d63ab6ff129ca347746546f24c2c44ffcfc5266f4f29015ff9"
+    },
+    {
+      "path": "radar-action-command.log",
+      "bytes": 589382,
+      "sha256": "944e3409bbe316f216529cf0c27c25a0e5ff89813c3a05889e260783641c3afd"
+    },
+    {
+      "path": "radar-action-consumer.log",
+      "bytes": 204409,
+      "sha256": "dc3af7a5d66f1aa511a207de1c945937833d67f05d28120554142bdab9d5000e"
+    },
+    {
+      "path": "radar-action-fixed.log",
+      "bytes": 588985,
+      "sha256": "0b10ecdeac100dba427091e666ebc45e444671aa7395f511a795331ee45c3396"
+    },
+    {
+      "path": "radar-action-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "radar-action-gallery-build.log",
+      "bytes": 100161,
+      "sha256": "bbc458f781d3989c9b7c315be663b669920e5bf4ce379bf86eade9df04f3d613"
+    },
+    {
+      "path": "radar-action-gallery.log",
+      "bytes": 3314,
+      "sha256": "06bba21e65d53642df0f9a02677347bc2250d6c4a4de73e1fffbf3c239c4b04a"
+    },
+    {
+      "path": "radar-action-suite.log",
+      "bytes": 702245,
+      "sha256": "431488afcb89a2e7e434b99a6659af00353e15fa6994cb5f32d6f09571843327"
+    }
+  ]
+}

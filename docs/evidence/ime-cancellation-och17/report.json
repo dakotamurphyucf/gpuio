@@ -1,0 +1,52 @@
+{
+  "source_revision": "9bd6e7ee6464119b367cd1d8573b05e9ed506f91",
+  "binary_sha256": "7834d90d5b019bc7e3e2e840e1d08e7f99ea553db80bb71faeec4000b8212390",
+  "native_tests": {
+    "passed": 927,
+    "ignored": 2
+  },
+  "base_input_tests_passed": 269,
+  "reconstructed_base_files": 235,
+  "base_patch_sha256": "c956cb8541d6b530182eaccad5de38f3640bd666f652ca6f02c7b6dc27841c25",
+  "runs": {
+    "multiline": {
+      "executable": {
+        "path": "/Users/dakotamurphy/gpuio/scratch/agents/root-20261004-resumed/gallery-ime-cancel-fixed.exe",
+        "sha256": "7834d90d5b019bc7e3e2e840e1d08e7f99ea553db80bb71faeec4000b8212390",
+        "editor": "multiline",
+        "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+        "revision": "9bd6e7ee6464119b367cd1d8573b05e9ed506f91",
+        "dirty": false
+      },
+      "input_sources_restored": true,
+      "original_source_state_sha256": "35bd6ed2f9f5fc5dedfd5c1549a77988dcf823796c4bf9996844a17cd6f9c209",
+      "restored_source_state_sha256": "35bd6ed2f9f5fc5dedfd5c1549a77988dcf823796c4bf9996844a17cd6f9c209"
+    },
+    "settings": {
+      "executable": {
+        "path": "/Users/dakotamurphy/gpuio/scratch/agents/root-20261004-resumed/gallery-ime-cancel-fixed.exe",
+        "sha256": "7834d90d5b019bc7e3e2e840e1d08e7f99ea553db80bb71faeec4000b8212390",
+        "editor": "settings",
+        "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+        "revision": "9bd6e7ee6464119b367cd1d8573b05e9ed506f91",
+        "dirty": false
+      },
+      "input_sources_restored": true,
+      "original_source_state_sha256": "35bd6ed2f9f5fc5dedfd5c1549a77988dcf823796c4bf9996844a17cd6f9c209",
+      "restored_source_state_sha256": "35bd6ed2f9f5fc5dedfd5c1549a77988dcf823796c4bf9996844a17cd6f9c209"
+    }
+  },
+  "artifact_sha256": {
+    "after-wrap-change-candidate-0.png": "ab46490dc93a23a86a2d7563ede17a1ce97880cd25b3ea0057eb9523634b5c7a",
+    "after-wrap-change-candidate-windows.json": "cd3e397896fb08b891ff5b0f27cee7cff87ac025bb74eed5bd9bf5547afda9c2",
+    "after-wrap-change-editor.png": "9deab0cc91cbd6b12e532b3ac71d029d0e2e5ea62d61ab7677324c8b0c855973",
+    "first-candidate-0.png": "34de6e268776510a4f1833cc9107007fb4d2d4febb1ef9a4d8a5c87b0f11d0f5",
+    "first-candidate-windows.json": "bdda6f79fec8d4855b942803e3d961f9490625f7a60c62b259a15375d9c5fd07",
+    "first-editor.png": "6397c43ab24b8ccc143c33746effa8d2fcb751ed0131540555a5ffc30392ea24",
+    "multiline-observations.json": "785616f0e7aac7a0b37cc403138055eb63c31308cc9c96c0d59d0f1421348611",
+    "multiline.log": "160f81faf7ecae0e6a9b968d6babc0ff4d174208ee0d42f972245b768ed0c8ed",
+    "settings-candidate-windows.json": "d8f0d1b40e3ca37be2aa57186d20ecd1019aefb13cfe74d965235a39f915763c",
+    "settings-candidate.png": "0b985819af7824df93442625b5cbe98b922f83da5defd0332bbf25010aaa0888",
+    "settings.log": "194a13392ffd028ed6fac3bbbfb862f63f4f787461b30b6a0c4c0091cce68f7b"
+  }
+}

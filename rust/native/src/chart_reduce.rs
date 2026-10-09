@@ -1,5 +1,6 @@
 //! Pure, bounded source reduction performed before geometry preparation. No
 //! drawing, text shaping, callbacks or source mutation occurs in this module.
+use crate::chart_cartesian::{Kind, Layers, Points, Projection};
 use gpuio_protocol::{chart_data as data, chart_sampling as policy};
 use std::{
     mem::size_of,
@@ -11,6 +12,8 @@ pub enum Error {
     InvalidData,
     InvalidPolicy,
     InvalidWidth,
+    MisalignedStack,
+    IncompatibleBarBaselines,
     Cancelled,
 }
 
@@ -49,6 +52,7 @@ pub struct LinePoint {
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Bar {
+    pub baseline: f64,
     pub source: SourceSpan,
     pub x: f64,
     pub value: f64,
@@ -62,17 +66,51 @@ pub struct Candle {
     pub low: f64,
     pub close: f64,
 }
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StackBounds {
+    pub lower: f64,
+    pub upper: f64,
+}
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StackedBar {
+    pub bar: Bar,
+    pub bounds: StackBounds,
+}
+/// Shared sample positions include missing observations to construct identical
+/// cumulative boundary curves. Only defined observations produce visible marks.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StackedAreaPoint {
+    pub source: usize,
+    pub defined: bool,
+    pub bounds: StackBounds,
+}
 #[derive(Clone, Debug, PartialEq)]
 pub enum Series {
     Line(Vec<LinePoint>),
     Area(Vec<LinePoint>),
     Bar(Vec<Bar>),
+    StackedBar(Vec<StackedBar>),
+    StackedArea(Vec<StackedAreaPoint>),
 }
 impl Series {
+    pub(crate) fn bars(&self) -> impl Iterator<Item = (Bar, Option<StackBounds>)> + '_ {
+        let (ordinary, stacked): (&[Bar], &[StackedBar]) = match self {
+            Self::Bar(bars) => (bars, &[]),
+            Self::StackedBar(bars) => (&[], bars),
+            _ => (&[], &[]),
+        };
+        ordinary
+            .iter()
+            .map(|b| (*b, None))
+            .chain(stacked.iter().map(|b| (b.bar, Some(b.bounds))))
+    }
+
     pub fn len(&self) -> usize {
         match self {
             Self::Line(points) | Self::Area(points) => points.len(),
             Self::Bar(bars) => bars.len(),
+            Self::StackedBar(bars) => bars.len(),
+            Self::StackedArea(points) => points.iter().filter(|p| p.defined).count(),
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -82,6 +120,8 @@ impl Series {
         match self {
             Self::Line(points) | Self::Area(points) => points.capacity() * size_of::<LinePoint>(),
             Self::Bar(bars) => bars.capacity() * size_of::<Bar>(),
+            Self::StackedBar(bars) => bars.capacity() * size_of::<StackedBar>(),
+            Self::StackedArea(points) => points.capacity() * size_of::<StackedAreaPoint>(),
         }
     }
 }
@@ -168,7 +208,7 @@ fn flush_line(envelope: &mut Option<Envelope>, output: &mut Vec<LinePoint>, star
     }
 }
 fn line(
-    points: &[data::Point],
+    points: Points<'_>,
     policy: policy::Line,
     domain: Domain,
     width: f64,
@@ -202,10 +242,20 @@ fn line(
         }
         if let Some(e) = &mut envelope {
             e.last = index;
-            if y < points[e.low].y.expect("defined envelope point") {
+            if y < points
+                .get(e.low)
+                .unwrap()
+                .y
+                .expect("defined envelope point")
+            {
                 e.low = index;
             }
-            if y > points[e.high].y.expect("defined envelope point") {
+            if y > points
+                .get(e.high)
+                .unwrap()
+                .y
+                .expect("defined envelope point")
+            {
                 e.high = index;
             }
         } else {
@@ -244,7 +294,9 @@ impl Sum {
     }
 }
 fn bars(
-    points: &[data::Point],
+    data: &data::Data,
+    series: i64,
+    points: Points<'_>,
     policy: policy::Bar,
     domain: Domain,
     width: f64,
@@ -260,25 +312,45 @@ fn bars(
     while start < points.len() {
         checkpoint(start, cancel)?;
         let mut end = start + 1;
-        let mut sum = Sum::default();
-        sum.add(points[start].y.expect("validated bar"));
         if let Some(buckets) = buckets {
-            let bucket = domain.bucket(points[start].x, buckets);
-            while end < points.len() && domain.bucket(points[end].x, buckets) == bucket {
+            let bucket = domain.bucket(points.get(start).unwrap().x, buckets);
+            while end < points.len() && domain.bucket(points.get(end).unwrap().x, buckets) == bucket
+            {
                 checkpoint(end, cancel)?;
-                sum.add(points[end].y.expect("validated bar"));
                 end += 1;
             }
         }
+        let mut sum = Sum::default();
+        let mut baseline = None;
+        let mut present = 0;
+        for index in start..end {
+            checkpoint(index, cancel)?;
+            let point = points.get(index).unwrap();
+            let Some(value) = point.y else { continue };
+            let base = data.bar_baseline(series, point.id).unwrap_or(0.);
+            if baseline.is_some_and(|b| b != base) {
+                return Err(Error::IncompatibleBarBaselines);
+            }
+            // Sum endpoints with one baseline removed per additional value.
+            // One-value buckets retain the exact original endpoint; subtracting
+            // and re-adding a huge baseline could otherwise erase a small value.
+            if present > 0 && !mean {
+                sum.add(-base);
+            }
+            sum.add(value);
+            baseline = Some(base);
+            present += 1;
+        }
+        let Some(baseline) = baseline else {
+            start = end;
+            continue;
+        };
         let value = sum.value();
         output.push(Bar {
+            baseline,
             source: SourceSpan { start, end },
-            x: midpoint(points[start].x, points[end - 1].x),
-            value: if mean {
-                value / (end - start) as f64
-            } else {
-                value
-            },
+            x: midpoint(points.get(start).unwrap().x, points.get(end - 1).unwrap().x),
+            value: if mean { value / present as f64 } else { value },
         });
         start = end;
     }
@@ -336,8 +408,24 @@ pub fn prepare(
     width: f64,
     cancel: &AtomicBool,
 ) -> Result<Reduction, Error> {
+    prepare_with_options(
+        data,
+        policy,
+        width,
+        &gpuio_protocol::chart_options::Options::default(),
+        cancel,
+    )
+}
+
+pub(crate) fn prepare_with_options(
+    data: &data::Data,
+    policy: policy::Policy,
+    width: f64,
+    options: &gpuio_protocol::chart_options::Options,
+    cancel: &AtomicBool,
+) -> Result<Reduction, Error> {
     cancelled(cancel)?;
-    if !policy.is_valid() {
+    if !policy.is_valid() || !options.is_valid() {
         return Err(Error::InvalidPolicy);
     }
     if !width.is_finite() || width <= 0. || width > 32768. {
@@ -346,34 +434,61 @@ pub fn prepare(
     let stats = data.validate().map_err(|_| Error::InvalidData)?;
     let contents =
         match &data.contents {
-            data::Contents::Cartesian(layers) => {
-                let domain = layers
-                    .iter()
-                    .filter_map(|layer| {
-                        let points = &layer.series().points;
-                        Some(Domain {
-                            min: points.first()?.x,
-                            max: points.last()?.x,
+            data::Contents::Cartesian(_) | data::Contents::Categorical(..) => {
+                let layers = Layers::of(data).expect("Cartesian source");
+                let domain = match &data.contents {
+                    data::Contents::Categorical(categories, _) => {
+                        let projection = Projection::new(
+                            categories.len(),
+                            width,
+                            options.cartesian.category_layout,
+                            layers.iter().any(|l| l.kind == Kind::Bar),
+                        );
+                        let (min, max) = projection.sampling_domain(width);
+                        Domain { min, max }
+                    }
+                    _ => layers
+                        .iter()
+                        .filter_map(|l| {
+                            Some(Domain {
+                                min: l.points.first()?.x,
+                                max: l.points.last()?.x,
+                            })
                         })
-                    })
-                    .reduce(|a, b| Domain {
-                        min: a.min.min(b.min),
-                        max: a.max.max(b.max),
-                    })
-                    .unwrap_or(Domain { min: 0., max: 1. });
+                        .reduce(|a, b| Domain {
+                            min: a.min.min(b.min),
+                            max: a.max.max(b.max),
+                        })
+                        .unwrap_or(Domain { min: 0., max: 1. }),
+                };
                 let mut output = Vec::with_capacity(layers.len());
-                for layer in layers {
-                    output.push(match layer {
-                        data::Layer::Line(series) => {
-                            Series::Line(line(&series.points, policy.line, domain, width, cancel)?)
+                for layer in layers.iter() {
+                    output.push(match layer.kind {
+                        Kind::Line => {
+                            Series::Line(line(layer.points, policy.line, domain, width, cancel)?)
                         }
-                        data::Layer::Area(series) => {
-                            Series::Area(line(&series.points, policy.line, domain, width, cancel)?)
+                        Kind::Area
+                            if options.cartesian.stacking
+                                == gpuio_protocol::chart_options::Stacking::Stacked =>
+                        {
+                            Series::Area(Vec::new())
                         }
-                        data::Layer::Bar(series) => {
-                            Series::Bar(bars(&series.points, policy.bars, domain, width, cancel)?)
+                        Kind::Area => {
+                            Series::Area(line(layer.points, policy.line, domain, width, cancel)?)
                         }
+                        Kind::Bar => Series::Bar(bars(
+                            data,
+                            layer.id,
+                            layer.points,
+                            policy.bars,
+                            domain,
+                            width,
+                            cancel,
+                        )?),
                     });
+                }
+                if options.cartesian.stacking == gpuio_protocol::chart_options::Stacking::Stacked {
+                    stacking::apply(layers, &mut output, policy.line, domain, width, cancel)?;
                 }
                 Contents::Cartesian(output)
             }
@@ -401,5 +516,10 @@ pub fn prepare(
     })
 }
 
+mod stacking;
+
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod baseline_tests;

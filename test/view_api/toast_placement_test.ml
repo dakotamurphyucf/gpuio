@@ -1,0 +1,91 @@
+open Core
+open Gpuio
+open Gpuio_protocol
+module Wire = Gpuio_protocol.Wire
+
+let ok = Or_error.ok_exn
+let window = Window_id.create ~slot:0L ~generation:1L |> ok
+let node = Node_id.create ~slot:0L ~generation:1L |> ok
+
+let placement () =
+  Toast.Placement.create ~anchor:Top_center ~top:34. ~right:8. ~bottom:12. ~left:20. ()
+  |> ok
+;;
+
+let%expect_test "placement bounds and explicit corner conflict" =
+  List.iter [ Float.nan; Float.infinity; -1.; 16385. ] ~f:(fun n ->
+    List.iter
+      [ Toast.Placement.create ~anchor:Top_left ~top:n ()
+      ; Toast.Placement.create ~anchor:Top_left ~right:n ()
+      ; Toast.Placement.create ~anchor:Top_left ~bottom:n ()
+      ; Toast.Placement.create ~anchor:Top_left ~left:n ()
+      ]
+      ~f:(fun result -> assert (Result.is_error result)));
+  assert (
+    Result.is_error (Toast.Stack.create ~corner:Top_left ~placement:(placement ()) ()));
+  assert (
+    Result.is_ok (Toast.Placement.create ~anchor:Right_center ~top:0. ~left:16384. ()));
+  [%expect {| |}]
+;;
+
+let%expect_test "independent placement operation bytes and reset" =
+  let config = Toast.Stack.create ~placement:(placement ()) () |> ok in
+  let message : Wire.Message.t =
+    Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Set_toast_placement (node, Toast.Expert.placement config)
+          ; Set_toast_placement (node, None)
+          ]
+      }
+  in
+  Eio_main.run (fun env ->
+    let hex =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "toast-placement.hex") |> String.strip
+    in
+    let expected =
+      String.init
+        (String.length hex / 2)
+        ~f:(fun i ->
+          Char.of_int_exn (Int.of_string ("0x" ^ String.sub hex ~pos:(i * 2) ~len:2)))
+    in
+    assert (String.equal expected (Wire.Message.encode message |> ok)));
+  [%expect {| |}]
+;;
+
+let%expect_test "placement-only updates preserve toast identity and emit explicit reset" =
+  let reconciler = Reconciler.create window in
+  let view config =
+    View.toast_stack
+      ~config
+      [ View.toast
+          ~key:(Key.of_string_exn "saved")
+          ~config:(Toast.Config.create ~label:"Saved" () |> ok)
+          ~on_dismiss:Fn.id
+          [ View.text "Saved" ]
+      ]
+    |> ok
+  in
+  let update config =
+    let pending =
+      Reconciler.prepare reconciler ~theme:Theme.default (Some (view config)) |> ok
+    in
+    let message = Reconciler.message pending in
+    Reconciler.accept reconciler pending |> ok;
+    message
+  in
+  ignore (update Toast.Stack.default : Wire.Message.t option);
+  let config = Toast.Stack.create ~placement:(placement ()) () |> ok in
+  (match update config with
+   | Some (Apply { operations = [ Set_toast_placement (id, Some _) ]; _ }) ->
+     assert (Node_id.equal id node)
+   | _ -> assert false);
+  assert (Option.is_none (update config));
+  (match update Toast.Stack.default with
+   | Some (Apply { operations = [ Set_toast_placement (id, None) ]; _ }) ->
+     assert (Node_id.equal id node)
+   | _ -> assert false);
+  [%expect {| |}]
+;;

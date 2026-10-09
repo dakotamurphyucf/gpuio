@@ -23,6 +23,19 @@ mod repeat;
 #[path = "number_input_semantics.rs"]
 mod semantics;
 
+#[cfg(all(test, feature = "native-image-tests"))]
+#[path = "number_frame_test.rs"]
+mod frame_test;
+
+#[derive(Default)]
+pub(super) struct Presentation {
+    pub config: Option<Arc<gpuio_protocol::number_presentation::Config>>,
+    pub leading: Option<AnyElement>,
+    pub trailing: Option<AnyElement>,
+    pub decrement: Option<AnyElement>,
+    pub increment: Option<AnyElement>,
+}
+
 struct Route {
     window: WindowId,
     node: NodeId,
@@ -63,6 +76,7 @@ impl Route {
 }
 struct Owner {
     model: Model,
+    step_mode: n::StepMode,
     route: Route,
     repeat: repeat::Repeat,
 }
@@ -89,7 +103,8 @@ impl Owner {
             .tree(self.route.window)
             .and_then(|tree| tree.get(self.route.node))
             .is_some_and(|node| {
-                node.handler == Some(self.route.handler)
+                node.number_step_mode == self.step_mode
+                    && node.handler == Some(self.route.handler)
                     && node
                         .number_input
                         .as_ref()
@@ -129,30 +144,95 @@ fn perform(
     let Some(owner) = owner.upgrade() else {
         return n::Response::Failed(n::Error::StaleInput);
     };
-    {
+    let blocked = {
         let owner = owner.borrow();
         if !owner.current() {
             return n::Response::Failed(n::Error::StaleInput);
         }
-        if (source != n::Source::Programmatic || matches!(command, n::Command::Focus))
+        (source != n::Source::Programmatic
+            || matches!(command, n::Command::Focus | n::Command::ResolveStep { .. }))
             && !owner.route.gate.borrow().allows(owner.route.node)
-        {
-            return n::Response::Failed(n::Error::FocusBlocked);
+    };
+    let application_step = source != n::Source::Programmatic
+        && matches!(command, n::Command::Step(_))
+        && owner.borrow().step_mode == n::StepMode::Application;
+    if blocked
+        || ((application_step || matches!(command, n::Command::ResolveStep { .. }))
+            && !window.is_window_active())
+    {
+        if matches!(command, n::Command::ResolveStep { .. }) {
+            owner.borrow_mut().model.cancel_step_request();
+            owner.borrow_mut().stop_repeat(window);
         }
+        return n::Response::Failed(n::Error::FocusBlocked);
     }
-    if source != n::Source::Stepper && !matches!(command, n::Command::ReadSnapshot) {
+    let resolving = if let n::Command::ResolveStep {
+        request_id,
+        revision,
+        value,
+    } = command
+    {
+        owner
+            .borrow()
+            .model
+            .matches_step_request(*request_id, *revision)
+            .then_some(value.is_some())
+    } else {
+        None
+    };
+    if source != n::Source::Stepper
+        && !matches!(
+            command,
+            n::Command::ReadSnapshot | n::Command::ResolveStep { .. }
+        )
+    {
         owner.borrow_mut().stop_repeat(window);
     }
-    entity
+    let response = entity
         .update(cx, |state, cx| {
             let live = editor::snapshot(state, window, cx);
             let mut owner = owner.borrow_mut();
-            let outcome = owner.model.execute(&live, command, source, |command| {
-                editor::apply(state, command, true, window, cx)
-            });
-            owner.result(outcome)
+            if owner.step_mode == n::StepMode::Application
+                && source != n::Source::Programmatic
+                && let n::Command::Step(direction) = command
+            {
+                match owner
+                    .model
+                    .request_application_step(&live, *direction, source)
+                {
+                    Ok(mut outcome) => match outcome.request {
+                        Ok(request) => {
+                            let snapshot = request.snapshot.clone();
+                            outcome.events.push(n::Event::StepRequested(request));
+                            owner.route.emit(outcome.events);
+                            n::Response::Applied(snapshot)
+                        }
+                        Err(error) => {
+                            owner.route.emit(outcome.events);
+                            n::Response::Failed(error)
+                        }
+                    },
+                    Err(_) => {
+                        owner.route.fault();
+                        n::Response::Failed(n::Error::NativeFailure)
+                    }
+                }
+            } else {
+                let outcome = owner.model.execute(&live, command, source, |command| {
+                    editor::apply(state, command, true, window, cx)
+                });
+                owner.result(outcome)
+            }
         })
-        .unwrap_or(n::Response::Failed(n::Error::StaleInput))
+        .unwrap_or(n::Response::Failed(n::Error::StaleInput));
+    if let Some(apply) = resolving {
+        if apply && matches!(response, n::Response::Applied(_)) {
+            repeat::schedule(&Rc::downgrade(&owner), entity, window, cx);
+        } else {
+            owner.borrow_mut().stop_repeat(window);
+        }
+    }
+    response
 }
 
 fn configure_input(
@@ -307,6 +387,8 @@ fn configure_input(
             tooltip.as_deref(),
         );
         crate::semantics::State {
+            identity: None,
+            busy: false,
             element,
             metadata: Some(metadata),
             hidden: false,
@@ -335,7 +417,10 @@ impl Instance {
         cx: &mut Context<View>,
     ) -> Result<Self, n::Error> {
         let mount = node.number_input.as_ref().expect("validated numeric mount");
-        let text = crate::number_input_state::initial_text(&mount.config, mount.initial)?;
+        let text = match &mount.initial_draft {
+            Some(draft) => draft.to_string(),
+            None => crate::number_input_state::initial_text(&mount.config, mount.initial)?,
+        };
         let state = cx.new(|cx| {
             InputState::new(window, cx)
                 .default_value(text)
@@ -345,13 +430,19 @@ impl Instance {
         if mount.config.auto_focus && !mount.config.disabled && gate.borrow().allows(node.id) {
             window.focus(&state.read(cx).focus_handle(cx), cx);
         }
-        let model = Model::new(
+        let create = if mount.initial_draft.is_some() {
+            Model::with_initial_draft
+        } else {
+            Model::new
+        };
+        let model = create(
             mount.config.clone(),
             mount.initial,
             &editor::snapshot(state.read(cx), window, cx),
         )?;
         let owner = Rc::new(RefCell::new(Owner {
             model,
+            step_mode: node.number_step_mode,
             repeat: repeat::Repeat::default(),
             route: Route {
                 window: id,
@@ -396,6 +487,7 @@ impl Instance {
     fn configure(
         &mut self,
         config: Arc<n::Config>,
+        step_mode: n::StepMode,
         handler: HandlerId,
         window: &mut Window,
         cx: &mut App,
@@ -409,9 +501,19 @@ impl Instance {
                 || previous.allow_empty != config.allow_empty
                 || previous.disabled != config.disabled
                 || previous.read_only != config.read_only;
-            if policy_changed || owner.route.handler != handler {
+            // Metadata edits preserve an ordinary held native step. A pending
+            // application request is revision-guarded, however: any editing
+            // config change invalidates it, so its waiting hold must also end.
+            let invalidated_request = previous != config.as_ref() && owner.model.has_step_request();
+            if policy_changed
+                || invalidated_request
+                || owner.route.handler != handler
+                || owner.step_mode != step_mode
+            {
+                owner.model.cancel_step_request();
                 owner.stop_repeat(window);
             }
+            owner.step_mode = step_mode;
             owner.route.handler = handler;
             let outcome = owner.model.configure(config.clone(), &live);
             if matches!(owner.result(outcome), n::Response::Failed(_)) {
@@ -462,10 +564,33 @@ impl Instance {
         &self,
         mut base: Stateful<Div>,
         pointer: bool,
+        presentation: Presentation,
+        window: &Window,
         cx: &App,
     ) -> Stateful<Div> {
         let owner = self.owner.borrow();
         let config = owner.model.config();
+        let default_appearance = gpuio_protocol::number_presentation::Config::default();
+        let appearance = presentation
+            .config
+            .as_deref()
+            .unwrap_or(&default_appearance);
+        let disabled = config.disabled || !owner.route.gate.borrow().allows(owner.route.node);
+        let focused = self.state.read(cx).focus_handle(cx).is_focused(window) && !disabled;
+        let part_style = |styles: &[gpuio_protocol::v1::Style], disabled, focused| {
+            let mut style = crate::appearance::refinement(styles, 0);
+            if disabled {
+                style.refine(&crate::appearance::refinement(styles, 6));
+            } else if focused {
+                style.refine(&crate::appearance::refinement(styles, 1));
+            }
+            style
+        };
+        if let Some(width) = appearance.border_width {
+            base = base.border(px(width as f32));
+        }
+        base.style()
+            .refine(&part_style(&appearance.frame_style, disabled, focused));
         let weak = Rc::downgrade(&self.owner);
         let state = self.state.read(cx);
         let text = state.value();
@@ -482,7 +607,7 @@ impl Instance {
             .flex()
             .flex_row()
             .items_center()
-            .gap(px(4.))
+            .gap(px(appearance.gap as f32))
             .role(Role::SpinButton)
             .aria_label(metadata.field.as_ref().unwrap().label.clone())
             .aria_min_numeric_value(config.domain.min())
@@ -515,7 +640,10 @@ impl Instance {
                 });
             }
         }
-        let button = |direction: Direction, label: String, glyph: &'static str| {
+        let button = |direction: Direction,
+                      label: String,
+                      glyph: &'static str,
+                      content: Option<AnyElement>| {
             let route = weak.clone();
             let entity = self.state.downgrade();
             let mut button = div()
@@ -530,18 +658,29 @@ impl Instance {
                 .items_center()
                 .justify_center()
                 .flex_shrink_0()
-                .w(px(24.))
-                .min_h(px(20.))
+                .w(px(appearance.button_width as f32))
+                .min_h(px(appearance.button_min_height as f32))
                 .rounded(px(4.))
-                .child(glyph);
+                .child(content.unwrap_or_else(|| glyph.into_any_element()));
             if config.step_controls == n::StepControls::Stacked {
                 button = button
                     .flex_1()
-                    .min_h(px(16.))
+                    .min_h(px(appearance.stacked_button_min_height as f32))
                     .text_size(px(12.))
                     .line_height(px(12.));
             }
-            if !config.disabled && !config.read_only {
+            let styles = if direction == Direction::Increase {
+                &appearance.increment_style
+            } else {
+                &appearance.decrement_style
+            };
+            button
+                .style()
+                .refine(&part_style(styles, disabled || config.read_only, false));
+            if !disabled && !config.read_only {
+                let hovered = crate::appearance::refinement(styles, 2);
+                let pressed = crate::appearance::refinement(styles, 3);
+                button = button.hover(move |_| hovered).active(move |_| pressed);
                 let accessible = route.clone();
                 let editor = entity.clone();
                 button = button.on_a11y_action(AccessibleAction::Click, move |_, window, cx| {
@@ -562,13 +701,15 @@ impl Instance {
                 owner: route,
                 entity,
                 direction,
-                enabled: pointer && !config.disabled && !config.read_only,
+                enabled: pointer && !disabled && !config.read_only,
                 element: crate::semantics::State {
+                    identity: None,
+                    busy: false,
                     element: button,
                     metadata: None,
                     hidden: false,
                     live: None,
-                    disabled: config.disabled || config.read_only,
+                    disabled: disabled || config.read_only,
                     read_only: config.read_only,
                     modal: false,
                 },
@@ -585,7 +726,20 @@ impl Instance {
                 previous.borrow().traverse(true, window, cx);
                 cx.stop_propagation();
             });
-        let input = div().min_w(px(0.)).flex_1().child(self.state.clone());
+        let mut input = div()
+            .min_w(px(0.))
+            .flex_1()
+            .flex()
+            .items_center()
+            .gap(px(appearance.gap as f32))
+            .pl(px(appearance.editor_padding as f32))
+            .pr(px(appearance.editor_padding as f32))
+            .children(presentation.leading)
+            .child(div().min_w(px(0.)).flex_1().child(self.state.clone()))
+            .children(presentation.trailing);
+        input
+            .style()
+            .refine(&part_style(&appearance.editor_style, disabled, focused));
         match config.step_controls {
             n::StepControls::Hidden => base.child(input),
             n::StepControls::Sides => base
@@ -593,12 +747,14 @@ impl Instance {
                     Direction::Decrease,
                     config.decrement_label.clone(),
                     "−",
+                    presentation.decrement,
                 ))
                 .child(input)
                 .child(button(
                     Direction::Increase,
                     config.increment_label.clone(),
                     "+",
+                    presentation.increment,
                 )),
             n::StepControls::Stacked => base.child(input).child(
                 div()
@@ -610,11 +766,13 @@ impl Instance {
                         Direction::Increase,
                         config.increment_label.clone(),
                         "▴",
+                        presentation.increment,
                     ))
                     .child(button(
                         Direction::Decrease,
                         config.decrement_label.clone(),
                         "▾",
+                        presentation.decrement,
                     )),
             ),
         }
@@ -638,6 +796,7 @@ impl View {
                 if tree.get(*id).is_some() {
                     true
                 } else {
+                    instance.owner.borrow_mut().model.cancel_step_request();
                     instance.owner.borrow_mut().stop_repeat(window);
                     false
                 }
@@ -653,6 +812,7 @@ impl View {
             if let Some(instance) = self.numbers.get_mut(&node.id) {
                 instance.configure(
                     node.number_input.as_ref().unwrap().config.clone(),
+                    node.number_step_mode,
                     node.handler.expect("validated numeric handler"),
                     window,
                     cx,
@@ -685,16 +845,21 @@ impl View {
     pub(super) fn cancel_number_repeats(&self, window: &mut Window) -> bool {
         let mut cancelled = false;
         for instance in self.numbers.values() {
+            cancelled = instance.owner.borrow_mut().model.cancel_step_request() || cancelled;
             cancelled = instance.owner.borrow_mut().stop_repeat(window) || cancelled;
         }
         cancelled
     }
     pub(super) fn hide_unvisited_numbers(&self, window: &mut Window, cx: &mut App) {
         for (id, instance) in &self.numbers {
-            if !self.visited.contains(id) && instance.owner.borrow().repeat.is_active() {
+            if !self.visited.contains(id)
+                && (instance.owner.borrow().repeat.is_active()
+                    || instance.owner.borrow().model.has_step_request())
+            {
                 let weak = Rc::downgrade(&instance.owner);
                 window.defer(cx, move |window, _| {
                     if let Some(owner) = weak.upgrade() {
+                        owner.borrow_mut().model.cancel_step_request();
                         owner.borrow_mut().stop_repeat(window);
                     }
                 });

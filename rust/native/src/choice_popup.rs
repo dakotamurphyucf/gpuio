@@ -72,6 +72,8 @@ impl State {
     }
 }
 
+pub(super) type Decoration = Rc<dyn Fn(usize, &mut Window, &mut App) -> Option<gpui::AnyElement>>;
+
 pub(super) type Choose = Rc<dyn Fn(&str, &mut Window, &mut App)>;
 
 pub(super) struct Render<'a> {
@@ -81,6 +83,8 @@ pub(super) struct Render<'a> {
     pub choose: Choose,
     pub owner: EntityId,
     pub pointer: bool,
+    pub menu: bool,
+    pub decoration: Option<Decoration>,
     pub selected_style: Option<gpui::StyleRefinement>,
 }
 
@@ -92,6 +96,8 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
         choose,
         owner,
         pointer,
+        menu,
+        decoration,
         selected_style,
     } = render;
     let dark = matches!(
@@ -112,8 +118,8 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
     let option_appearance = appearance.clone();
     let list_height = px((count.clamp(1, appearance.max_visible_rows as usize) as f64
         * appearance.row_height) as f32)
-    .min((window.viewport_size().height - px(18.)).max(px(1.)));
-    let list = gpui::uniform_list("options", count, move |range, _, _| {
+    .min((crate::window_frame::content_bounds(window).size.height - px(18.)).max(px(1.)));
+    let list = gpui::uniform_list("options", count, move |range, window, cx| {
         #[cfg(feature = "native-tests")]
         rendered.set(range.len());
         let active = option_state.borrow().navigation.active.clone();
@@ -128,9 +134,28 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
                     .flex()
                     .items_center()
                     .overflow_hidden()
-                    .role(gpui::Role::ListBoxOption)
-                    .aria_label(item.label.clone())
-                    .aria_selected(selected);
+                    .role(if menu {
+                        gpui::Role::MenuItemRadio
+                    } else {
+                        gpui::Role::ListBoxOption
+                    })
+                    .aria_label(item.label.clone());
+                row = if menu {
+                    row.aria_toggled(if selected {
+                        gpui::accesskit::Toggled::True
+                    } else {
+                        gpui::accesskit::Toggled::False
+                    })
+                    .gap(px(8.))
+                    .child(
+                        div()
+                            .w(px(12.))
+                            .flex_shrink_0()
+                            .child(if selected { "✓" } else { "" }),
+                    )
+                } else {
+                    row.aria_selected(selected)
+                };
                 if pointer && !item.disabled {
                     row = row.cursor_pointer();
                 }
@@ -153,6 +178,12 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
                         row.style(),
                         &crate::appearance::refinement(&option_appearance.option_style, 1),
                     );
+                }
+                if let Some(element) = decoration
+                    .as_ref()
+                    .and_then(|render| render(index, window, cx))
+                {
+                    row = row.child(element);
                 }
                 row = row.child(gpui::SharedString::from(item.label.clone()));
                 if item.disabled {
@@ -222,6 +253,8 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
                     );
                 }
                 crate::semantics::State {
+                    identity: None,
+                    busy: false,
                     hidden: false,
                     metadata: None,
                     live: None,
@@ -238,13 +271,17 @@ pub(super) fn element(render: Render<'_>, window: &Window) -> Stateful<Div> {
     .h(list_height);
     let outside_state = state.clone();
     let trigger = state.borrow().trigger.clone();
-    let width = (window.viewport_size().width - px(16.))
+    let width = (crate::window_frame::content_bounds(window).size.width - px(16.))
         .max(px(1.))
         .min(px(appearance.popup_width as f32));
-    let height = (window.viewport_size().height - px(16.)).max(px(1.));
+    let height = (crate::window_frame::content_bounds(window).size.height - px(16.)).max(px(1.));
     let mut popup = div()
         .id("choice-popup")
-        .role(gpui::Role::ListBox)
+        .role(if menu {
+            gpui::Role::Menu
+        } else {
+            gpui::Role::ListBox
+        })
         .aria_label(config.label.clone())
         .occlude()
         .bg(background)

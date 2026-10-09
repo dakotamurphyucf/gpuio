@@ -22,7 +22,11 @@ module Window : sig
   val scope : t -> Scope.t
 
   (** Force-close; bypasses the application close decision and cancels the
-      window scope. Use [request_close] for ordinary user commands. *)
+      window scope. Repeated/reentrant calls are idempotent. If cleanup raises,
+      remaining cleanup and queueing the native close request are attempted before
+      re-raising the first failure; an opening window waits for its opening
+      acknowledgement before submitting close. Native destruction is asynchronous.
+      Use [request_close] for ordinary user commands. *)
   val close : t -> unit
 
   (** Coalesced asynchronous decision. Force-close invalidates a delayed answer.
@@ -34,7 +38,10 @@ module Window : sig
     -> (Gpuio.Window.Close_reason.t -> Gpuio.Window.Close_decision.t Bonsai.Effect.t)
     -> unit
 
+  (** Last observed native state. It can arrive before the opening acknowledgement;
+      [Some _] does not imply [is_open] or frame-request readiness. *)
   val snapshot : t -> Gpuio.Window.Snapshot.t option
+
   val on_change : t -> (Gpuio.Window.Snapshot.t -> unit Bonsai.Effect.t) -> unit
 
   (** Acknowledges current observed state. Resizing/fullscreen may complete later;
@@ -44,10 +51,47 @@ module Window : sig
     -> Gpuio.Window.Command.t
     -> (Gpuio.Window.Snapshot.t, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
 
+  (** Native focus at request execution, including read-only text inputs but
+      excluding hidden/disabled/modal-blocked owners. The option reports presence;
+      it contains metadata only, never password/OTP values or arbitrary text.
+      Uses the same bounded request lane and close rules as [command]. *)
+  val focused_input
+    :  t
+    -> (Gpuio.Window.Input.t option, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
+  (** Registered read-only text/document selection in the active native scope.
+      These helpers neither access the clipboard nor read editable input values. *)
+  val has_text_selection : t -> (bool, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
+  (** Nonempty fragments joined in logical order with newlines. [max_bytes] is
+      a UTF-8 byte limit in [0,262144], default [65536]. Oversize returns
+      [Limit_exceeded], never a truncated result. Legacy renderer callbacks may
+      allocate their individual fragment before the collector checks its size. *)
+  val selected_text
+    :  t
+    -> ?max_bytes:int
+    -> unit
+    -> (string, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
+  (** Clear window geometry and all registered renderer-local selections. Acts
+      on current native selection at execution, including inactive registrations. *)
+  val clear_text_selection : t -> (unit, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
+  (** Stop selection drag/auto-scroll while preserving its visible range. *)
+  val end_text_selection : t -> (unit, Gpuio.Window.Error.t) Result.t Bonsai.Effect.t
+
   val is_closed : t -> bool
+
+  (** Native opening has been acknowledged, closing has not begun and the
+      application is not stopping. This is not the negation of [is_closed]: both
+      are false while opening. It does not imply focus, visibility, a rendered
+      frame or published application data. Like other window queries, call on the
+      OCaml UI domain. A later asynchronous operation must still handle closure. *)
+  val is_open : t -> bool
+
   val set_theme : t -> Gpuio.Theme.t -> unit
 
-  (** At most one request per open window. Call after activation; requests
+  (** At most one request per open window. Call after [is_open]; requests
       before native opening return an error. This observes a render callback,
       not physical screen presentation. Delivery can be deferred while a window
       is occluded: the pinned macOS backend stops its display link then. Do not
@@ -71,6 +115,27 @@ module Window : sig
       -> (Gpuio.File_dialog.Capabilities.t, Gpuio.File_dialog.Error.t) Result.t
            Bonsai.Effect.t
 
+    (** Captures the exact context-menu subscription. Successful replies mean
+        native admission, not paint or selection. At most 64 requests may be
+        pending per application; closing completes pending requests once. *)
+    val menu_command
+      :  t
+      -> Gpuio.Menu.Snapshot.t
+      -> Gpuio.Menu.Command.t
+      -> (unit, Gpuio.Menu.Command_error.t) Result.t Bonsai.Effect.t
+
+    (** Captures the exact observed palette subscription. An optional query
+        fence is checked against current native input before executing. *)
+    val palette_command
+      :  t
+      -> Gpuio.Command_palette.Snapshot.t
+      -> ?if_query_unchanged:bool
+      -> Gpuio.Command_palette.Command.t
+      -> ( Gpuio.Command_palette.Snapshot.t
+           , Gpuio.Command_palette.Command_error.t )
+           Result.t
+           Bonsai.Effect.t
+
     (** Correlated native commands for controller adapters. Captures the exact
         editor lease; a delayed effect never targets a remounted replacement. *)
     val editor_command
@@ -78,6 +143,45 @@ module Window : sig
       -> Gpuio.Text_input.Snapshot.t
       -> Gpuio.Text_input.Command.t
       -> (Gpuio.Text_input.Snapshot.t, Gpuio.Text_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
+    (** Metadata-only query on the exact observed editor lease, sharing the
+        ordinary editor request budget and close/correlation checks. *)
+    val editor_content_hint_status
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> ( Gpuio.Text_input.Content_hint.Status.t
+           , Gpuio.Text_input.Command_error.t )
+           Result.t
+           Bonsai.Effect.t
+
+    (** Last completed layout; acceptance of a scroll request is distinct from paint. *)
+    val editor_viewport
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> (Gpuio.Editor_viewport.t option, Gpuio.Text_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
+    val editor_scroll_to
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> Gpuio.Editor_viewport.Offset.t
+      -> (unit, Gpuio.Text_input.Command_error.t) Result.t Bonsai.Effect.t
+
+    val editor_range_bounds
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> Gpuio.Text_input.Selection.t
+      -> (Gpuio.Editor_geometry.t option, Gpuio.Text_input.Command_error.t) Result.t
+           Bonsai.Effect.t
+
+    val editor_search
+      :  t
+      -> Gpuio.Text_input.Snapshot.t
+      -> Gpuio.Text_input.Search.Command.t
+      -> ( Gpuio.Text_input.Search.Response.t * Gpuio.Text_input.Snapshot.t option
+           , Gpuio.Text_input.Command_error.t )
+           Result.t
            Bonsai.Effect.t
 
     (** Correlated slider commands bound to the exact observed window/node lease. *)
@@ -120,6 +224,11 @@ module Window : sig
       -> Gpuio.Color_input.Command.t
       -> (Gpuio.Color_input.Snapshot.t, Gpuio.Color_input.Command_error.t) Result.t
            Bonsai.Effect.t
+
+    (** Internal nonblocking cleanup on the owning UI domain. Uses the original
+        request lease/token/revision, takes no ordinary pending-command slot and
+        ignores its reply. Closed/stopping windows need no further decline. *)
+    val decline_number_step : t -> Gpuio.Number_input.Step_request.t -> unit
 
     (** Correlated numeric commands bound to the observed window/node lease;
         at most 64 requests pending. Closing completes them with [Closed]. *)
@@ -237,6 +346,10 @@ module Diagnostics : sig
       requests; queued commands have not yet been accepted by the native host.
       Native command-queue bytes count accepted serialized input awaiting dispatch,
       with a lifetime high-water mark; they exclude executing work and outputs.
+      Asset counts include uploads and registrations awaiting native release
+      acknowledgments. After scope cancellation, source reservations can be zero
+      while registrations are still retiring. Snapshot values do not update;
+      sample again to observe cleanup progress.
       Sampling creates no bridge command and does not request a frame. *)
   type t =
     { runtime : Stats.t
@@ -262,7 +375,10 @@ end
 
 val diagnostics : t -> Diagnostics.t
 
-(** Force application cleanup, bypassing decisions. *)
+(** Force application cleanup, bypassing decisions. Remaining cleanup and native
+    shutdown request queueing are still attempted if a cleanup raises, then the first
+    failure is re-raised. Repeated/reentrant calls are idempotent; returning does
+    not mean the native event loop has finished stopping. *)
 val shutdown : t -> unit
 
 (** Ask all live windows before destroying any of them. A denial keeps the
@@ -293,6 +409,7 @@ val open_window
   -> ?focus:bool
   -> ?chrome:Gpuio.Window.Chrome.t
   -> ?resizable:bool
+  -> ?frame:Gpuio.Window_frame.t
   -> title:string
   -> width:float
   -> height:float
@@ -311,9 +428,14 @@ val open_window_config
     With [exit_on_last_window=false], application/conversation work may continue
     with no windows; call [shutdown] to finish. Parameter validation raises.
     [tick_hz] is in [0.01,240]; [max_tasks] is in [1,65536].
-    Application/task callback failures propagate after native and Eio cleanup. *)
+    Application/task callback failures propagate after native and Eio cleanup.
+
+    [document_defaults] belongs to this run and applies to every window, including
+    later windows. Config omissions inherit; explicit values/Builtin override.
+    Shared action/profile callbacks receive the resolved source config. *)
 val run
-  :  ?tick_hz:float
+  :  ?document_defaults:unit Bonsai.Effect.t Gpuio.Document.Defaults.t
+  -> ?tick_hz:float
   -> ?max_tasks:int
   -> ?exit_on_last_window:bool
   -> ?motion:Gpuio.Animation.Preference.t
@@ -325,6 +447,9 @@ val run
     This initializes the selected backend and freezes native registration.
     Compare with package definitions before constructing application windows. *)
 val extension_catalog : unit -> Gpuio.Extension.Schema.t list Or_error.t
+
+(** Statically linked document profiles; preflight on the main thread before run. *)
+val document_profile_catalog : unit -> Gpuio.Document.Profile.Schema.t list Or_error.t
 
 module Launch_outcome : sig
   type t =
@@ -349,7 +474,8 @@ end
     [Exited] means the primary ran and completed cleanup. Other options and
     callback exception behavior match [run]. No global argv parsing occurs. *)
 val run_desktop
-  :  ?tick_hz:float
+  :  ?document_defaults:unit Bonsai.Effect.t Gpuio.Document.Defaults.t
+  -> ?tick_hz:float
   -> ?max_tasks:int
   -> ?exit_on_last_window:bool
   -> ?motion:Gpuio.Animation.Preference.t

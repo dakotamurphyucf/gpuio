@@ -43,6 +43,7 @@ fn apply(cx: &mut gpui::AsyncApp, window: WindowHandle<View>, operations: Vec<Op
                 .apply(&tx)
                 .unwrap_or_else(|error| panic!("{error:?}: {tx:?}"));
             view.update_editors(&applied.dirty, window, cx);
+            view.list_actions(&applied.lists, window, cx);
             cx.notify();
         })
         .unwrap();
@@ -72,14 +73,30 @@ async fn wheel(
     x: f32,
     y: f32,
 ) {
+    wheel_sample(
+        cx,
+        window,
+        position,
+        gpui::ScrollDelta::Pixels(gpui::point(px(x), px(y))),
+        gpui::TouchPhase::Started,
+    )
+    .await;
+}
+async fn wheel_sample(
+    cx: &mut gpui::AsyncApp,
+    window: WindowHandle<View>,
+    position: gpui::Point<gpui::Pixels>,
+    delta: gpui::ScrollDelta,
+    touch_phase: gpui::TouchPhase,
+) {
     super::native_test::move_mouse(cx, window, position, false);
     window
         .update(cx, |_, window, cx| {
             window.dispatch_event(
                 gpui::PlatformInput::ScrollWheel(gpui::ScrollWheelEvent {
                     position,
-                    delta: gpui::ScrollDelta::Pixels(gpui::point(px(x), px(y))),
-                    touch_phase: gpui::TouchPhase::Started,
+                    delta,
+                    touch_phase,
                     modifiers: Default::default(),
                 }),
                 cx,
@@ -453,6 +470,11 @@ async fn exercise(cx: &mut gpui::AsyncApp, window: WindowHandle<View>) {
         "GPUIO_NATIVE_SCROLL_OK: nested transcript, horizontal code axes, boundary routing, composer, select popup, modal shielding and disposal"
     );
 }
+#[path = "scroll_list_test.rs"]
+mod managed_list;
+#[path = "scroll_two_axis_test.rs"]
+mod two_axis;
+
 pub(crate) fn run() {
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
@@ -490,6 +512,8 @@ pub(crate) fn run() {
             let result = super::native_test::protect(async {
                 apply(cx, window, initial());
                 exercise(cx, window).await;
+                two_axis::exercise(cx, window).await;
+                managed_list::exercise(cx, window).await;
                 window
                     .update(cx, |_, window, _| window.remove_window())
                     .unwrap();

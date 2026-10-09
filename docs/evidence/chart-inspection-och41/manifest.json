@@ -1,0 +1,587 @@
+{
+  "base_commit": "4291d1f3d96030ff038fbef17a0b95ebe31465c4",
+  "scope": "Local native chart inspection integration qualification",
+  "archive_sha256": "83b4496894abde0bde8467d655d83422ccc03b1490fd3ff4589f9761b3562cb4",
+  "files": [
+    {
+      "path": "binary.json",
+      "bytes": 131,
+      "sha256": "30505e0da214fa81f01aa2685c2e8542b7c8e419fb1c474db60de77d64324f8b"
+    },
+    {
+      "path": "commands.txt",
+      "bytes": 810,
+      "sha256": "7de05abb9129d348381f774ee6c3170a89378941ff2dc047e5a700dd192e8408"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 82,
+      "sha256": "6e1453ea9c1ef0c20b76675b08f9e8c930bf10a19af1097d06b47b389abcaa58"
+    },
+    {
+      "path": "final-results.json",
+      "bytes": 913,
+      "sha256": "d70ff5bf9d4ec370a3fcfda179a4f4ec0ecb153e0551a9a8e380385c06ac2039"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-inspection-anchored-details.png",
+      "bytes": 383168,
+      "sha256": "fa1c8658d19c4356149b47791c5ee4ac7e2025568c15ea8b2ebb6d7b100a4805"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-inspection-default-inspection.png",
+      "bytes": 386753,
+      "sha256": "ff4f775a7836b26652c40a14d20b750f3d29bba1ab30d6e9c844305def04647d"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-inspection-horizontal-band.png",
+      "bytes": 387476,
+      "sha256": "2c8efbe1b9c83f7df19493382f27ad68945f26ca9d2c684ed8066a959449ae46"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-inspection-marker-only.png",
+      "bytes": 378130,
+      "sha256": "5236ade642a6addd3d1a0f58ca3fc2ea88f09df4568d41b326acbca1678f5122"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-inspection-vertical-crosshair.png",
+      "bytes": 389170,
+      "sha256": "e5b5471263e7c2f7701455b3f9d7045de7718702e4c9ac80e253a0c189a5dfec"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-ordinal-before.png",
+      "bytes": 387339,
+      "sha256": "ed82dbd7c3fa46311b68f3256353632f029dea0f5960e289a6a41660e3766443"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-ordinal-fallback.png",
+      "bytes": 392763,
+      "sha256": "66802f87e563c7232b3a9e21b137a544bdecbf2f431641e7e94cddbf15b56570"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-ordinal-reordered.png",
+      "bytes": 394680,
+      "sha256": "57b1c5a0e29480eb80f518f76b876b2440aa6cdaf3814a2e0b6dfcabc75b9e0e"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-ordinal-restored.png",
+      "bytes": 394680,
+      "sha256": "57b1c5a0e29480eb80f518f76b876b2440aa6cdaf3814a2e0b6dfcabc75b9e0e"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-stacked-areas.png",
+      "bytes": 397538,
+      "sha256": "5c36770b52684f4e9b86172cbb850d4b19ed79b2e507da7fd0c68f6104a200b5"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-chart-stacked-bars.png",
+      "bytes": 384958,
+      "sha256": "3c58cb4c209500afa12ab7bc76a0bacd604c3a50079f8423d51adf694fed924a"
+    },
+    {
+      "path": "images/chart-inspection-clean-images/gallery-failure.png",
+      "bytes": 371403,
+      "sha256": "a7970c88c67cbf3d83691dcdcc9cdf10ad23be3f05421e5589f581f79c7670d0"
+    },
+    {
+      "path": "images/chart-inspection-focused-images/gallery-chart-inspection-anchored-details.png",
+      "bytes": 383168,
+      "sha256": "fa1c8658d19c4356149b47791c5ee4ac7e2025568c15ea8b2ebb6d7b100a4805"
+    },
+    {
+      "path": "images/chart-inspection-focused-images/gallery-chart-inspection-default-inspection.png",
+      "bytes": 386753,
+      "sha256": "ff4f775a7836b26652c40a14d20b750f3d29bba1ab30d6e9c844305def04647d"
+    },
+    {
+      "path": "images/chart-inspection-focused-images/gallery-chart-inspection-horizontal-band.png",
+      "bytes": 387476,
+      "sha256": "2c8efbe1b9c83f7df19493382f27ad68945f26ca9d2c684ed8066a959449ae46"
+    },
+    {
+      "path": "images/chart-inspection-focused-images/gallery-chart-inspection-marker-only.png",
+      "bytes": 378130,
+      "sha256": "5236ade642a6addd3d1a0f58ca3fc2ea88f09df4568d41b326acbca1678f5122"
+    },
+    {
+      "path": "images/chart-inspection-focused-images/gallery-chart-inspection-vertical-crosshair.png",
+      "bytes": 400668,
+      "sha256": "591d35ce796ff44c4b909d418adc3ffbb79eae314b72a991144bb88f2e5b714d"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-auto-categories.png",
+      "bytes": 389988,
+      "sha256": "345c7238b975cd3e79185accc13c1481226b9873059ebe68ab205d0ea1ab8403"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-band-categories.png",
+      "bytes": 390580,
+      "sha256": "78256a2a6bffdd33d42f6ed7641324178f5681f006ecb55979dea7a446d93f1c"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-horizontal-reversed.png",
+      "bytes": 404987,
+      "sha256": "d296fc6cdbc44a725da8e5a4fc38b66b5bea944bd67710702237f21084fbb869"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-horizontal.png",
+      "bytes": 404988,
+      "sha256": "5668c1e8394d0de98c4a703aaf4a5a85b99bcbeb9a0532ae709bf315d481a116"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-inspection-anchored-details.png",
+      "bytes": 383168,
+      "sha256": "fa1c8658d19c4356149b47791c5ee4ac7e2025568c15ea8b2ebb6d7b100a4805"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-inspection-default-inspection.png",
+      "bytes": 386753,
+      "sha256": "ff4f775a7836b26652c40a14d20b750f3d29bba1ab30d6e9c844305def04647d"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-inspection-horizontal-band.png",
+      "bytes": 387476,
+      "sha256": "2c8efbe1b9c83f7df19493382f27ad68945f26ca9d2c684ed8066a959449ae46"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-inspection-marker-only.png",
+      "bytes": 378130,
+      "sha256": "5236ade642a6addd3d1a0f58ca3fc2ea88f09df4568d41b326acbca1678f5122"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-inspection-vertical-crosshair.png",
+      "bytes": 389170,
+      "sha256": "e5b5471263e7c2f7701455b3f9d7045de7718702e4c9ac80e253a0c189a5dfec"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-ordinal-before.png",
+      "bytes": 387339,
+      "sha256": "ed82dbd7c3fa46311b68f3256353632f029dea0f5960e289a6a41660e3766443"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-ordinal-fallback.png",
+      "bytes": 392763,
+      "sha256": "66802f87e563c7232b3a9e21b137a544bdecbf2f431641e7e94cddbf15b56570"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-ordinal-reordered.png",
+      "bytes": 394680,
+      "sha256": "57b1c5a0e29480eb80f518f76b876b2440aa6cdaf3814a2e0b6dfcabc75b9e0e"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-ordinal-restored.png",
+      "bytes": 394680,
+      "sha256": "57b1c5a0e29480eb80f518f76b876b2440aa6cdaf3814a2e0b6dfcabc75b9e0e"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-point-categories.png",
+      "bytes": 387422,
+      "sha256": "c6f65b4e5a2a15268da6f3f6daf2b46adc8ec26d7fb75d7d306395d10c3dd496"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-stacked-areas.png",
+      "bytes": 397538,
+      "sha256": "5c36770b52684f4e9b86172cbb850d4b19ed79b2e507da7fd0c68f6104a200b5"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-stacked-bars.png",
+      "bytes": 384958,
+      "sha256": "3c58cb4c209500afa12ab7bc76a0bacd604c3a50079f8423d51adf694fed924a"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-vertical-reversed.png",
+      "bytes": 402089,
+      "sha256": "45a6322300dc5bbd16f4d7df3cc6326f4433dcf8b5aec08f47eb5e94e252bdf1"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-chart-vertical.png",
+      "bytes": 400070,
+      "sha256": "f18011eb42559c2139cf3e05153629be9edd73aaed30f9bd3164b57d78ddb36e"
+    },
+    {
+      "path": "images/chart-inspection-qualified-images/gallery-charts.png",
+      "bytes": 400763,
+      "sha256": "044c92ea35f3fec56ca37474cabef140c17f8df2623e388155d0225a33006f09"
+    },
+    {
+      "path": "logs/chart-inspection-clean-clippy.log",
+      "bytes": 588484,
+      "sha256": "82106ad0f727f8d78461d6b91e77c8bfd9c4fda4489635d7518fafadd61948b1"
+    },
+    {
+      "path": "logs/chart-inspection-clean-dune.log",
+      "bytes": 705880,
+      "sha256": "95ad4bd444fb96f8532ee954b9d471ffa544e7565e2f4d788708d90442a295ad"
+    },
+    {
+      "path": "logs/chart-inspection-clean-gallery.log",
+      "bytes": 14964,
+      "sha256": "fbe976d6f49bdd13e6a8966bb46d1cc1e365f67a76d2faf43238041ee543b7ea"
+    },
+    {
+      "path": "logs/chart-inspection-clean-native.log",
+      "bytes": 695774,
+      "sha256": "31cb8fd0d39a6e0306cbfbd30325c1d3f3a8803c0da6cc128ffd3cc3e1bb1bb9"
+    },
+    {
+      "path": "logs/chart-inspection-clean-protocol.log",
+      "bytes": 55538,
+      "sha256": "ddbd91c27fd2f90e19caa6bd5189f6999083981f6bcd5510038068570055c87f"
+    },
+    {
+      "path": "logs/chart-inspection-clean-rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "logs/chart-inspection-clippy-final.log",
+      "bytes": 588425,
+      "sha256": "fb15057922901f54842f1d50371fc8a206becbd247f7b6645f2a46d1b4872847"
+    },
+    {
+      "path": "logs/chart-inspection-clippy.log",
+      "bytes": 589454,
+      "sha256": "39d6623cb9ab31e5b53ce1d66cd94013e9408c8670945d6d076b517065280cd1"
+    },
+    {
+      "path": "logs/chart-inspection-consumer.log",
+      "bytes": 110111,
+      "sha256": "f2f7362df12f6aa8574327dabdd05996577dda88b2bc933f75f05302919f5f13"
+    },
+    {
+      "path": "logs/chart-inspection-dune-final.log",
+      "bytes": 605561,
+      "sha256": "04a168e5d4b5ca44d91b890268dd5243dc38f76d81725d01958655d545a93f86"
+    },
+    {
+      "path": "logs/chart-inspection-focused.log",
+      "bytes": 2052,
+      "sha256": "bd4d87e3bc5f7863c689e37fb0108943647bad0ec21d9f4ad05f6c2f10cad6de"
+    },
+    {
+      "path": "logs/chart-inspection-gallery-final.log",
+      "bytes": 2334,
+      "sha256": "9ccc2cbbc779418940eba77d06cb22643a92ec3e56870f21acfa14add0cbe567"
+    },
+    {
+      "path": "logs/chart-inspection-gallery-fixed.log",
+      "bytes": 3461,
+      "sha256": "d3e08318cab2ea3f076a7ddb7835cf199b6dc4ac6d04a60e7a810135dc67f016"
+    },
+    {
+      "path": "logs/chart-inspection-gallery-initial.log",
+      "bytes": 9620,
+      "sha256": "bb4885503055593fcbe2f9b21d7465276b472a7daf37eb61742e19591ffa6908"
+    },
+    {
+      "path": "logs/chart-inspection-gallery-traced.log",
+      "bytes": 4430,
+      "sha256": "276eef278154841e6121d940b6f5b90b79e1bd09adff0eaf1ed3ec1cfb8dcb7d"
+    },
+    {
+      "path": "logs/chart-inspection-gallery.log",
+      "bytes": 7529,
+      "sha256": "5a2d1b739de673db24ccd16c4953f8b64b9ee6a3c8511ac581053c6923f5bbc8"
+    },
+    {
+      "path": "logs/chart-inspection-native-final.log",
+      "bytes": 695715,
+      "sha256": "d78e54bf7bff596174af2b9d57652a682c0a28c3e2b5505c2c91005084f3c1a5"
+    },
+    {
+      "path": "logs/chart-inspection-native.log",
+      "bytes": 695565,
+      "sha256": "8c2502fdb235ce0ca09c48c464d31d22e7408183a5545aa41b5067765ebfa693"
+    },
+    {
+      "path": "logs/chart-inspection-ocaml-boxed.log",
+      "bytes": 100226,
+      "sha256": "08e627bc3354026f8f4a844c010c85b65e9380100469f4aaeab57d90c2134565"
+    },
+    {
+      "path": "logs/chart-inspection-ocaml-final.log",
+      "bytes": 100161,
+      "sha256": "22ca05188a773734952ad31397bdd541061dd3e26e8706cd567fcb70b6c78252"
+    },
+    {
+      "path": "logs/chart-inspection-ocaml.log",
+      "bytes": 100215,
+      "sha256": "532b0adb803e17a6f5d982ba4daa5b6deea1e1c0ad48021d64a80006e9eb8737"
+    },
+    {
+      "path": "logs/chart-inspection-protocol-boxed.log",
+      "bytes": 55616,
+      "sha256": "b6c2b4b5a8ee94589c514da11941e77e3a1452021919ecbb25966f7ed1943571"
+    },
+    {
+      "path": "logs/chart-inspection-protocol-final.log",
+      "bytes": 55615,
+      "sha256": "8d5213ba6ddf8eb4c5582a93abc6cded7ef3333bf80290da3e95ec5edf9044dc"
+    },
+    {
+      "path": "logs/chart-inspection-protocol.log",
+      "bytes": 16589,
+      "sha256": "476456f2fc110ed09de0122d72b70cf445592238f81becb1922ffa80ac3c7171"
+    },
+    {
+      "path": "logs/chart-inspection-qualified-gallery.log",
+      "bytes": 9082,
+      "sha256": "acd10f69513e9f6798bf2cd3d438734b0bdf7b4a4735456fd6ef7bd419cd5d54"
+    },
+    {
+      "path": "logs/chart-inspection-runtime.log",
+      "bytes": 2943,
+      "sha256": "dc51e12fb070d9db1f2f3ed3736275a20ec3f587fe9099bd55bd5a329186cace"
+    },
+    {
+      "path": "logs/chart-inspection-runtime2.log",
+      "bytes": 9711,
+      "sha256": "201530e7803a73849bcb7c5f1c58411fa1b69b363495dbeec246d182322d616f"
+    },
+    {
+      "path": "logs/chart-inspection-runtime3.log",
+      "bytes": 9711,
+      "sha256": "2952ef2e00906373df1cfe8cb09d474c6f49893e5ec988c73b4a130ff469773a"
+    },
+    {
+      "path": "logs/chart-inspection-scroll-build.log",
+      "bytes": 100161,
+      "sha256": "6ce4eb0a0828afa0e003c5a48283d037b6e8dbc9dbbce8bc52484d607a19f5f9"
+    },
+    {
+      "path": "logs/chart-inspection-scroll.log",
+      "bytes": 7372,
+      "sha256": "3bb9074547d6fb28dd60e32fbb9c16ab0ad092719a444d93799ba9b9ab4274fb"
+    },
+    {
+      "path": "logs/chart-inspection-trace-build.log",
+      "bytes": 71,
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+    },
+    {
+      "path": "logs/chart-inspection-trace2-build.log",
+      "bytes": 100161,
+      "sha256": "b3147f419bb8eedf48227b0dad342343cfaf9426cc27de84cbcb0cd1e6c33298"
+    },
+    {
+      "path": "logs/chart-inspection-window-cg.log",
+      "bytes": 15697,
+      "sha256": "c2d869f3a87b4330bbbaee8a6927cbda35ac35c4d49fbf7bb73d508bf323e3c8"
+    },
+    {
+      "path": "logs/chart-inspection-window-state.log",
+      "bytes": 7783,
+      "sha256": "beeb794c5bc23f28a7565e670e4990f4e807b719e7ff8d78c00e07c1cf449195"
+    },
+    {
+      "path": "logs/chart-inspection-window-trace-build.log",
+      "bytes": 101192,
+      "sha256": "42fb669283d8b927bdf988220e65cbc72523db0d2838791fbdae4a2733606b22"
+    },
+    {
+      "path": "logs/chart-inspection-window-trace-build2.log",
+      "bytes": 100161,
+      "sha256": "8f031670fea591af7cc723ebe099bcdbd68bf737a2f938ecc921a02860c69c2e"
+    },
+    {
+      "path": "logs/chart-inspection-window-trace.log",
+      "bytes": 14848,
+      "sha256": "00ccb0cf004cd2a1c1ce82e5936d4d4d1e0a2b4a360afad1d742d353a7ae8999"
+    },
+    {
+      "path": "source/docs/catalog/charts-review.md",
+      "bytes": 11298,
+      "sha256": "134235cb61279ad3477ae1f6ffa97b681286b5e60636ad5faf5654adbb752108"
+    },
+    {
+      "path": "source/docs/design/chart-inspection.md",
+      "bytes": 4255,
+      "sha256": "fa7d6b819f054e7c237b799703de69c076e5f4bc356f25158371edd3bea9c6d4"
+    },
+    {
+      "path": "source/docs/design/chart-ordinal-colors.md",
+      "bytes": 5188,
+      "sha256": "677b5f9152eceda81006650dff5c45b4763f22e902e165e1b886817c47515afe"
+    },
+    {
+      "path": "source/docs/design/charts.md",
+      "bytes": 46909,
+      "sha256": "45d811663f9d55be124cb8aa44b0ce163392b296747034ec44ac83f6183d3448"
+    },
+    {
+      "path": "source/docs/evidence/chart-inspection-och41.md",
+      "bytes": 6966,
+      "sha256": "a9081e2686bf96271d8d1d7d9817c7ccdca536c25a7c54b5993d4b627cd0950a"
+    },
+    {
+      "path": "source/docs/status.md",
+      "bytes": 51020,
+      "sha256": "2dcf7888e9801081f92485a6815d1f1dabcf8c9a78dcce7e961cf3bd3006bf07"
+    },
+    {
+      "path": "source/examples/charts/README.md",
+      "bytes": 4494,
+      "sha256": "0d9a12cb0fe0b4d8af40f6d1a73d19c4837d14ffe04d27f240b3c6699b1aaade"
+    },
+    {
+      "path": "source/examples/charts/samples/gpuio_chart_samples.ml",
+      "bytes": 10241,
+      "sha256": "36388ab1e502606e9a97086b5995817868a09aea4e458670c6e5ed2b394456dd"
+    },
+    {
+      "path": "source/examples/charts/samples/gpuio_chart_samples.mli",
+      "bytes": 1677,
+      "sha256": "88b5f2deb9300d4215c77b3ae973985c3d195e003c3ab9bae312428cc5a41f34"
+    },
+    {
+      "path": "source/examples/charts/samples/inspection.md",
+      "bytes": 2528,
+      "sha256": "ef41267177d822632ad132c51047ca2a5912695ffc7cbe3b3fc83fde0690f1b8"
+    },
+    {
+      "path": "source/examples/charts/samples/inspection.ml",
+      "bytes": 1720,
+      "sha256": "5e82722b533e28ca9784b8f486cf04b93ca6f8b22e1087bf3bcb409641437df5"
+    },
+    {
+      "path": "source/examples/charts/samples/inspection.mli",
+      "bytes": 328,
+      "sha256": "c1361cac36d29003bb876a0676f54e1b8b46e69cd412baed374b2ea393f94d4f"
+    },
+    {
+      "path": "source/examples/gallery/README.md",
+      "bytes": 70590,
+      "sha256": "56b225a73df35170aeb7e8708b0d206e658b79e4bf878c848e84bf945a20f696"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.md",
+      "bytes": 9105,
+      "sha256": "7bb681d2984adbdad4a347a8c3a2cc32234161392ddbdee2dff44c91a966c74a"
+    },
+    {
+      "path": "source/examples/gallery/charts_page.ml",
+      "bytes": 11447,
+      "sha256": "9d5255c28a28f0dba89108fa6a8124be2af8227ad9a25cf8768e3e2cb564488e"
+    },
+    {
+      "path": "source/lib/core/chart_inspection.ml",
+      "bytes": 3761,
+      "sha256": "188234fed1a72508b2698b6f6fc1daadbaeea02f04afc7e675a2cf5684b060e3"
+    },
+    {
+      "path": "source/lib/core/chart_inspection.mli",
+      "bytes": 2625,
+      "sha256": "ad3b62cf5a1b1de4dad3cd75931407b6cc0534cec4440b8897dba098af5f6223"
+    },
+    {
+      "path": "source/lib/core/chart_style.ml",
+      "bytes": 3720,
+      "sha256": "85fc4f598e05360fb7611df6b614b50aae589571acd8a5d4e7d1f04684d3674c"
+    },
+    {
+      "path": "source/lib/core/chart_style.mli",
+      "bytes": 2812,
+      "sha256": "6cd57fb76f24783e04f63eafb48d5bc7ec35540614102d4279318da642103627"
+    },
+    {
+      "path": "source/lib/protocol/chart_inspection_wire.ml",
+      "bytes": 2228,
+      "sha256": "4109158b7bc6dd59dd8521b9823d27a8b9f875f31610f55b0716466fa897e12f"
+    },
+    {
+      "path": "source/lib/protocol/chart_style_wire.ml",
+      "bytes": 1866,
+      "sha256": "5d92e2e21773b503cf61b6255770d3030dd46840354eb707a70ff51a329ffb42"
+    },
+    {
+      "path": "source/rust/native/src/chart_input.rs",
+      "bytes": 15543,
+      "sha256": "a47776ed5a447b3d19e1989b84e3c872226622c40e4d101475a2649d8410722f"
+    },
+    {
+      "path": "source/rust/native/src/chart_inspection_view.rs",
+      "bytes": 10991,
+      "sha256": "7de22197ff534f3aebf713861af15913930b5b0ad3c5da5f9ff55a14f564e7b9"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_inspection.rs",
+      "bytes": 3675,
+      "sha256": "e75f6551fd72d219f667005c3434c85493bf745abf4ef41bbd197a88b7eba799"
+    },
+    {
+      "path": "source/rust/protocol/src/chart_style.rs",
+      "bytes": 3598,
+      "sha256": "d9c2abf8ebc63b030bf3964dec6224ffc5016379e913372fd0d7ef144549d505"
+    },
+    {
+      "path": "source/rust/protocol/src/decode.rs",
+      "bytes": 82406,
+      "sha256": "cc6566427172d452430a238dfe2578c4b0c51549b8c1e4c890c47aed623c9b94"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_inspection.rs",
+      "bytes": 2107,
+      "sha256": "1ceeae68b0e2dba3c624f65b20863c0c85e3ff166a9b83a280c630cf1c1237ce"
+    },
+    {
+      "path": "source/rust/protocol/src/decode/chart_style.rs",
+      "bytes": 2047,
+      "sha256": "7f48b720ebd970ceeda2435080b536972c954a0cfdc25340fc5fb556edfc0ceb"
+    },
+    {
+      "path": "source/rust/protocol/src/lib.rs",
+      "bytes": 5106,
+      "sha256": "a6b24963cf29990c260c6c446d9afa4420ae84cc65bc79069ce46ec5e00ee900"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_inspection.rs",
+      "bytes": 6218,
+      "sha256": "d0320fb4c104a2ab5970a68f05d8712faf64046f25ad62e88bc5ab4dd8a136f1"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_style.rs",
+      "bytes": 7244,
+      "sha256": "6eaa00395f5f0c0523cdd866cc1e4fbe6fbeca016fb4a502160a19f871101bf4"
+    },
+    {
+      "path": "source/rust/protocol/tests/chart_view.rs",
+      "bytes": 4509,
+      "sha256": "b54ef70856473a15e9a505350e88ab4b19e1b141628aea01f73c3d00663be52f"
+    },
+    {
+      "path": "source/scripts/test_gallery.py",
+      "bytes": 353916,
+      "sha256": "a22eb1e8e9a877cbc577a5bdb4c579b3c321c4cf7238d7bf4533f381e2a660d5"
+    },
+    {
+      "path": "source/test/chart/chart_inspection_test.ml",
+      "bytes": 2403,
+      "sha256": "fcf602da4a22ca3c7d81e5a56355583e5fb1592aaf3db323600dbbebdaaae483"
+    },
+    {
+      "path": "source/test/chart/chart_style_test.ml",
+      "bytes": 6285,
+      "sha256": "18c88c92aa7719b5e88255d5d23637638800bcddab28830fd1e6b6259fe83c2b"
+    },
+    {
+      "path": "source/test/chart/chart_view_test.ml",
+      "bytes": 5316,
+      "sha256": "dd60b36fb7a0d33cd0e1fd9a08d035bf85ca9cb748a42086d8cf3fbeae48e24d"
+    },
+    {
+      "path": "source/test/chart/dune",
+      "bytes": 411,
+      "sha256": "433f64844442a6b63cab04d02bab19dbd5f49df1b9f1e9f922b4821fd8bce397"
+    },
+    {
+      "path": "source/test/fixtures/chart-v3-style-inspection-view.hex",
+      "bytes": 459,
+      "sha256": "aed79f315bd282e865a82b7049b567c9e9e104aae676ae440f926b29802b9b25"
+    },
+    {
+      "path": "tracked.patch",
+      "bytes": 43511,
+      "sha256": "cb5e467bc70738fd90ff97b30dc1f9158ec18bc70766272ccdaaaa0a4962255e"
+    }
+  ]
+}

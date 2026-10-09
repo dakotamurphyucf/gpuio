@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Native chat results flow; simulated queries, public table, owned app cleanup."""
 import ctypes as C
+import math
 import os
 from pathlib import Path
 import signal
@@ -81,6 +82,8 @@ class Results(Review):
             # macOS maps headers and data cells to AXCell; both share the
             # column label. Only the header lacks the data cell's AXValue.
             def header(node):
+                if time.monotonic() >= deadline:
+                    return None
                 if (self.text(node, 'AXRole') == 'AXCell'
                         and label in [self.text(node, 'AXTitle'), self.text(node, 'AXDescription')]
                         and self.text(node, 'AXValue') is None):
@@ -95,40 +98,66 @@ class Results(Review):
                     for child in children:
                         self.release(child)
                 return None
-            # Returning to the retained page can expose the table root before
-            # its visible headers are published. Reacquire the current tree;
-            # an absent header must still fail within a bounded deadline.
+            # Returning to the retained page can publish a header before its
+            # geometry. Reacquire and release the current tree on every sample;
+            # never send pointer input using an old or unmeasured AX object.
             deadline = time.monotonic() + 5
-            node = None
+            reason = 'Missing visible column header'
+            previous, stable_since = None, None
             while time.monotonic() < deadline:
-                root = self.find(TITLE, 'Run results', 'AXTable', search_files=True)
+                node = None
+                geometry = None
+                root = self.find(TITLE, 'Run results', 'AXTable', search_files=True,
+                                 deadline=deadline)
                 if root:
                     try:
                         node = header(root)
                     finally:
                         self.release(root)
                 if node:
-                    break
+                    try:
+                        geometry, reason = self.read_geometry(node)
+                    finally:
+                        self.release(node)
+                else:
+                    reason = 'Missing visible column header'
+                now = time.monotonic()
+                if geometry is not None:
+                    position, size = geometry
+                    sample = (position.x, position.y, size.x, size.y)
+                    if sample != previous:
+                        previous, stable_since = sample, now
+                    elif now - stable_since >= .1 and now < deadline:
+                        return geometry
+                    reason = 'Geometry is still settling'
+                else:
+                    previous, stable_since = None, None
                 time.sleep(.03)
-            if not node:
-                raise RuntimeError(f'Missing visible column header: {label}')
-        else:
-            node = self.wait_find(TITLE, label, role, search_files=True)
+            raise RuntimeError(f'Column geometry did not become ready: {label} ({reason})')
+        node = self.wait_find(TITLE, label, role, search_files=True)
         try:
-            position, size = Point(), Point()
-            for name, kind, result in [('AXPosition', 1, position), ('AXSize', 2, size)]:
-                raw = self.attr(node, name)
-                try:
-                    if not raw or not self.value(raw, kind, C.byref(result)):
-                        raise RuntimeError(f'Missing geometry: {label}')
-                finally:
-                    if raw:
-                        self.release(raw)
-            if size.x <= 0 or size.y <= 0:
-                raise RuntimeError(f'Invisible element: {label}')
-            return position, size
+            geometry, reason = self.read_geometry(node)
+            if geometry is None:
+                raise RuntimeError(f'{reason}: {label}')
+            return geometry
         finally:
             self.release(node)
+
+    def read_geometry(self, node):
+        position, size = Point(), Point()
+        for name, kind, result in [('AXPosition', 1, position), ('AXSize', 2, size)]:
+            raw = self.attr(node, name)
+            try:
+                if not raw or not self.value(raw, kind, C.byref(result)):
+                    return None, f'Missing {name}'
+            finally:
+                if raw:
+                    self.release(raw)
+        if not all(math.isfinite(value) for value in (position.x, position.y, size.x, size.y)):
+            return None, 'Nonfinite geometry'
+        if size.x <= 0 or size.y <= 0:
+            return None, 'Invisible element'
+        return (position, size), 'Geometry available'
 
     def cell(self, label):
         position, size = self.bounds(label, 'AXCell')
@@ -174,8 +203,34 @@ class Results(Review):
             time.sleep(.05)
         raise RuntimeError('Native table did not copy the complete Unicode finding')
 
+    def reveal_column_headers(self):
+        # The inspector is itself scrollable. AX can expose an unclipped header
+        # rectangle above its page viewport, so reveal the page before pointer
+        # input. Use the gutter, preserving the table's own vertical/horizontal
+        # scroll state and its retained column order/widths.
+        table, _ = self.bounds('Run results', 'AXTable')
+        window, size = self.bounds(TITLE, 'AXWindow')
+        point = Point(table.x - 8, window.y + size.y / 2)
+        if not window.x < point.x < window.x + size.x:
+            raise RuntimeError('Results page gutter is outside the owned window')
+        self.send(5, point)  # Includes the existing child-window ownership guard.
+        wheel = self.cg.CGEventCreateScrollWheelEvent
+        wheel.restype, wheel.argtypes = C.c_void_p, [C.c_void_p, C.c_uint, C.c_uint, C.c_int]
+        locate = self.cg.CGEventSetLocation
+        locate.restype, locate.argtypes = None, [C.c_void_p, Point]
+        event = wheel(None, 0, 1, 5000)
+        if not event:
+            raise RuntimeError('Cannot create Results page scroll event')
+        try:
+            locate(event, point)
+            self.key_flags(event, 0)
+            self.post(0, event)
+        finally:
+            self.release(event)
+
     def columns(self):
         # Resize the pinned ID boundary, then reorder two unpinned columns.
+        self.reveal_column_headers()
         position, before = self.bounds('RESULT', 'AXColumnHeader')
         self.drag(Point(position.x + before.x - 1, position.y + before.y / 2),
                   Point(position.x + before.x + 19, position.y + before.y / 2))
@@ -229,6 +284,7 @@ class Results(Review):
             raise RuntimeError('Column reorder was not accepted')
         self.press(TITLE, 'Diagram')
         self.press(TITLE, 'Back')
+        self.reveal_column_headers()
         _, after = self.bounds('RESULT', 'AXColumnHeader')
         tool, _ = self.bounds('TOOL', 'AXColumnHeader')
         score, _ = self.bounds('SCORE', 'AXColumnHeader')

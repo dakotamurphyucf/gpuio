@@ -254,8 +254,8 @@ let () =
       |> Or_error.ok_exn
     in
     Eio_main.run (fun env ->
-      Eio.Flow.copy_string
-        (Gpuio.Desktop_package.contents package)
-        (Eio.Stdenv.stdout env))
+      Gpuio_eio.Output.write
+        (Eio.Stdenv.stdout env)
+        (Gpuio.Desktop_package.contents package))
   | _ -> main ()
 ;;

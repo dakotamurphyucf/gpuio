@@ -1,14 +1,14 @@
 open Core
-module W = Signal_studio_model.Workspace
+module Workspace = Signal_studio_model.Workspace
 module Alerts = Signal_studio_notifications.Run_alerts
-module V = Gpuio_bonsai.View
-module A = Gpuio.Animation
-module Q = Gpuio.Container_query
+module View = Gpuio_bonsai.View
+module Animation = Gpuio.Animation
+module Container_query = Gpuio.Container_query
 module Counter = Gpuio_example_counter
 
 module Snapshot = struct
   type t =
-    { workspace : W.t
+    { workspace : Workspace.t
     ; canvas : Gpuio.Canvas_scene.Handle.t option
     ; chart : Gpuio.Chart_resource.t option
     ; command : Gpuio.Canvas.Command.t option
@@ -61,11 +61,11 @@ let key = Gpuio.Key.of_string_exn
 let bg rgb = Gpuio.Style.Property.Background (Gpuio.Background.solid (color rgb))
 
 let text ?(size = 13.) ?(tint = 0x93a6bd) value =
-  V.text ~style:(style [ Font_size size; Foreground (color tint) ]) value
+  View.text ~style:(style [ Font_size size; Foreground (color tint) ]) value
 ;;
 
 let button ?(disabled = false) label action =
-  V.button
+  View.button
     ~disabled
     label
     ~on_click:action
@@ -79,24 +79,29 @@ let button ?(disabled = false) label action =
          ])
 ;;
 
-let target property value = A.Target.create [ property, value ] |> ok
-let stage timing value = A.Stage.create ~timing ~target:value () |> ok
-let tween ms = A.Timing.tween ~easing:A.Easing.ease_out (Time_ns.Span.of_ms ms) |> ok
+let target property value = Animation.Target.create [ property, value ] |> ok
+let stage timing value = Animation.Stage.create ~timing ~target:value () |> ok
+
+let tween ms =
+  Animation.Timing.tween ~easing:Animation.Easing.ease_out (Time_ns.Span.of_ms ms) |> ok
+;;
 
 let indicator ~name ~label ~running =
   let program =
-    A.Program.create
+    Animation.Program.create
       ~initial:(target Opacity 1.)
       ~repeat:Alternate
-      ~clock:(A.Clock.group "signal-activity" |> ok)
+      ~clock:(Animation.Clock.group "signal-activity" |> ok)
       [ stage (tween 700.) (target Opacity 0.35) ]
     |> ok
   in
-  let program = if running then program else A.Program.with_playback program Paused in
-  V.animate_program
+  let program =
+    if running then program else Animation.Program.with_playback program Paused
+  in
+  View.animate_program
     ~key:(key name)
     program
-    [ V.with_accessibility
+    [ View.with_accessibility
         (text ~size:11. ~tint:0x73dcc1 (if running then "●  UPDATING" else "●  READY"))
         (Gpuio.Accessibility.create
            ~label
@@ -109,7 +114,7 @@ let indicator ~name ~label ~running =
 
 let inspector snapshot actions =
   let spring =
-    A.Spring.create
+    Animation.Spring.create
       ~stiffness:220.
       ~damping:29.
       ~mass:1.
@@ -119,29 +124,29 @@ let inspector snapshot actions =
     |> ok
   in
   let program =
-    A.Program.create
+    Animation.Program.create
       [ stage
-          (A.Timing.spring spring)
+          (Animation.Timing.spring spring)
           (target Height (if snapshot.Snapshot.inspector then 172. else 0.))
       ]
     |> ok
   in
   let detail =
-    match W.selected snapshot.workspace with
+    match Workspace.selected snapshot.workspace with
     | None -> "Select a model on the canvas."
     | Some sample ->
       sprintf
         "%s · latency %.0f ms · quality %.0f%%"
-        (W.Sample.name sample)
-        (W.Sample.latency sample)
-        (W.Sample.quality sample)
+        (Workspace.Sample.name sample)
+        (Workspace.Sample.latency sample)
+        (Workspace.Sample.quality sample)
   in
-  V.animate_program
+  View.animate_program
     ~key:(key "inspector-spring")
     ~on_event:(actions.Actions.on_motion ~name:"inspector")
     ~style:(style [ Width full; Overflow_y Hidden; Shrink 0. ])
     program
-    [ V.panel
+    [ View.panel
         ~key:(key "selected-model-panel")
         ~label:"Selected model"
         ~active:snapshot.inspector
@@ -153,7 +158,7 @@ let inspector snapshot actions =
         ; text ~tint:0xeaf2f9 detail
         ; text ~size:11. "Shift + arrows moves the selected model."
         ; text ~size:11. "Changes update the latency chart."
-        ; V.row
+        ; View.row
             ~style:(style [ Gap (px 6.) ])
             [ button
                 (if snapshot.extension_disabled then "Unlock control" else "Lock control")
@@ -178,7 +183,7 @@ let body snapshot actions ~compact =
           ~zoom
         |> ok
       in
-      V.canvas
+      View.canvas
         ~key:(key "signal-canvas")
         ~on_event:actions.Actions.canvas
         (Gpuio.Canvas.Config.create
@@ -198,7 +203,7 @@ let body snapshot actions ~compact =
     match snapshot.chart with
     | None -> text "Preparing latency chart…"
     | Some data ->
-      V.chart
+      View.chart
         ~key:(key "signal-chart")
         ~on_event:actions.chart
         (Gpuio.Chart.Config.create
@@ -206,7 +211,10 @@ let body snapshot actions ~compact =
            ~label:"Latency across 24 evaluations"
            ~style:
              (Gpuio.Chart_style.create
-                ~palette:(List.map (W.samples snapshot.workspace) ~f:W.Sample.color)
+                ~palette:
+                  (List.map
+                     (Workspace.samples snapshot.workspace)
+                     ~f:Workspace.Sample.color)
                 ()
               |> ok)
            ()
@@ -215,10 +223,10 @@ let body snapshot actions ~compact =
           (style [ Width (px chart_width); Height (px 235.); Shrink 0.; bg 0x14202d ])
   in
   let plot =
-    V.column
+    View.column
       ~style:
         (style [ Gap (px 10.); Padding (px 12.); Radius 16.; bg 0x14202d; Shrink 0. ])
-      [ V.row
+      [ View.row
           ~style:(style [ Justify_content Space_between; Align_items Center ])
           [ text ~size:15. ~tint:0xeaf2f9 "Quality × latency"
           ; indicator
@@ -231,11 +239,11 @@ let body snapshot actions ~compact =
       ]
   in
   let side =
-    V.column
+    View.column
       ~style:(style [ Width (px (chart_width +. 24.)); Gap (px 12.); Shrink 0. ])
-      [ V.column
+      [ View.column
           ~style:(style [ Padding (px 12.); Gap (px 10.); Radius 16.; bg 0x14202d ])
-          [ V.row
+          [ View.row
               ~style:(style [ Justify_content Space_between; Align_items Center ])
               [ text ~size:15. ~tint:0xeaf2f9 "Signal history"
               ; indicator
@@ -251,12 +259,12 @@ let body snapshot actions ~compact =
       ; inspector snapshot actions
       ]
   in
-  (if compact then V.column else V.row)
+  (if compact then View.column else View.row)
     ~style:
       (style
          [ Gap (px 14.); Align_items Start; Overflow_y Scroll; Height full; Width full ])
     [ plot
-    ; V.with_accessibility
+    ; View.with_accessibility
         side
         (Gpuio.Accessibility.create ~role:Group ~label:"Signal history and inspector" ()
          |> ok)
@@ -266,7 +274,7 @@ let body snapshot actions ~compact =
 
 let alerts_panel snapshot (actions : Actions.t) =
   let alerts = snapshot.Snapshot.alerts in
-  V.popover
+  View.popover
     ~key:(key "run-alerts")
     ~config:
       (Gpuio.Overlay.Config.create
@@ -281,7 +289,7 @@ let alerts_panel snapshot (actions : Actions.t) =
      then None
      else
        Some
-         (V.column
+         (View.column
             ~style:(style [ Padding (px 16.); Gap (px 12.); bg 0x14202d; Radius 14. ])
             [ text ~size:17. ~tint:0xeaf2f9 "Keep track of your runs"
             ; text "Get a desktop alert when a run finishes."
@@ -289,7 +297,7 @@ let alerts_panel snapshot (actions : Actions.t) =
                 ~disabled:(alerts.busy || alerts.enabled)
                 "Enable alerts"
                 actions.enable_alerts
-            ; V.row
+            ; View.row
                 ~style:(style [ Gap (px 8.) ])
                 [ button
                     ~disabled:(alerts.busy || not alerts.enabled)
@@ -306,7 +314,7 @@ let alerts_panel snapshot (actions : Actions.t) =
 ;;
 
 let view snapshot (actions : Actions.t) =
-  let run = W.run snapshot.Snapshot.workspace in
+  let run = Workspace.run snapshot.Snapshot.workspace in
   let counter =
     Counter.instance
       (Counter.Properties.create ~value:run ~step:1 () |> ok)
@@ -316,25 +324,27 @@ let view snapshot (actions : Actions.t) =
       ()
     |> ok
   in
-  let compact = Q.Branch_id.of_string "compact" |> ok in
-  let wide = Q.Branch_id.of_string "wide" |> ok in
+  let compact = Container_query.Branch_id.of_string "compact" |> ok in
+  let wide = Container_query.Branch_id.of_string "wide" |> ok in
   let query =
-    Q.Config.create
+    Container_query.Config.create
       ~default:compact
-      [ Q.Rule.create
+      [ Container_query.Rule.create
           ~branch:wide
           ~condition:
-            (Q.Predicate.create ~width:(Q.Range.create ~minimum:1080. () |> ok) ())
+            (Container_query.Predicate.create
+               ~width:(Container_query.Range.create ~minimum:1080. () |> ok)
+               ())
       ]
     |> ok
   in
   let sequence =
-    A.Program.create
+    Animation.Program.create
       ~initial:(target Opacity 0.45)
       [ stage (tween 100.) (target Opacity 0.75); stage (tween 180.) (target Opacity 1.) ]
     |> ok
   in
-  V.column
+  View.column
     ~style:
       (style
          [ Width full
@@ -344,9 +354,9 @@ let view snapshot (actions : Actions.t) =
          ; Overflow_y Scroll
          ; bg 0x0b131e
          ])
-    [ V.row
+    [ View.row
         ~style:(style [ Justify_content Space_between; Align_items Center; Gap (px 12.) ])
-        [ V.column
+        [ View.column
             ~style:(style [ Gap (px 6.) ])
             [ text ~size:11. ~tint:0x73dcc1 "GPUIO  /  SIGNAL STUDIO"
             ; text
@@ -360,10 +370,10 @@ let view snapshot (actions : Actions.t) =
                  then "Your model evaluation workbench."
                  else "Move a point. Compare a run. Follow the signal.")
             ]
-        ; V.column
+        ; View.column
             ~style:(style [ Width (px 215.); Gap (px 6.); Shrink 0. ])
             [ text ~size:11. "RUN CONTROL"
-            ; V.extension
+            ; View.extension
                 ~key:(key "run-control")
                 ~on_event:actions.extension
                 counter
@@ -374,17 +384,19 @@ let view snapshot (actions : Actions.t) =
                      ])
             ]
         ]
-    ; V.row
+    ; View.row
         ~style:(style [ Gap (px 8.); Align_items Center ])
-        (List.map (W.samples snapshot.workspace) ~f:(fun sample ->
-           button (W.Sample.name sample) (actions.select (W.Sample.id sample)))
+        (List.map (Workspace.samples snapshot.workspace) ~f:(fun sample ->
+           button
+             (Workspace.Sample.name sample)
+             (actions.select (Workspace.Sample.id sample)))
          @ [ button
                (if snapshot.running then "Pause stream" else "Stream runs")
                actions.run
            ; button "Reset view" actions.reset_viewport
            ; button "Reset workspace" actions.reset
            ])
-    ; V.row
+    ; View.row
         ~style:(style [ Gap (px 8.); Align_items Center ])
         [ button "Open workspace" actions.open_document
         ; button "Save workspace" actions.save_document
@@ -401,7 +413,7 @@ let view snapshot (actions : Actions.t) =
              then "Saved workspace"
              else "Untitled workspace")
         ]
-    ; V.container_query
+    ; View.container_query
         ~key:(key "workspace-layout")
         ~on_select:actions.on_layout
         query
@@ -416,7 +428,7 @@ let view snapshot (actions : Actions.t) =
         ; wide, body snapshot actions ~compact:false
         ]
       |> ok
-    ; V.animate_program
+    ; View.animate_program
         ~key:(Gpuio.Key.of_int run)
         ~on_event:(actions.on_motion ~name:"run")
         sequence

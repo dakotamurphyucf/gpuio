@@ -1,0 +1,168 @@
+{
+  "run": 37848090787,
+  "head": "0c8f94d2c3b3f22d4f487202eace60156d3bd528",
+  "local_source": "same base plus local/candidate.patch; delayed diagnostic uses local/navigation-delay.patch",
+  "archive_sha256": "59f3667d82f38e5c40132a49cc2a74e6ab5d735812f893005721431c5653ebab",
+  "files": [
+    {
+      "path": "hosted/ax-point-routing/application.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "hosted/ax-point-routing/failure.png",
+      "size": 152653,
+      "sha256": "415cfbb029f1ac80892d413a63ac64a2f6f2c5bd19c6b024a3a2323900a9b7fd"
+    },
+    {
+      "path": "hosted/ax-point-routing/report.json",
+      "size": 881,
+      "sha256": "a085c40f27469b2b22f8b71f39f6223d7be2fe21ac00dcb2f30b3f30c1ccaedc"
+    },
+    {
+      "path": "hosted/macos-agent-chat-dates-colors.log",
+      "size": 2344,
+      "sha256": "19825b1545cf2f2e1226414e6257f29e17979948d7e2e73f0b5b610152aec39f"
+    },
+    {
+      "path": "hosted/macos-ax-point-routing.log",
+      "size": 930,
+      "sha256": "a9eed0fa92c01e15b32c1846cd1eb645b37dfabe5417297ea5dbe4f76813019f"
+    },
+    {
+      "path": "hosted/macos-menu-popup-queue.log",
+      "size": 593709,
+      "sha256": "2945533621fb9397a66e8cc8ceb6c9e7ced14f820683ebec28e3909109fa12b9"
+    },
+    {
+      "path": "hosted/macos-navigation-native.log",
+      "size": 594455,
+      "sha256": "daf9414231052a3c1bb7100305a7510263c08022566a11de8470f696cefc83e5"
+    },
+    {
+      "path": "hosted/metal-api-availability/availability.json",
+      "size": 132,
+      "sha256": "dc0f0496287b8fdebc90393f45a15e1160b67bcdd3ce86a172cbc480f99e52c2"
+    },
+    {
+      "path": "hosted/metal-api-availability/report.json",
+      "size": 63761,
+      "sha256": "c5e96c917e370004a86aa9e5da67ab2609cf22c1dbb1037c3201d7d31596f9fd"
+    },
+    {
+      "path": "hosted/metal-presentation-hook/availability.json",
+      "size": 132,
+      "sha256": "e75e3cb441923fde9e5ca2392dfe67aea14725557d00b7a39d63ce325d16ec34"
+    },
+    {
+      "path": "hosted/metal-presentation-hook/report.json",
+      "size": 76207,
+      "sha256": "0c9d9e17e23265de5d57fc611485066a9c63fa1e230bee4af902d3494c01cb4f"
+    },
+    {
+      "path": "hosted/metal-preview-summary/availability.json",
+      "size": 162,
+      "sha256": "6aa12ac6895ce7777fa2efe18a3e6a3b502f32241373a00593f9e4b3f48178a0"
+    },
+    {
+      "path": "hosted/receiver/agent-chat.json",
+      "size": 1534,
+      "sha256": "366739b8438e2b5ac5cc4702785ade9c0fec24d89d734bd4f480bcf797193821"
+    },
+    {
+      "path": "hosted/receiver/gallery.json",
+      "size": 6457,
+      "sha256": "909936be1e39789311475f982403b00c6af5914c02407d0d71bb56e6416a0650"
+    },
+    {
+      "path": "hosted/receiver/signal-studio.json",
+      "size": 1592,
+      "sha256": "bb4d43d0232e767923e2f0974179f6de10c77b611aa658ec11411f7e980183c6"
+    },
+    {
+      "path": "hosted/terminal.json",
+      "size": 79733,
+      "sha256": "8a8221a3775a3c2d12a9a130595d86243556b8ebaca9177ab25de972050476cb"
+    },
+    {
+      "path": "local/candidate-fmt.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "local/candidate.patch",
+      "size": 13979,
+      "sha256": "dd8359089e9115a3a1798e51c0a4623b0e4d9f4ce96de773bb93b5f97e3bbcc6"
+    },
+    {
+      "path": "local/metal-pair-revalidation/availability.json",
+      "size": 162,
+      "sha256": "6aa12ac6895ce7777fa2efe18a3e6a3b502f32241373a00593f9e4b3f48178a0"
+    },
+    {
+      "path": "local/navigation-clock-build.log",
+      "size": 591962,
+      "sha256": "ef0f87742762fb7df9e02febdbf5ad1ea5af76ac970d9cfd60a276b2155550dc"
+    },
+    {
+      "path": "local/navigation-clock-local.json",
+      "size": 147,
+      "sha256": "8269d9cf79b5d69f34732f091a98159cb81feeb28238fb9e9e8cc1b5d4b79e89"
+    },
+    {
+      "path": "local/navigation-clock-local.log",
+      "size": 1336,
+      "sha256": "97755191d00e5b34bb6a57b6b2aca370928882430b976b7237d357620a6aff70"
+    },
+    {
+      "path": "local/navigation-delay-local.json",
+      "size": 232,
+      "sha256": "d49194afcac327da002a70b8f7869fe9cd2435317c81753389640b29da0fd29a"
+    },
+    {
+      "path": "local/navigation-delay-local.log",
+      "size": 1466,
+      "sha256": "f22892aa6826a06698e44f5d08b052b3e4191b1da577ff251f2b71811609f7be"
+    },
+    {
+      "path": "local/navigation-delay.patch",
+      "size": 2982,
+      "sha256": "a3854f209c71e7e6567adf0b1b120fd7a0580377971fbffc00e6c7d638b933bd"
+    },
+    {
+      "path": "local/navigation-motion-unit.log",
+      "size": 592975,
+      "sha256": "ccc03152ed1f155c1db1ce9e3872dffc348d88ff80a5657becbd31bf440ea83d"
+    },
+    {
+      "path": "local/point-readiness-unit.log",
+      "size": 111,
+      "sha256": "7c4ce78e536c0c2cdb85730c9c8381839f365b3a2b9d77c5cc9eaede9427b0df"
+    },
+    {
+      "path": "local/point-ready-local.log",
+      "size": 1147,
+      "sha256": "eeb777f754636c7106b362ebdf2153384e2f671ffb77c6302a511aaec81d0ae8"
+    },
+    {
+      "path": "local/point-ready-local/report.json",
+      "size": 31428,
+      "sha256": "cf60098d08716fb2a53896b7a5dfeb8b0224f3a31426a4be46aca21b4290b64c"
+    },
+    {
+      "path": "local/popup-ready-build.log",
+      "size": 591974,
+      "sha256": "52c4eaf0ad14144a4f0b9b9acdf673a439a0fd393a5bcc0250ebb7aa5f5d9073"
+    },
+    {
+      "path": "local/popup-ready-local.json",
+      "size": 147,
+      "sha256": "04a21dc098d6a5755a6c257b576634b7ad6685b935387253e99647bbe73dd203"
+    },
+    {
+      "path": "local/popup-ready-local.log",
+      "size": 780,
+      "sha256": "b666d0e116f22e1c9c8dd37e05a540706f941c5d5c5506a9dd7b8dae77eefd96"
+    }
+  ]
+}

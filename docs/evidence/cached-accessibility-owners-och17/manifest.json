@@ -1,0 +1,66 @@
+{
+  "base_revision": "f62271d10638acf71508c23cf300c48294aee20b",
+  "files": {
+    "ax-cache-mixed-after.log": {
+      "bytes": 589359,
+      "sha256": "4cea63f05709184c0324146624ab57f10c7383d6b0c0e8929b66794c7aa0bb25"
+    },
+    "ax-cache-mixed-before.log": {
+      "bytes": 589318,
+      "sha256": "8b6eb58a83ad063faf018857c4a56af90863ffffa4d0989cc363a9b67975b963"
+    },
+    "ax-cache-owners-before.log": {
+      "bytes": 589507,
+      "sha256": "849341602c14ef6cc36cdfec344126b1f209a87f156592f0a020ca84baffc907"
+    },
+    "ax-cache-owners-clippy.log": {
+      "bytes": 589314,
+      "sha256": "b7c63203dd223333f436518d5b80d8ee0caf941c08a7a414e199f65cc5531e2c"
+    },
+    "ax-cache-owners-fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ax-cache-owners-native.log": {
+      "bytes": 715257,
+      "sha256": "2c78566972ec32e4c69760e48568937c06eafd4fad839391db4ec291b71c9224"
+    },
+    "ax-cache-owners-reconstruction-result.txt": {
+      "bytes": 66,
+      "sha256": "845579b6bbce047eb1c67f3dc010fcec6e7d6d9890dd5d51b6bf0bd961ff9090"
+    },
+    "ax-cache-owners-reconstruction.log": {
+      "bytes": 1109,
+      "sha256": "6c98dd8d44ffd14d790256b7dcf485296f54c70b9b71010f5aec665f2241bda5"
+    },
+    "ax-cache-textview-owner-reproduction.rs": {
+      "bytes": 3596,
+      "sha256": "26ae506523924f05f5b56a6e5bf8df018aa1a78e11d4cdd0a03d9e077f813bfc"
+    },
+    "environment.txt": {
+      "bytes": 139,
+      "sha256": "90e10ba90b042fc52f797bd6f55c04323af6955006d76b3e51e7b851cd6f9d4f"
+    },
+    "implementation.diff": {
+      "bytes": 3803,
+      "sha256": "958a2e1473a67eb1dd4d0c5a6dd441fcb433b9ee24259b133ae6893aa6f17a70"
+    },
+    "source/rust/native/src/document_cached_accessibility_test.rs": {
+      "bytes": 12901,
+      "sha256": "5804b34105a3405946d1c767847731ba7a35e444540f66c615fb310b5cb759c9"
+    },
+    "source/rust/native/src/document_cached_owner_test.rs": {
+      "bytes": 2857,
+      "sha256": "06f6a5d5012b4fd8711381481fe33d009555bec87f9a30daa470274a3fbad9b3"
+    },
+    "source/vendor/gpui/src/window.rs": {
+      "bytes": 345732,
+      "sha256": "5cd73f8bd2440dfc04b2303b6de821d27fb017e71e958a06a805d04dca9f2600"
+    },
+    "source/vendor/gpui/src/window/a11y/cache.rs": {
+      "bytes": 7538,
+      "sha256": "79cbc655f0d6b91175c02925626178ec397a929e35cce397b7ce2d796c80ce39"
+    }
+  },
+  "archive_sha256": "a398c6025240fcc2e2d6f313a6055d87096ceb8572a8bc91d62a40335fd7f1d2"
+}

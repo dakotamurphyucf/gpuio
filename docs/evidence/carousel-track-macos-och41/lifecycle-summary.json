@@ -1,0 +1,21 @@
+{
+  "base_revision": "e3d8356c",
+  "production_changes": false,
+  "installed_consumer": "Reused scroll-phase consumer; no new install or rebuild",
+  "runs": [
+    {
+      "kind": "native",
+      "executable": "GALLERY_EXECUTABLE_SHA256 83f4d9bf0ecc9e422d607f996772720fd42686af0050644f1be82fd7a07d893f /Users/dakotamurphy/gpuio/_build/default/examples/gallery/main.exe",
+      "complete": true,
+      "cases": 12,
+      "input_source": "com.apple.keylayout.US"
+    },
+    {
+      "kind": "installed",
+      "executable": "GALLERY_EXECUTABLE_SHA256 f6fe066302bb168b8c9da7aaae26e30f06437384219ba56a3c90123b9e4849e7 /Users/dakotamurphy/gpuio/scratch/agents/root-20261007-access-check/scroll-phase-consumer/consumer/_build/default/main.exe",
+      "complete": true,
+      "cases": 12,
+      "input_source": "com.apple.keylayout.US"
+    }
+  ]
+}

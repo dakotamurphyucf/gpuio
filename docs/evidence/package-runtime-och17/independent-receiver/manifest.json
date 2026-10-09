@@ -1,0 +1,18 @@
+{
+  "receiver-independent.patch": {
+    "bytes": 3459,
+    "sha256": "5fb9424896ac54c2df70364689b2d9505d8f7e02cae1944cedba51477ef39043"
+  },
+  "receiver-independent-actionlint.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "receiver-independent-transfer.log": {
+    "bytes": 103,
+    "sha256": "357761de973a080051958068d7b5f0deecdc3b826c553a14de7fe86480760eff"
+  },
+  "receiver-independent-admission.log": {
+    "bytes": 101,
+    "sha256": "7ba600c131d14938fa296eb6eb208c575bf239a15b65439f37d0578df0fff9bf"
+  }
+}

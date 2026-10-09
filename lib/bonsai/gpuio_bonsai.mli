@@ -1,17 +1,43 @@
 open Core
 module Managed_rows = Managed_rows
 module Virtual_list = Virtual_list
+module Selectable_list = Selectable_list
 module Tree_rows = Tree_rows
 module Tree = Tree
 module Table = Table
+module Table_view = Gpuio.Table_view
+module Command_binding = Binding_observer
+module Settings = Settings_panel
 
-(** The pure view API specialized to Bonsai effects. No driver, I/O runtime or
-    scheduling policy is introduced here; window lifecycle scheduling is OCH-9. *)
+(** The pure view API specialized to Bonsai effects. Application and window
+    lifecycle scheduling belongs to [Gpuio_eio.App]. *)
 module View : sig
   type t = unit Bonsai.Effect.t Gpuio.View.t
   type toast = unit Bonsai.Effect.t Gpuio.View.toast
 
+  val with_hover : t -> on_change:(bool -> unit Bonsai.Effect.t) -> t Or_error.t
+  val with_key : t -> Gpuio.Key.t -> t
+  val with_scrollbar : t -> Gpuio.Scrollbar.t option -> t Or_error.t
+  val with_window_region : t -> Gpuio.Window_region.t option -> t Or_error.t
   val with_accessibility : t -> Gpuio.Accessibility.t -> t Or_error.t
+
+  val with_menu_item_content
+    :  t
+    -> items:(Gpuio.Menu.Item_path.t * t) list
+    -> t Or_error.t
+
+  val with_menu_item_icons
+    :  t
+    -> items:(Gpuio.Menu.Item_path.t * Gpuio.Asset.Handle.t) list
+    -> t Or_error.t
+
+  val link
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> Gpuio.Link.Config.t
+    -> on_click:unit Bonsai.Effect.t
+    -> t list
+    -> t Or_error.t
 
   val container_query
     :  ?key:Gpuio.Key.t
@@ -43,6 +69,8 @@ module View : sig
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
     -> ?on_event:(Gpuio.Chart.Event.t -> unit Bonsai.Effect.t)
+    -> ?radar_labels:t Gpuio.Chart_radar_labels.t
+    -> ?inspection_content:t Gpuio.Chart_inspection_content.t
     -> Gpuio.Chart.Config.t
     -> t
 
@@ -58,8 +86,19 @@ module View : sig
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
     -> ?on_navigate:(Gpuio.Document.Navigation.t -> unit Bonsai.Effect.t)
+    -> ?on_diff:(Gpuio.Document.Diff.Event.t -> unit Bonsai.Effect.t)
+    -> ?on_preview:(Gpuio.Document.Preview.Event.t -> unit Bonsai.Effect.t)
+    -> ?on_action:(Gpuio.Document.Actions.Event.t -> unit Bonsai.Effect.t)
     -> Gpuio.Document.Config.t
     -> t
+
+  val without_document_profile : t -> t Or_error.t
+
+  val with_document_profile
+    :  t
+    -> 'event Gpuio.Document.Profile.Instance.t
+    -> on_event:('event Gpuio.Document.Profile.Event.t -> unit Bonsai.Effect.t)
+    -> t Or_error.t
 
   (** Pure image placement; register encoded bytes with [Gpuio_eio.Asset]. *)
   val image
@@ -92,6 +131,30 @@ module View : sig
     -> t list
     -> t
 
+  val command_binding_scope
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Command_binding.Config.t
+    -> on_update:(Gpuio.Command_binding.Observation.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
+  val highlight_scope
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Highlight.Config.t
+    -> ?on_update:(Gpuio.Highlight.Observation.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
+  val input_region
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> config:Gpuio.Input_region.Config.t
+    -> on_event:(Gpuio.Input_region.Event.t -> unit Bonsai.Effect.t)
+    -> t list
+    -> t
+
   val pointer_area
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
@@ -117,9 +180,16 @@ module View : sig
 
   val text : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> string -> t
 
+  (** See [Gpuio.View.styled_text] for foreground, selection and theme semantics. *)
+  val styled_text : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> Gpuio.Text_content.t -> t
+
+  (** See [Gpuio.View.with_text_shimmer], including its experimental status. *)
+  val with_text_shimmer : t -> Gpuio.Text_shimmer.Config.t option -> t Or_error.t
+
   val button
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?config:Gpuio.Button.Config.t
     -> ?accessible_name:string
     -> ?disabled:bool
     -> ?leading_icon:Gpuio.Icon.Decoration.t
@@ -131,15 +201,39 @@ module View : sig
   val icon_button
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?config:Gpuio.Button.Config.t
     -> ?disabled:bool
     -> label:string
     -> on_click:unit Bonsai.Effect.t
     -> Gpuio.Icon.Decoration.t
     -> t
 
+  (** One native action around checked passive content, including progress/loading.
+      Loading blocks activation but retains focus; content owns no callbacks. *)
+  val button_with_content
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?config:Gpuio.Button.Config.t
+    -> ?disabled:bool
+    -> accessible_name:string
+    -> on_click:unit Bonsai.Effect.t
+    -> t
+    -> t Core.Or_error.t
+
+  (** Uses the registry command label as the accessible name. Loading is per owner. *)
+  val command_button_with_content
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?config:Gpuio.Button.Config.t
+    -> command:Gpuio.Command.Id.t
+    -> t
+    -> t Core.Or_error.t
+
   val checkbox
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Control_appearance.t
+    -> ?tab_order:Gpuio.Tab_order.t
     -> ?accessible_name:string
     -> ?disabled:bool
     -> state:Gpuio.Check_state.t
@@ -150,6 +244,8 @@ module View : sig
   val switch
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Control_appearance.t
+    -> ?tab_order:Gpuio.Tab_order.t
     -> ?accessible_name:string
     -> ?disabled:bool
     -> checked:bool
@@ -159,6 +255,7 @@ module View : sig
 
   val slider
     :  ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Slider.Appearance.t
     -> controller:Gpuio.Key.t
     -> config:Gpuio.Slider.Config.t
     -> initial:Gpuio.Slider.Value.t
@@ -169,6 +266,7 @@ module View : sig
   val rating
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Rating.Appearance.t
     -> config:Gpuio.Rating.Config.t
     -> on_request:(Gpuio.Rating.Request.t -> unit Bonsai.Effect.t)
     -> unit
@@ -181,6 +279,24 @@ module View : sig
     -> Gpuio.Avatar.Config.t
     -> t
 
+  (** See [Gpuio.View.avatar_with_fallback] for retained passive content,
+      rectangular overflow clipping and the single semantic owner contract. *)
+  val avatar_with_fallback
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_change:(Gpuio.Image.State.t -> unit Bonsai.Effect.t)
+    -> Gpuio.Avatar.Config.t
+    -> fallback:t
+    -> t Or_error.t
+
+  val spinner
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?on_icon_change:(Gpuio.Image.State.t -> unit Bonsai.Effect.t)
+    -> config:Gpuio.Spinner.Config.t
+    -> unit
+    -> t
+
   val loading
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
@@ -191,8 +307,20 @@ module View : sig
   val progress
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?transition:Gpuio.Progress.Transition.t
     -> config:Gpuio.Progress.Config.t
     -> unit
+    -> t
+
+  (** Circular progress with keyed center content. Defaults to 32px and a 200ms
+    ease-out transition. The semantic value reports the target immediately;
+    inert/reduced motion snaps artwork. Center controls retain their own state. *)
+  val progress_circle
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?transition:Gpuio.Progress.Transition.t
+    -> config:Gpuio.Progress.Config.t
+    -> t list
     -> t
 
   val command_palette
@@ -200,14 +328,35 @@ module View : sig
     -> ?style:Gpuio.Style.t
     -> ?appearance:Gpuio.Command_palette.Appearance.t
     -> config:Gpuio.Command_palette.Config.t
+    -> ?on_change:(Gpuio.Command_palette.Snapshot.t -> unit Bonsai.Effect.t)
     -> on_dismiss:(Gpuio.Command_palette.Dismissal.t -> unit Bonsai.Effect.t)
     -> unit
     -> t
+
+  val with_palette_content
+    :  t
+    -> ?header:t
+    -> ?footer:t
+    -> ?empty:t
+    -> items:(Gpuio.Command.Id.t * t) list
+    -> unit
+    -> t Or_error.t
+
+  val split_button
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Split_button.Appearance.t
+    -> ?primary:t
+    -> ?menu:t
+    -> unit
+    -> t Or_error.t
 
   val menu_button
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
     -> ?appearance:Gpuio.Menu.Appearance.t
+    -> ?placement:Gpuio.Placement.t
+    -> ?on_open_change:(bool -> unit Bonsai.Effect.t)
     -> menu:Gpuio.Menu.t
     -> unit
     -> t
@@ -216,9 +365,40 @@ module View : sig
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
     -> ?appearance:Gpuio.Menu.Appearance.t
+    -> ?platform:bool
+    -> ?on_change:(Gpuio.Menu.Snapshot.t -> unit Bonsai.Effect.t)
     -> menu:Gpuio.Menu.t
     -> t
     -> t
+
+  (** See [Gpuio.View.number_frame] for retained numeric presentation. *)
+  val number_frame
+    :  ?appearance:Gpuio.Number_input.Appearance.t
+    -> ?leading:t
+    -> ?trailing:t
+    -> ?decrement:t
+    -> ?increment:t
+    -> t
+    -> t Core.Or_error.t
+
+  (** See [Gpuio.View.input_frame] for retained input adornments. *)
+  val input_frame
+    :  ?config:Gpuio.Input_frame.t
+    -> ?leading:t
+    -> ?trailing:t
+    -> ?on_reveal:(unit -> unit Bonsai.Effect.t)
+    -> t
+    -> t Core.Or_error.t
+
+  (** See [Gpuio.View.editor_menu] for retained placement and native targeting. *)
+  val editor_menu
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Menu.Appearance.t
+    -> ?config:Gpuio.Editor_menu.t
+    -> ?item_content:(Gpuio.Menu.Item_path.t * t) list
+    -> t
+    -> t Core.Or_error.t
 
   val menu_bar
     :  ?key:Gpuio.Key.t
@@ -238,11 +418,39 @@ module View : sig
   val command_button
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?config:Gpuio.Button.Config.t
     -> ?leading_icon:Gpuio.Icon.Decoration.t
     -> ?trailing_icon:Gpuio.Icon.Decoration.t
     -> command:Gpuio.Command.Id.t
     -> unit
     -> t
+
+  (** Standalone native radio. Select an application value rather than toggling it. *)
+  val radio
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Control_appearance.t
+    -> ?accessible_name:string
+    -> ?disabled:bool
+    -> ?tab_order:Gpuio.Tab_order.t
+    -> ?position:Gpuio.Radio.Position.t
+    -> checked:bool
+    -> on_select:unit Bonsai.Effect.t
+    -> string
+    -> t
+
+  val radio_with_label
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Control_appearance.t
+    -> ?disabled:bool
+    -> ?tab_order:Gpuio.Tab_order.t
+    -> ?position:Gpuio.Radio.Position.t
+    -> accessible_name:string
+    -> checked:bool
+    -> on_select:unit Bonsai.Effect.t
+    -> t
+    -> t Core.Or_error.t
 
   val focus_scope
     :  ?key:Gpuio.Key.t
@@ -254,6 +462,8 @@ module View : sig
   val dialog
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?backdrop:Gpuio.Color.t
+    -> ?motion:Gpuio.Overlay.Motion.t
     -> config:Gpuio.Overlay.Config.t
     -> on_dismiss:(Gpuio.Overlay.Dismissal.t -> unit Bonsai.Effect.t)
     -> t option
@@ -262,6 +472,8 @@ module View : sig
   val sheet
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?backdrop:Gpuio.Color.t
+    -> ?motion:Gpuio.Overlay.Motion.t
     -> config:Gpuio.Sheet.Config.t
     -> on_dismiss:(Gpuio.Overlay.Dismissal.t -> unit Bonsai.Effect.t)
     -> t option
@@ -270,6 +482,8 @@ module View : sig
   val alert_dialog
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?backdrop:Gpuio.Color.t
+    -> ?motion:Gpuio.Overlay.Motion.t
     -> config:Gpuio.Alert_dialog.Config.t
     -> on_dismiss:(Gpuio.Overlay.Dismissal.t -> unit Bonsai.Effect.t)
     -> t option
@@ -304,7 +518,54 @@ module View : sig
     -> unit
     -> t
 
+  val checkbox_with_label
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Control_appearance.t
+    -> ?tab_order:Gpuio.Tab_order.t
+    -> ?disabled:bool
+    -> accessible_name:string
+    -> state:Gpuio.Check_state.t
+    -> on_toggle:unit Bonsai.Effect.t
+    -> t
+    -> t Core.Or_error.t
+
+  val switch_with_label
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Control_appearance.t
+    -> ?tab_order:Gpuio.Tab_order.t
+    -> ?disabled:bool
+    -> accessible_name:string
+    -> checked:bool
+    -> on_toggle:unit Bonsai.Effect.t
+    -> t
+    -> t Core.Or_error.t
+
   val row : ?key:Gpuio.Key.t -> ?style:Gpuio.Style.t -> t list -> t
+
+  (** See [Gpuio.View.title_bar]; window actions stay ordinary Bonsai effects. *)
+  val title_bar
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> backend:Gpuio.Window.Backend.t
+    -> fullscreen:bool
+    -> t list
+    -> t
+
+  (** See [Gpuio.View.window_controls]. Pass [App.Window.request_close] through
+      an effect for Close so application decisions remain authoritative. *)
+  val window_controls
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?button_style:Gpuio.Style.t
+    -> backend:Gpuio.Window.Backend.t
+    -> snapshot:Gpuio.Window.Snapshot.t
+    -> on_minimize:unit Bonsai.Effect.t
+    -> on_zoom:unit Bonsai.Effect.t
+    -> on_close:unit Bonsai.Effect.t
+    -> unit
+    -> t
 
   val extension
     :  ?key:Gpuio.Key.t
@@ -312,6 +573,17 @@ module View : sig
     -> on_event:('event Gpuio.Extension.Event.t -> unit Bonsai.Effect.t)
     -> 'event Gpuio.Extension.Instance.t
     -> t
+
+  val split_group
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Split_group.Appearance.t
+    -> ?handles:(Gpuio.Split_group.Id.t * t) list
+    -> ?on_resize:(Gpuio.Split_group.Snapshot.t -> unit Bonsai.Effect.t)
+    -> config:Gpuio.Split_group.Config.t
+    -> panels:(Gpuio.Split_group.Id.t * t) list
+    -> unit
+    -> t Core.Or_error.t
 
   val split_pane
     :  ?key:Gpuio.Key.t
@@ -326,6 +598,9 @@ module View : sig
   val tab_bar
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Tab_bar.Appearance.t
+    -> ?viewport:Gpuio.Tab_bar.Viewport.t
+    -> ?motion:Gpuio.Tab_bar.Motion.t
     -> config:Gpuio.Choice.Config.t
     -> on_select:(Gpuio.Choice.Id.t -> unit Bonsai.Effect.t)
     -> unit
@@ -339,6 +614,55 @@ module View : sig
     -> t list
     -> t
 
+  (** See [Gpuio.View.tab_bar_with_labels] for decorative content and identity
+      constraints. *)
+  val tab_bar_with_labels
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Tab_bar.Appearance.t
+    -> ?viewport:Gpuio.Tab_bar.Viewport.t
+    -> ?motion:Gpuio.Tab_bar.Motion.t
+    -> config:Gpuio.Choice.Config.t
+    -> labels:(Gpuio.Choice.Id.t * t) list
+    -> on_select:(Gpuio.Choice.Id.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t Core.Or_error.t
+
+  module Tab_content = Gpuio.View.Tab_content
+
+  val tab_bar_with_content
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Tab_bar.Appearance.t
+    -> ?max_width:float
+    -> ?viewport:Gpuio.Tab_bar.Viewport.t
+    -> ?motion:Gpuio.Tab_bar.Motion.t
+    -> config:Gpuio.Choice.Config.t
+    -> content:(Gpuio.Choice.Id.t * unit Bonsai.Effect.t Tab_content.t) list
+    -> on_select:(Gpuio.Choice.Id.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t Core.Or_error.t
+
+  (** A stable frame for a direct tab bar. Prefix/suffix stay outside its native
+      horizontal viewport; [trailing] is an ordinary view inside the scroller,
+      after the logical tabs. The default trailing space is 12 pixels when a
+      suffix or menu exists, empty otherwise. Explicit trailing content is always kept.
+      The optional all-tabs menu sits before the suffix and uses current tab choices.
+      Existing viewport/reveal settings are preserved; absent settings opt in to
+      [Gpuio.Tab_bar.Viewport.default]. Outer [style] sizes the frame; tab styles still
+      size its viewport. Keep the frame mounted to retain descendant owners.
+      Rejects non-tab/already-framed views and content over 4096 nodes/128 levels.
+      Omitted [key] inherits the input tab bar's key. *)
+  val tab_bar_frame
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?menu:Gpuio.Tab_bar.Menu.t
+    -> ?prefix:t
+    -> ?suffix:t
+    -> ?trailing:t
+    -> t
+    -> t Core.Or_error.t
+
   (** Generic region and disclosure lifetimes follow [Gpuio.View.panel] and
       [Gpuio.View.disclosure]; hiding native content does not itself deactivate
       its Bonsai computation or cancel application tasks. *)
@@ -347,8 +671,31 @@ module View : sig
     -> label:string
     -> active:bool
     -> hidden:Gpuio.Content_policy.t
+    -> ?motion:Gpuio.Disclosure.Motion.t
     -> ?style:Gpuio.Style.t
     -> t list
+    -> t
+
+  (** See [Gpuio.View.carousel_track] for measured geometry, retained card
+      lifetime, pointer/trackpad/wheel input, control focus and automatic advancement.
+      Reduce requests with [Gpuio.Carousel_track.apply_request], including Layout
+      events; layout updates do not change the serialized model revision.
+      Full focus/accessibility qualification remains unfinished. *)
+  val carousel_track
+    :  'data Gpuio.Carousel_track.t
+    -> ?key:Gpuio.Key.t
+    -> ?motion:Gpuio.Carousel_track.Motion.t
+    -> ?style:Gpuio.Style.t
+    -> ?viewport_style:Gpuio.Style.t
+    -> ?track_style:Gpuio.Style.t
+    -> ?item_style:('data Gpuio.Carousel_track.Item.t -> Gpuio.Style.t)
+    -> ?controls_style:Gpuio.Style.t
+    -> ?control_style:Gpuio.Style.t
+    -> ?show_controls:bool
+    -> label:string
+    -> on_request:(Gpuio.Carousel_track.Request.t -> unit Bonsai.Effect.t)
+    -> content:('data Gpuio.Carousel_track.Item.t -> t list)
+    -> unit
     -> t
 
   (** See [Gpuio.View.carousel] for selection and native lifetime contracts. *)
@@ -393,6 +740,7 @@ module View : sig
     -> expanded:bool
     -> ?disabled:bool
     -> hidden:Gpuio.Content_policy.t
+    -> ?motion:Gpuio.Disclosure.Motion.t
     -> on_toggle:unit Bonsai.Effect.t
     -> t list
     -> t
@@ -405,6 +753,7 @@ module View : sig
     -> label:string
     -> expanded:bool
     -> hidden:Gpuio.Content_policy.t
+    -> ?motion:Gpuio.Disclosure.Motion.t
     -> header:t list
     -> trigger:t
     -> t list
@@ -417,18 +766,48 @@ module View : sig
     -> ?panel_style:Gpuio.Style.t
     -> model:Gpuio.Disclosure.t
     -> hidden:Gpuio.Content_policy.t
+    -> ?motion:Gpuio.Disclosure.Motion.t
     -> on_request:(Gpuio.Disclosure.Request.t -> unit Bonsai.Effect.t)
     -> content:(Gpuio.Choice.Id.t -> t list)
     -> unit
     -> t
 
+  val accordion_with_labels
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?item_style:(Gpuio.Choice.t -> Gpuio.Style.t)
+    -> ?trigger_style:Gpuio.Style.t
+    -> ?panel_style:Gpuio.Style.t
+    -> ?heading_level:int
+    -> model:Gpuio.Disclosure.t
+    -> labels:(Gpuio.Choice.Id.t * t) list
+    -> hidden:Gpuio.Content_policy.t
+    -> ?motion:Gpuio.Disclosure.Motion.t
+    -> on_request:(Gpuio.Disclosure.Request.t -> unit Bonsai.Effect.t)
+    -> content:(Gpuio.Choice.Id.t -> t list)
+    -> unit
+    -> t Or_error.t
+
   val radio_group
     :  ?key:Gpuio.Key.t
     -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Control_appearance.t
+    -> ?tab_order:Gpuio.Tab_order.t
     -> config:Gpuio.Choice.Config.t
     -> on_select:(Gpuio.Choice.Id.t -> unit Bonsai.Effect.t)
     -> unit
     -> t
+
+  val radio_group_with_labels
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> ?appearance:Gpuio.Control_appearance.t
+    -> ?tab_order:Gpuio.Tab_order.t
+    -> config:Gpuio.Choice.Config.t
+    -> labels:(Gpuio.Choice.Id.t * t) list
+    -> on_select:(Gpuio.Choice.Id.t -> unit Bonsai.Effect.t)
+    -> unit
+    -> t Core.Or_error.t
 
   val select
     :  ?key:Gpuio.Key.t
@@ -439,6 +818,13 @@ module View : sig
     -> unit
     -> t
 
+  val choice_picker
+    :  ?key:Gpuio.Key.t
+    -> ?style:Gpuio.Style.t
+    -> on_event:(Gpuio.Choice_picker.Event.t -> unit Bonsai.Effect.t)
+    -> t Gpuio.Choice_picker.Description.t
+    -> t Core.Or_error.t
+
   val combobox
     :  ?style:Gpuio.Style.t
     -> ?appearance:Gpuio.Choice.Appearance.t
@@ -447,6 +833,14 @@ module View : sig
     -> config:Gpuio.Combobox.Config.t
     -> on_event:(Gpuio.Combobox.Event.t -> unit Bonsai.Effect.t)
     -> unit
+    -> t Or_error.t
+
+  (** See [Gpuio.View.with_list_input]; effects run after asynchronous native
+      input delivery, never inside native layout or input callbacks. *)
+  val with_list_input
+    :  t
+    -> config:Gpuio.List_input.Config.t
+    -> on_input:(Gpuio.Key.t Gpuio.List_input.t -> unit Bonsai.Effect.t)
     -> t Or_error.t
 
   val virtual_list

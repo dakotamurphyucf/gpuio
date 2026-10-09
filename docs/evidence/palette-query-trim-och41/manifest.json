@@ -1,0 +1,55 @@
+{
+  "base": "f6e34e232720d89a3daed8b00f730cb216a1da6a",
+  "files": [
+    {
+      "path": "commands.txt",
+      "bytes": 1088,
+      "sha256": "371cf860099a64e0e0ca094717f93d2d4312206f78a1c141e6d83ce432b2f358"
+    },
+    {
+      "path": "gallery-palette-keywords.png",
+      "bytes": 358440,
+      "sha256": "5aa21180a5c04570a0670f49a65d740cdf95d892782afaca254a2646d2289217"
+    },
+    {
+      "path": "palette-trim-clippy.log",
+      "bytes": 138,
+      "sha256": "ceb57e7b5350f2591a1f0b04375303ed29275337783ebd17b2b96e495ec277d7"
+    },
+    {
+      "path": "palette-trim-codec.log",
+      "bytes": 455,
+      "sha256": "117680af68dccf379ef7aeddb485da0b41ac95a8e0d27441d14ff90b966ca24a"
+    },
+    {
+      "path": "palette-trim-consumer.log",
+      "bytes": 200897,
+      "sha256": "884c57a1046bbba10bf3908d5197d2b99f06b3574a71187d4b9302e82d8202d4"
+    },
+    {
+      "path": "palette-trim-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "palette-trim-gallery.log",
+      "bytes": 1443,
+      "sha256": "56155aa43f81e73c854417d261ee7e8e712b39683bb2e7e712232600dc6cdb71"
+    },
+    {
+      "path": "palette-trim-native.log",
+      "bytes": 589087,
+      "sha256": "0848bb269ee9c0d775ef5add24c34cd2e6e8b8548ffd1a58e43391a959361be9"
+    },
+    {
+      "path": "palette-trim-rustfmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "source.patch",
+      "bytes": 7405,
+      "sha256": "5ddb404abde76fe3b632959f50d9a371a9952c3f63cd7309dfda11b0ec7493cf"
+    }
+  ]
+}

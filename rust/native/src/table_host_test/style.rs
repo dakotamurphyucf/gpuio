@@ -188,6 +188,78 @@ async fn themed_feedback(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<Vie
     );
 }
 
+// Physical GPU readback. This is intentionally separate from TestPlatform tests.
+async fn presentation(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
+    window
+        .update(cx, |view, _, cx| {
+            view.tables[&node(0)]
+                .borrow()
+                .native
+                .update(cx, |state, cx| {
+                    state.replace_selection(Selection::Empty, cx);
+                });
+        })
+        .unwrap();
+    apply(
+        cx,
+        window,
+        vec![Op::SetTableAppearance(
+            node(0),
+            Some(wire::Appearance {
+                striped: true,
+                colors: vec![
+                    (wire::Part::HeaderBackground, 0xff000080),
+                    (wire::Part::HeaderForeground, 0xffffffff),
+                    (wire::Part::StripeBackground, 0x00ff00ff),
+                ],
+                ..wire::Appearance::default()
+            }),
+        )],
+    );
+    frame(cx, window).await;
+    let painted = image(cx, window);
+    label_color(&painted, [255, 255, 255], "explicit header foreground");
+    // Both regions blend the header exactly once over the original dark surface.
+    pixel(
+        &painted,
+        100,
+        12,
+        [139, 12, 15, 255],
+        "translucent pinned header",
+    );
+    pixel(
+        &painted,
+        480,
+        12,
+        [139, 12, 15, 255],
+        "translucent scrolling header",
+    );
+    pixel(
+        &painted,
+        480,
+        80,
+        [0, 255, 0, 255],
+        "native stripe through row gaps",
+    );
+    apply(cx, window, vec![Op::SetTableAppearance(node(0), None)]);
+    frame(cx, window).await;
+    let reset = image(cx, window);
+    pixel(
+        &reset,
+        480,
+        12,
+        [23, 25, 31, 255],
+        "presentation reset header",
+    );
+    pixel(
+        &reset,
+        480,
+        80,
+        [23, 25, 31, 255],
+        "presentation reset stripes",
+    );
+}
+
 pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle<View>) {
     apply(
         cx,
@@ -383,6 +455,7 @@ pub(super) async fn exercise(cx: &mut gpui::AsyncApp, window: gpui::WindowHandle
         "default header restored",
     );
     pixel(&reset, 480, 200, [23, 25, 31, 255], "default body restored");
+    presentation(cx, window).await;
     eprintln!(
         "GPUIO_TABLE_STYLE_OK: one alpha surface, gradient header/body, single border/padding, corner clipping and inherited text"
     );

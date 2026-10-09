@@ -35,6 +35,7 @@ and registration =
   ; mutable accepted : Source.t option
   ; mutable revision : int64
   ; mutable generation : int64
+  ; mutable generation_first_revision : int64
   ; mutable upload : upload option
   ; mutable released : bool
   ; mutable error : Wire.Error.t option
@@ -184,6 +185,7 @@ let register t ~scope source ~on_result =
       ; accepted = None
       ; revision = 0L
       ; generation = 1L
+      ; generation_first_revision = 1L
       ; upload = None
       ; released = false
       ; error = None
@@ -322,6 +324,8 @@ let complete t response =
               change entry (fun () ->
                 entry.accepted <- Some upload.source;
                 entry.upload <- None);
+              if not (Int64.equal entry.generation upload.update.generation)
+              then entry.generation_first_revision <- upload.update.revision;
               entry.revision <- upload.update.revision;
               entry.generation <- upload.update.generation;
               entry.handle <- Some (Source.Expert.handle ~owner:t.owner upload.update.id);
@@ -365,4 +369,28 @@ let accepts_navigation t id ~generation =
       || Option.exists entry.upload ~f:(fun upload ->
         Int64.equal generation upload.update.generation
         && Source.Expert.same_generation desired upload.source)))
+;;
+
+let accepts_event t id ~generation ~revision =
+  check t;
+  (not t.closed)
+  && Int64.(generation > 0L && revision > 0L)
+  && Map.exists t.entries ~f:(fun entry ->
+    (not entry.released)
+    && Option.exists entry.id ~f:(Id.equal id)
+    && Option.exists entry.desired ~f:(fun desired ->
+      (Int64.equal generation entry.generation
+       && Int64.(
+            revision >= entry.generation_first_revision && revision <= entry.revision)
+       && Option.exists entry.accepted ~f:(Source.Expert.same_generation desired))
+      || Option.exists entry.upload ~f:(fun upload ->
+        Int64.equal generation upload.update.generation
+        && Source.Expert.same_generation desired upload.source
+        && Int64.equal revision upload.update.revision
+        && Option.exists t.pending ~f:(function
+          | pending_entry, Publish (pending_id, pending_revision) ->
+            Int.equal pending_entry.key entry.key
+            && Id.equal pending_id id
+            && Int64.equal pending_revision revision
+          | _, (Create | Begin _ | Chunk _ | Abort _ | Release _) -> false))))
 ;;

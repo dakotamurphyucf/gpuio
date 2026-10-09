@@ -1,6 +1,20 @@
+module Ui_command = Command
+
 (** An immutable, labeled menu of command references. Command labels, checked
     state and availability come from the enclosing command registry. *)
 type t [@@deriving equal, sexp_of]
+
+module Item_path : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Zero-based root menu index followed by one or more item indices. For
+      example, [0; 2; 1] addresses the second item of the third item's submenu
+      in the first menu. Construction checks structural bounds; the receiving
+      view checks that the path exists. Paths identify positions, not commands. *)
+  val of_list : int list -> t Core.Or_error.t
+
+  val to_list : t -> int list
+end
 
 module Item : sig
   type menu := t
@@ -9,10 +23,17 @@ module Item : sig
     | Command of Command.Id.t
     | Separator
     | Submenu of menu
+    | Label of string
   [@@deriving equal, sexp_of]
 end
 
-(** Nonblank UTF-8 label without NUL, at most 4096 bytes. A menu is limited to
+(** Nonblank UTF-8 labels without NUL, at most 4096 bytes each, including
+    [Item.Label] section labels. Labels are noninteractive text rows: keyboard
+    navigation/typeahead skip them and they never resolve a command. They are
+    supported in drawn button/context menus and [View.menu_bar ~platform:false].
+    Platform context popups show labels as disabled, non-actionable native rows.
+    Platform menu bars reject labels rather than converting them into commands.
+    A menu is limited to
     eight nested levels, 1024 items and 256 KiB of labels/command IDs. Disabled
     submenus cannot open. Empty menus are permitted. *)
 val create : label:string -> ?disabled:bool -> Item.t list -> t Core.Or_error.t
@@ -22,15 +43,60 @@ val label : t -> string
 (** Popup, row and empty-state styles/geometry use the same vocabulary as choices. *)
 module Appearance = Choice.Appearance
 
+module Position : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Finite logical window coordinates in [-1,000,000,1,000,000], measured
+      from the content area's upper-left. Native placement may be adjusted. *)
+  val create : x:float -> y:float -> t Core.Or_error.t
+
+  val x : t -> float
+  val y : t -> float
+end
+
+module Snapshot : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Accepted native open state, including a queued OS tracking lease.
+      This is not proof of physical presentation. *)
+  val is_open : t -> bool
+end
+
+module Command : sig
+  type t =
+    | Show of Position.t
+    | Close
+  [@@deriving equal, sexp_of]
+end
+
+module Command_error = Gpuio_protocol.Menu_command_wire.Error
+
 module Expert : sig
+  val snapshot
+    :  window:Gpuio_protocol.Window_id.t
+    -> node:Gpuio_protocol.Node_id.t
+    -> observer:Gpuio_protocol.Handler_id.t
+    -> is_open:bool
+    -> Snapshot.t
+
+  val window : Snapshot.t -> Gpuio_protocol.Window_id.t
+  val node : Snapshot.t -> Gpuio_protocol.Node_id.t
+  val observer : Snapshot.t -> Gpuio_protocol.Handler_id.t
+  val same_owner : Snapshot.t -> Snapshot.t -> bool
+  val command_to_wire : Command.t -> Gpuio_protocol.Menu_command_wire.Command.t
+
   type presentation =
     | Button
     | Context
     | Bar
     | Platform_bar
+    | Editor_context
+    | Platform_context
   [@@deriving equal, sexp_of]
 
-  val command_ids : t -> Command.Id.t list
+  val command_ids : t -> Ui_command.Id.t list
+  val item_paths : t list -> (Item_path.t * Item.t) list
   val validate_collection : t list -> unit Core.Or_error.t
+  val validate_platform_collection : t list -> unit Core.Or_error.t
   val to_wire : t -> Gpuio_protocol.Wire.Menu_definition.t
 end

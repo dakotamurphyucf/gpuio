@@ -1,7 +1,7 @@
-# GPUIO macOS disclosure, outline and table adaptation
+# GPUIO macOS accessibility adaptation
 
 This is the published `accesskit_macos` **0.26.3**, at AccessKit revision
-`c88605b96d04431f9c3c792464a0f2f253480e94`, with four scoped patches.
+`c88605b96d04431f9c3c792464a0f2f253480e94`, with ten scoped patches.
 The upstream MIT/Apache-2.0 notices and both license texts are preserved. Source,
 archive checksum and original per-file checksums are recorded in `UPSTREAM.json`.
 Cargo uses the registry-normalized manifest, retaining its exact dependency ranges.
@@ -52,7 +52,10 @@ state. Actual AppKit tests cover mixed setters before the next application updat
 Reconstruction: download the crate archive from `UPSTREAM.json`, verify its SHA256,
 extract `Cargo.toml`, `Cargo.toml.orig`, README/CHANGELOG and `src/`, then apply
 `patch -p1 < expanded-state.patch` and then `patch -p1 < tree-state.patch` inside
-that directory, followed by `patch -p1 < tree-actions.patch` and `patch -p1 < table-state.patch`. Fetch LICENSE-APACHE and
+that directory, followed by `patch -p1 < tree-actions.patch`, `patch -p1 < table-state.patch`
+and `patch -p1 < document-semantics.patch`, then `patch -p1 < table-headers.patch`
+and `patch -p1 < initial-window-focus.patch`, then `patch -p1 < busy-state.patch` and `patch -p1 < list-selection.patch`, followed by `patch -p1 < table-row-header-ranges.patch` and `patch -p1 < attribute-settable.patch`.
+Fetch LICENSE-APACHE and
 LICENSE-MIT from the pinned upstream Git revision and verify their recorded hashes.
 `UPSTREAM.json`, this note and the patches are GPUIO provenance additions. The
 registry archive's Cargo.lock and Cargo cache metadata are not build inputs.
@@ -91,3 +94,122 @@ Press, focus and desired-selection setters. It verifies queued order, a jump to
 row 50,001, unavailable data, pointer-independent accessibility and hidden/disabled
 retirement. Focus assertions activate the local test window; the harness closes
 it on success and failure. This is not VoiceOver speech or Linux GUI evidence.
+
+`document-semantics.patch` corrects the Heading role string to `AXHeading`
+(the same native role already used for DocSubtitle) and implements the legacy
+AppKit AXValue-settable query using the adapter's existing SetValue capability
+predicate. On macOS 14.5, external AX queries reported a read-only code document
+as settable even while `isAccessibilitySelectorAllowed:` returned false with
+read_only=true, text_ranges=false and no SetValue action. The narrow override
+fixes that mismatch. The later `attribute-settable.patch` replaces its invalid
+superclass fallback: NSAccessibilityElement does not implement the legacy
+`accessibilityIsAttributeSettable:` method. VoiceOver and an external AXRole
+mutability query reproduced a process-aborting message send on macOS 14.5.
+The override now maps AXValue, AXFocused, AXSelectedTextRange, AXSelected,
+AXExpanded and AXDisclosed to their existing modern setter capability checks.
+Other attributes, including application-owned AXElementBusy, are read-only.
+The actual OS regression in `scripts/test_macos_text_selection.py` checks
+mutability alongside selection and Copy for rendered documents, read-only code
+and editable text. This regression is not full VoiceOver reading acceptance.
+
+The gallery's real macOS regression checks Markdown heading/list roles and
+Unicode body text, code/diff values, AXValue not settable, native focus, rejection
+of typing/backspace, collapse and remount. Existing editable fields must still
+accept AXValue replacement. The patch now maps a heading's AccessKit level to its
+numeric AXValue, following [WebKit's macOS heading value mapping](https://chromium.googlesource.com/external/Webkit/+/b4170928e42cb313b7c8304a796879ddb2ff7f12/Source/WebCore/accessibility/mac/WebAccessibilityObjectWrapperMac.mm).
+The painted children continue to supply its text. The external gallery regression
+reads level 1 and checks table row/cell indices through the existing table adapter.
+Ordinary link actions have separate passing evidence; complete rich-link behavior,
+selection ranges and VoiceOver reading remain release work. The expected native heading role is also
+described in [WebKit's heading mapping](https://bugs.webkit.org/show_bug.cgi?id=131920).
+
+`table-headers.patch` exposes the table's current column/row header nodes through
+`accessibilityColumnHeaderUIElements` and `accessibilityRowHeaderUIElements`.
+`accessibilityHeader` returns the nearest shared exposed row/group ancestor of
+the column headers, if one exists below the table. See [Apple's header API](https://developer.apple.com/documentation/appkit/nsaccessibility-c.protocol/accessibilitycolumnheaderuielements)
+and the [Core AAM 1.2 draft table mapping](https://www.w3.org/TR/2026/CRD-core-aam-1.2-20260923/#role-map-table).
+Getters traverse only the current filtered tree, reject hidden/retired tables,
+and stop at nested tables/grids/trees. Returned objects reuse the adapter's
+existing node identities; no synthetic header copies, offscreen materialization
+or new persistent caches are introduced. Column indices correlate these headers
+with cells. This does not implement an AXColumns object model or prove VoiceOver
+column navigation.
+
+The external gallery checks Markdown headers against the actual first-row cells
+and AXHeader against that row, including collapse/remount. The native 100k-row
+table regression checks its two painted headers and shared group, repeats after
+scrolling to logical row 50,001, and verifies retained hidden-table references no
+longer expose headers. The managed table now marks its existing header container
+as RowGroup while preserving the delegate's element identity. Empty row-header
+arrays are correct for these fixtures; row-selection buttons are not row headers.
+
+`initial-window-focus.patch` seeds the window adapter's host-focus state from
+`NSWindow.isKeyWindow` at installation. The pinned GPUI macOS backend can install
+the adapter after AppKit has already made a newly opened window key. Starting
+unconditionally unfocused then suppresses the accessible focused node until a
+later key-window transition, although keyboard editing already works. The
+generic view constructor retains its documented before-first-focus behavior.
+Subsequent focus updates, accessibility tree ownership and action routing are
+unchanged; the patch does not activate windows or synthesize focus events.
+
+The public gallery's Settings two-window regression checks initial `AXFocused`,
+inactive peer state, switching back, actual OS edits, independent resets and the
+surviving window after close. These external getter/input checks do not establish
+VoiceOver speech or focus-notification delivery. No dependency version changes.
+
+
+`busy-state.patch` exposes AccessKit `is_busy` through the legacy
+`AXElementBusy` Boolean attribute. AppKit has no public modern busy getter in the
+pinned SDK. Attribute enumeration extends the superclass list and preserves the
+existing optional Braille attributes; other legacy getters delegate to AppKit.
+The attribute is read-only because application state owns loading. Live ready
+nodes return false, busy nodes return true, and retired nodes return no value.
+The existing change queue receives `AXElementBusyChanged` only for included-node
+busy transitions, independently of ordinary value changes. It adds no polling,
+callback into OCaml or second state owner.
+
+Sources: Apple's [busy attribute](https://developer.apple.com/documentation/applicationservices/kaxelementbusyattribute)
+and [busy notification](https://developer.apple.com/documentation/applicationservices/kaxelementbusychangednotification),
+plus the installed SDK's `AXAttributeConstants.h` and `AXNotificationConstants.h`.
+A headless main-thread AppKit fixture (`rust/native/tests/accessibility_busy.rs`)
+checks actual adapter objects through Objective-C attribute selectors without an
+NSApplication or window. These getters are distinct from external AX notification
+receipt and VoiceOver behavior, which remain physical desktop acceptance gates.
+The public gallery drivers now require external AXElementBusy checks but are
+unrun at this checkpoint.
+
+Reproduce the source reconstruction without changing the repository or accessing
+the network (download the exact `source` URL in UPSTREAM.json separately):
+
+```sh
+python3 scripts/verify_accesskit_macos.py --archive /path/to/accesskit_macos-0.26.3.crate
+```
+
+The verifier checks the archive and every original source hash, applies all ten
+patches without offset/fuzz, compares every reconstructed source byte and verifies
+the two license hashes. Its temporary workspace is removed on completion.
+
+`list-selection.patch` extends ordered desired-selection setters to opted-in
+ListBoxOption nodes. Both custom IDs `0x47530001` (select) and `0x47530002`
+(deselect), a CustomAction handler and an enabled selectable option are required.
+Each setter queues its desired value, including values equal to the displayed
+snapshot, because preceding setters may still await OCaml reduction. Focus,
+confirmation and context requests stay distinct; no native selection state is added.
+Other roles and options retain their existing behavior.
+
+`rust/native/tests/accessibility_list_selection.rs` reproduces the lost ordered
+setters before this patch using actual AppKit adapter objects on an NSView with
+no OS window. It checks ordered actions, unchanged selection snapshots, exact
+role/action opt-in and disabled/removal/adapter retirement. This is not external
+AX notification or VoiceOver acceptance.
+
+
+`table-row-header-ranges.patch` allows the existing row/column index-range
+getters for RowHeader nodes with the corresponding index metadata. The physical
+structural-table gallery reproduced an AXCell row header that displayed correctly
+but returned no `AXRowIndexRange`: the getters existed, while their selector
+availability omitted RowHeader. A direct Objective-C getter test alone missed
+this external-dispatch boundary. The regression now checks selector availability
+as well as returned ranges; the physical gallery checks every cell and merged
+range. This patch does not expand table selection opt-in, synthesize cells,
+change coordinates, or alter the dependency version.

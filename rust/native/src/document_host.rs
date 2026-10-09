@@ -162,6 +162,10 @@ pub fn request(mut request: Request, window: &mut Window, cx: &mut App) -> Resul
     })
 }
 impl Handle {
+    pub fn reserve(&self, bytes: usize) -> Result<jobs::Charge, Error> {
+        let service = self.service.upgrade().ok_or(Error::Closed)?;
+        service.borrow_mut().pool.reserve(bytes)
+    }
     pub fn update(&self, mut request: Request, cx: &mut App) -> Result<(), Error> {
         let service = self.service.upgrade().ok_or(Error::Closed)?;
         if !cx
@@ -220,7 +224,7 @@ pub fn finish_before_quit(cx: &mut App) {
     }
 }
 
-#[cfg(feature = "native-tests")]
+#[cfg(any(feature = "native-tests", feature = "performance-diagnostics"))]
 pub fn measurements(cx: &App) -> Option<(jobs::Measurements, usize, usize, usize, usize)> {
     let state = cx.try_global::<Global>()?.0.borrow();
     Some((
@@ -230,4 +234,29 @@ pub fn measurements(cx: &App) -> Option<(jobs::Measurements, usize, usize, usize
         state.pool.peak_workers,
         state.pool.peak_reserved_bytes,
     ))
+}
+
+/// Test-only live ownership, distinct from allocator RSS and historical peaks.
+#[cfg(all(test, feature = "native-image-tests"))]
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Resources {
+    pub windows: usize,
+    pub workers: usize,
+    pub completions: usize,
+    pub reserved_bytes: usize,
+}
+
+#[cfg(all(test, feature = "native-image-tests"))]
+pub(crate) fn resources(cx: &App) -> Resources {
+    let state = cx.global::<Global>().0.borrow();
+    Resources {
+        windows: state.windows.len(),
+        workers: state
+            .workers
+            .iter()
+            .filter(|done| !done.is_closed())
+            .count(),
+        completions: state.input.len() + usize::from(state.delivering.is_some()),
+        reserved_bytes: state.pool.reserved_bytes(),
+    }
 }

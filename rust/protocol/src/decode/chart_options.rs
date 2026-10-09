@@ -13,8 +13,12 @@ impl Decoder<'_> {
         })
     }
     pub(super) fn chart_options(&mut self) -> Result<Options, DecodeError> {
+        let version = self.int()?;
+        if version != 9 {
+            return Err(DecodeError::Malformed);
+        }
         let options = Options {
-            version: self.int()?,
+            version,
             axes: Axes {
                 x: self.boolean()?,
                 y: self.boolean()?,
@@ -34,19 +38,65 @@ impl Decoder<'_> {
                 orientation: match self.tag()? {
                     0 => Orientation::Vertical,
                     1 => Orientation::Horizontal,
+                    2 => Orientation::VerticalReversed,
+                    3 => Orientation::HorizontalReversed,
                     _ => return Err(DecodeError::Malformed),
                 },
                 bar_width: self.float()?,
+                category_layout: match self.tag()? {
+                    0 => CategoryLayout::Auto,
+                    1 => CategoryLayout::Point(self.float()?),
+                    2 => CategoryLayout::Band {
+                        inner: self.float()?,
+                        outer: self.float()?,
+                    },
+                    _ => return Err(DecodeError::Malformed),
+                },
+                stacking: match self.tag()? {
+                    0 => Stacking::Grouped,
+                    1 => Stacking::Stacked,
+                    _ => return Err(DecodeError::Malformed),
+                },
             },
             pie: Pie {
                 inner_radius: self.float()?,
                 pad_angle: self.float()?,
                 labels: self.boolean()?,
+                radius: match self.tag()? {
+                    0 => PieRadius::Fit,
+                    1 => PieRadius::Pixels(self.float()?),
+                    _ => return Err(DecodeError::Malformed),
+                },
+                slice_radii: self.list(256, |d| {
+                    Ok(SliceRadii {
+                        slice: d.int()?,
+                        inner: d.float()?,
+                        outer: d.float()?,
+                    })
+                })?,
+                label_placement: match self.tag()? {
+                    0 => LabelPlacement::Inside,
+                    1 => LabelPlacement::Outside,
+                    _ => return Err(DecodeError::Malformed),
+                },
+                label_gap: self.float()?,
             },
             radar: Radar {
                 levels: self.int()?,
                 dots: self.boolean()?,
                 labels: self.boolean()?,
+                scale: match self.tag()? {
+                    0 => RadarScale::PerAxis,
+                    1 => RadarScale::DataMax,
+                    2 => RadarScale::Maximum(self.float()?),
+                    _ => return Err(DecodeError::Malformed),
+                },
+                radius: match self.tag()? {
+                    0 => RadarRadius::Fit,
+                    1 => RadarRadius::Pixels(self.float()?),
+                    _ => return Err(DecodeError::Malformed),
+                },
+                label_gap: self.float()?,
             },
             candlestick: Candlestick {
                 body_width: self.float()?,
@@ -68,6 +118,21 @@ impl Decoder<'_> {
                 },
                 iterations: self.int()?,
                 labels: self.boolean()?,
+                node_corner_radius: self.float()?,
+                link_opacity: self.float()?,
+                min_link_width: self.float()?,
+                label_gap: self.float()?,
+                link_color: match self.tag()? {
+                    0 => LinkColor::Source,
+                    1 => LinkColor::Target,
+                    2 => LinkColor::Gradient,
+                    _ => return Err(DecodeError::Malformed),
+                },
+                label_placement: match self.tag()? {
+                    0 => LabelPlacement::Inside,
+                    1 => LabelPlacement::Outside,
+                    _ => return Err(DecodeError::Malformed),
+                },
             },
         };
         if options.is_valid() {
@@ -78,7 +143,7 @@ impl Decoder<'_> {
     }
 }
 pub fn decode_chart_options(bytes: &[u8]) -> Result<Options, DecodeError> {
-    if bytes.len() > 256 {
+    if bytes.len() > MAX_OPTIONS_BYTES {
         return Err(DecodeError::LimitExceeded);
     }
     let mut d = Decoder(Cursor::new(bytes));

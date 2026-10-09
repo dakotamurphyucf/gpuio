@@ -1,0 +1,31 @@
+{
+  "base_revision": "e41f57991917b2ab1ece0a7db4b3aa833536adad",
+  "platform": {
+    "system": "Darwin",
+    "release": "14.5",
+    "machine": "arm64"
+  },
+  "qualification": "simulated Apple service/stapler positive paths; not a credentialed notarization or release pass",
+  "commands": [
+    "python3 scripts/test_finalize_macos_notarization.py",
+    "python3 scripts/test_package_macos_reference.py",
+    "python3 scripts/test_package_runtime_inputs.py",
+    "python3 scripts/test_package_transfer.py"
+  ],
+  "counts": [
+    5,
+    14,
+    4,
+    5
+  ],
+  "source_sha256": {
+    "scripts/finalize_macos_notarization.py": "521bd0e4a06d6b6b8dc1ae2e414859730ae77d471b75aa43dee03637bbf95753",
+    "scripts/test_finalize_macos_notarization.py": "94f5a8f65fbe2d013db73252f9d085e5ddb57f36e83e89021e3b3867ea9d4a16"
+  },
+  "log_sha256": {
+    "notarization-tests-002.log": "ff968f87efc3b09beddedfe406ea1fc646b8dc68e02bac73f3d6e40322a32574",
+    "notarization-package-tests.log": "f2985e54ed7498e534ca07a638a380f94819d7ef07a591c42b4d610e91704378",
+    "notarization-runtime-tests.log": "80144f3bf12d071a1497821467ab02765712cb11da3f547a5e2b5cf79f938e9a",
+    "notarization-transfer-tests.log": "5afdb5ffa23680af10d9a19847d803e219f211da4d70e8c474652a9e99771f06"
+  }
+}

@@ -12,13 +12,22 @@ and the Signal Studio graphics workbench. Its [delivery handoff](docs/milestone-
 links contracts and validation; [PR #14](https://github.com/dakotamurphyucf/gpuio/pull/14)
 records required hosted results, the checked revision and merge status. See
 [current status](docs/status.md) for platform limits. This is an experimental
-framework with no stable API release yet.
+framework with no stable API release yet. The macOS-first developer preview is
+intended for real-user feedback; see [GitHub Releases](https://github.com/dakotamurphyucf/gpuio/releases)
+for published revisions and the [closeout plan](docs/milestone-07-closeout.md)
+for qualification scope and remaining work.
 
 The baseline is stock OCaml 5.3.0, Bonsai/Jane Street v0.17, Core, Eio 1.3,
-Dune 3.24.2 and Rust 1.97.1. macOS and Linux (Wayland and X11) are v1 targets.
+Dune 3.24.2 and Rust 1.97.1. The initial v1 release targets macOS first. Linux
+remains experimental/build-tested; full X11/Wayland desktop qualification follows
+in milestone 07b. See the [platform policy](docs/platform-release-policy.md).
 
 ## Start here
 
+- [Developer preview: adoption, limits and feedback](docs/developer-preview.md)
+- [Build your first application](docs/getting-started.md)
+- [API compatibility and limits](docs/api-compatibility.md)
+- [Component Studio gallery](examples/gallery/README.md)
 - [Current implementation status](docs/status.md)
 - [Run the agent workspace](examples/agent_chat/README.md)
 - [Write or consume a native component package](docs/design/extensions.md)

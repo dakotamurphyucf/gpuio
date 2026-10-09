@@ -74,6 +74,7 @@ pub struct Request {
     pub snapshot: Arc<Snapshot>,
     pub config: Arc<Config>,
     pub layout: Layout,
+    pub text: Option<crate::chart_label_metrics::Context>,
 }
 impl Request {
     fn equal(&self, other: &Self) -> bool {
@@ -84,6 +85,7 @@ impl Request {
             && self.config.style == other.config.style
             && self.config.legend == other.config.legend
             && self.layout == other.layout
+            && self.text == other.text
     }
 }
 
@@ -92,6 +94,7 @@ pub struct Ready {
     pub config: Arc<Config>,
     pub layout: Layout,
     pub plan: Prepared,
+    pub label_style: Option<crate::chart_label_metrics::LabelStyle>,
     _charge: Charge,
 }
 
@@ -167,12 +170,13 @@ impl Work {
         let start = Instant::now();
         let result = self.output_charge.and_then(|mut charge| {
             let plan = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                paint::prepare(
+                paint::prepare_with_text(
                     &self.request.snapshot.data,
                     self.request.config.sampling,
                     &self.request.config.options,
                     &self.request.config.style,
                     self.request.layout,
+                    self.request.text.as_ref(),
                     &self.cancel,
                 )
             }))
@@ -185,12 +189,15 @@ impl Work {
             if self.cancel.load(Ordering::Relaxed) {
                 return Err(Error::Cancelled);
             }
-            charge.shrink(plan.retained_bytes() + FIXED_CHARGE);
+            charge.shrink(
+                plan.retained_bytes() + FIXED_CHARGE + self.request.config.retained_bytes(),
+            );
             Ok(Ready {
                 snapshot: self.request.snapshot,
                 config: self.request.config,
                 layout: self.request.layout,
                 plan,
+                label_style: self.request.text.as_ref().map(|text| text.style.clone()),
                 _charge: charge,
             })
         });
@@ -283,9 +290,10 @@ impl Pool {
                 .workspace_budget
                 .reserve(WORKSPACE_BYTES, MAX_WORKERS * WORKSPACE_BYTES)
                 .ok()?;
-            let output_charge = self
-                .output_budget
-                .reserve(paint::MAX_BYTES + FIXED_CHARGE, MAX_RETAINED_BYTES);
+            let output_charge = self.output_budget.reserve(
+                paint::MAX_BYTES + FIXED_CHARGE + entry.request.config.retained_bytes(),
+                MAX_RETAINED_BYTES,
+            );
             entry.running = true;
             self.running.insert(*id, entry.cancel.clone());
             self.peak_workers = self.peak_workers.max(self.running.len());
@@ -368,7 +376,9 @@ mod tests {
     };
     fn request() -> Request {
         let data = Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Pie(vec![Slice {
                 id: 1,
                 label: "One".into(),
@@ -395,6 +405,9 @@ mod tests {
             observer: None,
             snapshot: store.acquire(id).unwrap().snapshot().unwrap(),
             config: Arc::new(Config {
+                version: -2,
+                radar_labels: vec![],
+                inspection_content: vec![],
                 source: Some(id),
                 label: "Chart".into(),
                 legend: true,
@@ -404,6 +417,7 @@ mod tests {
                 style: Default::default(),
             }),
             layout: Layout::new(200., 150., 1.).unwrap(),
+            text: None,
         }
     }
     #[test]
@@ -474,6 +488,35 @@ mod tests {
         assert_eq!(pool.workspace_bytes(), 0);
         assert_eq!(pool.reserved_bytes(), 0);
         assert!(matches!(pool.request(request()), Err(Error::Closed)));
+    }
+    #[test]
+    fn ordinal_config_charge_survives_owner_close_until_ready_reader_release() {
+        use gpuio_protocol::chart_style::{Key, MAX_COLOR_DOMAIN, Ordinal};
+        let mut pool = Pool::default();
+        let mut request = request();
+        Arc::make_mut(&mut request.config).style.ordinal = Some(Ordinal {
+            domain: (1..=MAX_COLOR_DOMAIN as i64).map(Key::Slice).collect(),
+            range: vec![0x2dd4bfff; 32],
+            unknown: None,
+        });
+        let config_bytes = request.config.retained_bytes();
+        assert!(config_bytes > FIXED_CHARGE);
+        let handle = pool.request(request).unwrap();
+        let work = pool.next_work().unwrap();
+        assert_eq!(
+            pool.reserved_bytes(),
+            paint::MAX_BYTES + FIXED_CHARGE + config_bytes
+        );
+        pool.complete(work.run());
+        let ready = handle.take_ready().unwrap().ok().unwrap();
+        let retained = ready.plan.retained_bytes() + FIXED_CHARGE + config_bytes;
+        assert_eq!(pool.reserved_bytes(), retained);
+        drop(handle);
+        pool.close();
+        assert_eq!(pool.reserved_bytes(), retained);
+        assert_eq!(pool.workspace_bytes(), 0);
+        drop(ready);
+        assert_eq!(pool.reserved_bytes(), 0);
     }
     #[test]
     fn retained_limit_reports_failure_and_recovers_after_reader_release() {

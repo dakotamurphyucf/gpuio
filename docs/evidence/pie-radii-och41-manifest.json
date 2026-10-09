@@ -1,0 +1,87 @@
+{
+  "source_base": "52df9d1",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "0d431377d61c3c80accc5c86b8d354cf6b3dc17f179f724ee67d5cf419b892cb",
+  "files": [
+    {
+      "path": "pie-radii-clippy.log",
+      "bytes": 588425,
+      "sha256": "a6c5a076835678d8c3ae51fca3ccd04a5d2dc27996ca337941cb3628b699e4b0"
+    },
+    {
+      "path": "pie-radii-core-first.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pie-radii-dune.log",
+      "bytes": 705842,
+      "sha256": "55e0692f54678c390c0d2eff12cb0ae5440c57f210663f03bdca52a5cdcea133"
+    },
+    {
+      "path": "pie-radii-format-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pie-radii-format.log",
+      "bytes": 12366,
+      "sha256": "67dd9d53c9a07b44b3a556a55d29254da7e0ddca81fee366ee5bb28f713d9a04"
+    },
+    {
+      "path": "pie-radii-gallery.log",
+      "bytes": 1977,
+      "sha256": "08187389dd407a2dcf3d897c6ad65e1fdd7cb7f9444f8a0ca4b856650a4cea7d"
+    },
+    {
+      "path": "pie-radii-geometry-first.log",
+      "bytes": 591680,
+      "sha256": "02768619d193949f3ec72e3da99b158f87526706e11e00a8c5b45d32941c32ce"
+    },
+    {
+      "path": "pie-radii-installed.log",
+      "bytes": 202940,
+      "sha256": "983c4b45d71a3a704c772a19d0069a44b625f207e52155e8179d9058c503d34a"
+    },
+    {
+      "path": "pie-radii-native-paint.log",
+      "bytes": 601213,
+      "sha256": "80c59a42c67adf9c26d9711687d41607e6a8ce1038bc7aee003a7940312d56cf"
+    },
+    {
+      "path": "pie-radii-native-unit.log",
+      "bytes": 697828,
+      "sha256": "5a3388a4c437b09a1105fe27003b76cd85b74f98e287ef4dfc17e906b9b68423"
+    },
+    {
+      "path": "pie-radii-protocol-all.log",
+      "bytes": 56630,
+      "sha256": "0345b20aa4daa09159613d881b0df8c67c94de976bc380ddc4c9831a080e2b29"
+    },
+    {
+      "path": "pie-radii-protocol-first.log",
+      "bytes": 1954,
+      "sha256": "80994bb6bebb4ad4acd7ea16242462c0b0bbd58e291a7027bf29d018b5bf4672"
+    },
+    {
+      "path": "pie-radii-protocol.log",
+      "bytes": 1593,
+      "sha256": "9aa67784c7be2b5aa917d00dad803757b4dffda449dcfbbfccba3cca92a55e76"
+    },
+    {
+      "path": "pie-gallery-images/gallery-pie-80 px-Per-slice radii.png",
+      "bytes": 399428,
+      "sha256": "67157ed41ad7d3b7a76e8d939898787365d3f89da96fc003cfbec22c4af091b5"
+    },
+    {
+      "path": "pie-gallery-images/gallery-pie-80 px-Uniform radii.png",
+      "bytes": 401028,
+      "sha256": "97fe3dc726673040086c4a5d7b901ba2c5d4549cf914d4b40c8d2d82d3ff8023"
+    },
+    {
+      "path": "pie-gallery-images/gallery-pie-Fit-Per-slice radii.png",
+      "bytes": 398858,
+      "sha256": "e408b51bf4de23f415d9fa3cbfb567222c941f7fe37781a15875ff4f83e57299"
+    }
+  ]
+}

@@ -563,3 +563,362 @@ let%expect_test
   [%expect
     {| "same source, distinct caller keys; reorder preserves both native tables" |}]
 ;;
+
+let%expect_test
+    "header policy repairs selection, fences old callbacks and keeps cell models"
+  =
+  let columns = T.Config.columns (config ()) in
+  let base = T.Config.create ~columns ~label:"Table" ~column_selection:true () |> ok in
+  let cfg = B.Expert.Var.create base in
+  let mounted = ref 0 in
+  let requests = ref 0 in
+  let d =
+    create (fun graph ->
+      W.component
+        (B.return (source 4))
+        ~config:(B.Expert.Var.value cfg)
+        ~on_request:(B.return (fun _ -> E.of_thunk (fun () -> Int.incr requests)))
+        ~render_cell:(fun ~row ~data ~column ~lifetime graph ->
+          B.Edge.lifecycle
+            ~on_activate:(B.return (E.of_thunk (fun () -> Int.incr mounted)))
+            graph;
+          text_cell ~row ~data ~column ~lifetime graph)
+        graph)
+  in
+  observe d [ 0; 1 ];
+  display d;
+  let output = result d in
+  let controller = W.Output.controller output in
+  execute d (W.Controller.select controller (Column (col "value")));
+  display d;
+  assert (Option.is_some (selected (result d)));
+  let old_input = (table (result d)).on_input in
+  let before = !mounted in
+  B.Expert.Var.set cfg (T.Config.with_selectable_headers base (Some [ col "name" ]) |> ok);
+  assert (Option.is_none (selected (result d)));
+  execute d (old_input (Select (Column (col "value"))));
+  assert (!requests = 0);
+  execute d (W.Controller.select controller (Column (col "value")));
+  assert (Option.is_none (selected (result d)));
+  execute d (W.Controller.select controller (Cell (target (result d) 0, col "value")));
+  assert (Option.is_some (selected (result d)));
+  display d;
+  assert (!mounted = before);
+  Bonsai_driver.Expert.invalidate_observers d;
+  print_endline
+    "selection repaired; old input and forbidden command ignored; cells retained";
+  [%expect
+    {| selection repaired; old input and forbidden command ignored; cells retained |}]
+;;
+
+let%expect_test "table appearance updates retain selection and mounted cells" =
+  let cfg = B.Expert.Var.create (config ()) in
+  let mounted = ref 0 in
+  let d =
+    create (fun graph ->
+      W.component
+        (B.return (source 8))
+        ~config:(B.Expert.Var.value cfg)
+        ~render_cell:(fun ~row ~data ~column ~lifetime graph ->
+          B.Edge.lifecycle
+            ~on_activate:(B.return (E.of_thunk (fun () -> Int.incr mounted)))
+            graph;
+          text_cell ~row ~data ~column ~lifetime graph)
+        graph)
+  in
+  observe d [ 0; 1 ];
+  display d;
+  let output = result d in
+  let selected_row = target output 1 in
+  execute
+    d
+    (W.Controller.select (W.Output.controller output) (Cell (selected_row, col "name")));
+  display d;
+  let before = !mounted in
+  let appearance =
+    T.Appearance.create
+      ~striped:true
+      ~padding:T.Appearance.Padding.zero
+      ~colors:[ Header_background, Gpuio.Color.rgb_exn 0xffffff ]
+      ()
+    |> ok
+  in
+  B.Expert.Var.set cfg (T.Config.with_appearance (config ()) appearance |> ok);
+  display d;
+  assert (!mounted = before);
+  assert (
+    T.Selection.equal
+      D.Row_ref.equal
+      (W.Output.selection (result d))
+      (Cell (selected_row, col "name")));
+  B.Expert.Var.set cfg (config ());
+  display d;
+  assert (!mounted = before);
+  assert (
+    T.Selection.equal
+      D.Row_ref.equal
+      (W.Output.selection (result d))
+      (Cell (selected_row, col "name")));
+  Bonsai_driver.Expert.invalidate_observers d;
+  print_endline "appearance and reset retain cell lifetimes and selection";
+  [%expect {| appearance and reset retain cell lifetimes and selection |}]
+;;
+
+let%expect_test
+    "column viewport survives point updates and fences query config and source callbacks"
+  =
+  let data = B.Expert.Var.create (source 20) in
+  let cfg = B.Expert.Var.create (config ()) in
+  let query = B.Expert.Var.create 0L in
+  let d =
+    create (fun graph ->
+      W.component
+        (B.Expert.Var.value data)
+        ~config:(B.Expert.Var.value cfg)
+        ~query_generation:(B.Expert.Var.value query)
+        ~render_cell:text_cell
+        graph)
+  in
+  let sample cfg =
+    T.Expert.column_viewport_of_wire
+      cfg
+      { schema_revision = 1L
+      ; query_generation = 0L
+      ; columns = [ "name", Unpinned, true; "value", Unpinned, false ]
+      }
+    |> Option.value_exn
+  in
+  let output = result d in
+  assert (Option.is_none (W.Output.column_viewport output));
+  let first = Option.value_exn (table output).on_column_viewport in
+  execute d (first (sample (B.Expert.Var.get cfg)));
+  let output = result d in
+  assert (Option.is_some (W.Output.column_viewport output));
+  assert (W.Output.active_cells output <= 8);
+  B.Expert.Var.set data (D.set (B.Expert.Var.get data) ~key:(id 1) ~data:"streamed" |> ok);
+  assert (Option.is_some (W.Output.column_viewport (result d)));
+  (* A native observation never creates an unbounded horizontal cell set. *)
+  B.Expert.Var.set query 1L;
+  assert (Option.is_none (W.Output.column_viewport (result d)));
+  execute d (first (sample (B.Expert.Var.get cfg)));
+  assert (Option.is_none (W.Output.column_viewport (result d)));
+  let current = Option.value_exn (table (result d)).on_column_viewport in
+  execute d (current (sample (B.Expert.Var.get cfg)));
+  assert (Option.is_some (W.Output.column_viewport (result d)));
+  B.Expert.Var.set cfg (T.Config.with_row_header (B.Expert.Var.get cfg) false);
+  assert (Option.is_none (W.Output.column_viewport (result d)));
+  execute d (current (sample (B.Expert.Var.get cfg)));
+  assert (Option.is_none (W.Output.column_viewport (result d)));
+  let old_source = Option.value_exn (table (result d)).on_column_viewport in
+  B.Expert.Var.set data (source 0);
+  display d;
+  execute d (old_source (sample (B.Expert.Var.get cfg)));
+  assert (Option.is_none (W.Output.column_viewport (result d)));
+  let empty =
+    T.Expert.column_viewport_of_wire
+      (B.Expert.Var.get cfg)
+      { schema_revision = 1L; query_generation = 1L; columns = [] }
+    |> Option.value_exn
+  in
+  execute d (Option.value_exn (table (result d)).on_column_viewport empty);
+  let output = result d in
+  assert (Option.is_some (W.Output.column_viewport output));
+  assert (W.Output.active_cells output = 0);
+  Bonsai_driver.Expert.invalidate_observers d;
+  print_endline
+    "query/config/source fencing; observed empty distinct from absent; cells stay bounded";
+  [%expect
+    {| query/config/source fencing; observed empty distinct from absent; cells stay bounded |}]
+;;
+
+let%expect_test "header computations remain outside the evictable body-cell budget" =
+  let data = B.Expert.Var.create (source 1000) in
+  let title = B.Expert.Var.create "Initial" in
+  let mounted = ref 0
+  and unmounted = ref 0 in
+  let d =
+    create (fun graph ->
+      B.Edge.lifecycle
+        ~on_activate:(B.return (E.of_thunk (fun () -> Int.incr mounted)))
+        ~on_deactivate:(B.return (E.of_thunk (fun () -> Int.incr unmounted)))
+        graph;
+      let headers =
+        B.map (B.Expert.Var.value title) ~f:(fun text ->
+          [ Gpuio.Table_header.create
+              ~key:(Gpuio.Key.of_string_exn "header")
+              ~target:(Gpuio.Table_header.Target.column (col "name"))
+              (View.text text)
+          ])
+      in
+      W.component
+        (B.Expert.Var.value data)
+        ~config:(B.return (config ()))
+        ~headers
+        ~render_cell:text_cell
+        graph)
+  in
+  let header output =
+    List.find_exn (root output).children ~f:(fun child ->
+      Option.is_some (View.Expert.describe child).table_header)
+  in
+  let header_text output =
+    let child = (View.Expert.describe (header output)).children |> List.hd_exn in
+    (View.Expert.describe child).text
+  in
+  display d;
+  assert (W.Output.active_cells (result d) = 0);
+  assert (String.equal (header_text (result d)) "Initial");
+  observe d [ 0; 1; 2; 3 ];
+  display d;
+  assert (W.Output.active_cells (result d) = 8);
+  observe d [ 500; 501; 502; 503 ];
+  B.Expert.Var.set title "Updated";
+  display d;
+  assert (String.equal (header_text (result d)) "Updated");
+  assert (W.Output.active_cells (result d) = 8);
+  B.Expert.Var.set data (source 1);
+  display d;
+  assert (String.equal (header_text (result d)) "Updated");
+  assert (!mounted = 1 && !unmounted = 0);
+  print_endline
+    "Headers render with no body rows, survive eviction and source replacement, and do \
+     not consume active cells";
+  [%expect
+    {| Headers render with no body rows, survive eviction and source replacement, and do not consume active cells |}]
+;;
+
+let%expect_test "row presentation lives once per active row independently of its columns" =
+  let module P = Gpuio.Table_presentation in
+  let data = B.Expert.Var.create (source 1000) in
+  let cfg = B.Expert.Var.create (config ()) in
+  let color = B.Expert.Var.create 0xff0000 in
+  let mounted = ref 0
+  and unmounted = ref 0 in
+  let d =
+    create (fun graph ->
+      W.component
+        (B.Expert.Var.value data)
+        ~config:(B.Expert.Var.value cfg)
+        ~render_row_presentation:(fun ~row:_ ~data:_ ~lifetime:_ graph ->
+          B.Edge.lifecycle
+            ~on_activate:(B.return (E.of_thunk (fun () -> Int.incr mounted)))
+            ~on_deactivate:(B.return (E.of_thunk (fun () -> Int.incr unmounted)))
+            graph;
+          B.map (B.Expert.Var.value color) ~f:(fun color ->
+            P.Row.create
+              (Gpuio.Style.create_exn [ Foreground (Gpuio.Color.rgb_exn color) ])))
+        ~render_cell:text_cell
+        graph)
+  in
+  let settle () =
+    ignore (result d : _ W.Output.t);
+    display d
+  in
+  settle ();
+  assert (!mounted = 0);
+  observe d [ 0; 1 ];
+  settle ();
+  assert (!mounted = 2 && !unmounted = 0);
+  assert (W.Output.active_cells (result d) = 4);
+  B.Expert.Var.set color 0x00ff00;
+  settle ();
+  List.iter (root (result d)).children ~f:(fun row ->
+    let style =
+      (View.Expert.describe row).table_row_style |> Option.value_exn |> P.Row.style
+    in
+    assert (
+      Gpuio.Style.equal
+        style
+        (Gpuio.Style.create_exn [ Foreground (Gpuio.Color.rgb_exn 0x00ff00) ])));
+  B.Expert.Var.set cfg (config ~names:[ "name" ] ());
+  settle ();
+  assert (!mounted = 2 && !unmounted = 0);
+  assert (W.Output.active_cells (result d) = 2);
+  observe d [ 100; 101 ];
+  settle ();
+  assert (!mounted = 4 && !unmounted = 2);
+  B.Expert.Var.set data (source 1);
+  settle ();
+  assert (!unmounted = 4);
+  print_endline
+    "Presentation allocated for active rows only; theme and column changes retain row \
+     models; eviction/source reset release them";
+  [%expect
+    {| Presentation allocated for active rows only; theme and column changes retain row models; eviction/source reset release them |}]
+;;
+
+let%expect_test "scroll prepares bounded destination cells before native movement" =
+  let data = source 100 in
+  let query = B.Expert.Var.create 0L in
+  let d =
+    create (fun graph ->
+      W.component
+        (B.return data)
+        ~config:(B.return (config ()))
+        ~query_generation:(B.Expert.Var.value query)
+        ~render_cell:text_cell
+        graph)
+  in
+  let active () =
+    let output = result d in
+    let keys =
+      List.filter_map (root output).children ~f:(fun child ->
+        (View.Expert.describe child).key)
+    in
+    List.range 0 100
+    |> List.filter ~f:(fun n -> List.mem keys (key output n) ~equal:Gpuio.Key.equal)
+  in
+  let show () = print_s [%sexp (active () : int list)] in
+  display d;
+  observe d ~pins:[ 0 ] [ 0; 1 ];
+  display d;
+  let before = result d in
+  let stale_observation =
+    Option.value_exn
+      (list before).on_viewport
+      (W.Output.viewport before |> Option.value_exn)
+  in
+  let controller = W.Output.controller before in
+  execute d (W.Controller.scroll_to controller (target before 50) |> ok);
+  assert (List.length (table (result d)).commands = 1);
+  show ();
+  display d;
+  assert (List.is_empty (table (result d)).commands);
+  execute d stale_observation;
+  show ();
+  observe d ~pins:[ 0 ] [ 50; 51 ];
+  show ();
+  execute d (W.Controller.scroll_to_end controller);
+  show ();
+  display d;
+  observe d ~pins:[ 0 ] [ 98; 99 ];
+  display d;
+  execute d (W.Controller.scroll_to controller (target (result d) 20) |> ok);
+  show ();
+  (* A newer undisplayed selection batch cancels the old scroll preparation. *)
+  execute d (W.Controller.select controller (Row (target (result d) 0)));
+  show ();
+  display d;
+  execute
+    d
+    (W.Controller.batch
+       controller
+       [ Scroll_to (target (result d) 30, 0.); Scroll_to (target (result d) 60, 0.) ]
+     |> ok);
+  show ();
+  B.Expert.Var.set query 1L;
+  show ();
+  assert (List.is_empty (table (result d)).commands);
+  Bonsai_driver.Expert.invalidate_observers d;
+  [%expect
+    {|
+    (0 50 51 52)
+    (0 50 51 52)
+    (0 50 51)
+    (0 97 98 99)
+    (0 20 21 22)
+    (0 98 99)
+    (0 60 61 62)
+    (0)
+    |}]
+;;

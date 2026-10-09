@@ -3,6 +3,7 @@ open Core
 type t =
   | Rgba of int64
   | Token of string
+  | Opacity of t * float
 [@@deriving equal, sexp_of]
 
 let rgba ~red ~green ~blue ~alpha =
@@ -33,10 +34,22 @@ let token name =
 
 let token_exn name = token name |> Or_error.ok_exn
 
+let with_opacity t factor =
+  if not (Float.is_finite factor && Float.(factor >= 0. && factor <= 1.))
+  then Or_error.error_string "color opacity must be finite and in 0..1"
+  else if Float.equal factor 1.
+  then Ok t
+  else (
+    match t with
+    | Opacity (base, previous) -> Ok (Opacity (base, previous *. factor))
+    | Rgba _ | Token _ -> Ok (Opacity (t, factor)))
+;;
+
 module Expert = struct
   type value = t =
     | Rgba of int64
     | Token of string
+    | Opacity of t * float
 
   let value t = t
 end

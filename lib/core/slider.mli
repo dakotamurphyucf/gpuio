@@ -22,6 +22,41 @@ module Thumb : sig
   [@@deriving equal, sexp_of]
 end
 
+module Fill : sig
+  type t =
+    | Selected
+    | Remaining
+  [@@deriving equal, sexp_of]
+end
+
+module Appearance : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Paint-only fill direction: [Remaining] affects single values only.
+     Rail/thumb/target dimensions are 1..256px; the target must contain both.
+     Radius is 0..256px; ring width is 0..half the target size. Colors resolve
+     theme tokens; absent colors follow the ordinary foreground accent.
+     Changing target size cancels active capture; colors/fill preserve it.
+     [ring_width] controls the keyboard focus outline. [ring_color] also colors
+     native hover/pressed rings (3px at full extent, 50% opacity). Their spring
+     follows the application motion preference and requests no frames at rest. *)
+  val create
+    :  ?fill:Fill.t
+    -> ?track_thickness:float
+    -> ?track_radius:float
+    -> ?thumb_size:float
+    -> ?target_size:float
+    -> ?ring_width:float
+    -> ?track_color:Color.t
+    -> ?fill_color:Color.t
+    -> ?thumb_color:Color.t
+    -> ?ring_color:Color.t
+    -> unit
+    -> t Or_error.t
+
+  val default : t
+end
+
 module Value : sig
   type t = private
     | Single of float
@@ -147,6 +182,11 @@ module Command_error : sig
 end
 
 module Expert : sig
+  val appearance_to_wire
+    :  Appearance.t
+    -> theme:Theme.t
+    -> Gpuio_protocol.Slider_presentation_wire.t Or_error.t
+
   val config_to_wire : Config.t -> Gpuio_protocol.Slider_wire.Config.t
   val value_to_wire : Value.t -> Gpuio_protocol.Slider_wire.Value.t
 

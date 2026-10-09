@@ -1,0 +1,91 @@
+{
+  "complete": true,
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "checks": [
+    {
+      "case": "initial-system-dark",
+      "capture": "initial-dark.png",
+      "background_rgb": [
+        16,
+        21,
+        29
+      ],
+      "matching_samples": 11496
+    },
+    {
+      "case": "second-explicit-light",
+      "capture": "second-light.png",
+      "background_rgb": [
+        241,
+        244,
+        247
+      ],
+      "matching_samples": 11515
+    },
+    {
+      "case": "system-light",
+      "capture": "system-light.png",
+      "background_rgb": [
+        241,
+        244,
+        247
+      ],
+      "matching_samples": 11515
+    },
+    {
+      "case": "system-dark",
+      "capture": "system-dark.png",
+      "background_rgb": [
+        16,
+        21,
+        29
+      ],
+      "matching_samples": 11496
+    },
+    {
+      "case": "retained-focus-selection-native-edit-and-undo"
+    },
+    {
+      "case": "explicit-light-survives-os-dark",
+      "capture": "second-still-light.png",
+      "background_rgb": [
+        241,
+        244,
+        247
+      ],
+      "matching_samples": 11515
+    },
+    {
+      "case": "explicit-dark-survives-os-light",
+      "capture": "explicit-dark.png",
+      "background_rgb": [
+        16,
+        21,
+        29
+      ],
+      "matching_samples": 11496
+    },
+    {
+      "case": "resume-follow-current-system",
+      "capture": "follow-again-light.png",
+      "background_rgb": [
+        241,
+        244,
+        247
+      ],
+      "matching_samples": 11515
+    }
+  ],
+  "executable_sha256": "1cb18f072468b16674aee7aaa3029a7ac0904554cd7067c5279e8302ea9f15af",
+  "revision": "3d1f64b8d6c2f4188dc332c06795aa0ad33780f3",
+  "dirty": true,
+  "child_reaped": true,
+  "appearance_recovery": {
+    "version": 1,
+    "original": {
+      "dark": true,
+      "automatic": null
+    },
+    "restored": true
+  }
+}

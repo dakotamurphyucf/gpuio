@@ -1,6 +1,7 @@
 //! Original-data access, independent of plotting, reduction and mesh admission.
 //! One bounded row is formatted at a time; never materialize a dataset-sized UI.
-use gpuio_protocol::chart_data::{Contents, Data, Layer};
+use crate::chart_cartesian::{Kind, Layers};
+use gpuio_protocol::chart_data::{Contents, Data};
 
 pub(crate) struct Row {
     pub name: String,
@@ -9,7 +10,11 @@ pub(crate) struct Row {
 }
 pub(crate) fn count(data: &Data) -> usize {
     match &data.contents {
-        Contents::Cartesian(layers) => layers.iter().map(|l| l.series().points.len()).sum(),
+        Contents::Cartesian(_) | Contents::Categorical(..) => Layers::of(data)
+            .unwrap()
+            .iter()
+            .map(|l| l.points.len())
+            .sum(),
         Contents::Pie(values) => values.len(),
         Contents::Radar(axes, series) => axes.len() * series.len(),
         Contents::Candlestick(values) => values.len(),
@@ -21,33 +26,52 @@ pub(crate) fn count(data: &Data) -> usize {
 /// Display uses round-trippable numeric values, not rounded plot tick formatting.
 pub(crate) fn row(data: &Data, mut index: usize) -> Option<Row> {
     Some(match &data.contents {
-        Contents::Cartesian(layers) => {
-            let (layer, point) = layers.iter().find_map(|layer| {
-                let series = layer.series();
+        Contents::Cartesian(_) | Contents::Categorical(..) => {
+            let (layer, point, position) = Layers::of(data)?.iter().find_map(|layer| {
+                let series = layer;
                 if index < series.points.len() {
-                    Some((layer, &series.points[index]))
+                    Some((layer, series.points.get(index)?, index))
                 } else {
                     index -= series.points.len();
                     None
                 }
             })?;
-            let kind = match layer {
-                Layer::Line(_) => "Line",
-                Layer::Area(_) => "Area",
-                Layer::Bar(_) => "Bar",
+            let kind = match layer.kind {
+                Kind::Line => "Line",
+                Kind::Area => "Area",
+                Kind::Bar => "Bar",
+            };
+            let baseline = if layer.kind == Kind::Bar && !data.bar_baselines.is_empty() {
+                format!(
+                    " · baseline: {}",
+                    data.bar_baseline(layer.id, point.id).unwrap_or(0.)
+                )
+            } else {
+                String::new()
             };
             Row {
-                name: format!("{kind} · {}", layer.series().name),
-                value: format!(
-                    "x: {} · y: {}",
-                    point.x,
-                    point.y.map_or_else(|| "Missing".into(), |v| v.to_string())
-                ),
+                name: format!("{kind} · {}", layer.name),
+                value: (match &data.contents {
+                    Contents::Categorical(categories, _) => {
+                        let c = categories.get(position)?;
+                        format!(
+                            "Category: {} ({}) · value: {}",
+                            c.label,
+                            c.id,
+                            point.y.map_or_else(|| "Missing".into(), |v| v.to_string())
+                        )
+                    }
+                    _ => format!(
+                        "x: {} · y: {}",
+                        point.x,
+                        point.y.map_or_else(|| "Missing".into(), |v| v.to_string())
+                    ),
+                }) + &baseline,
                 detail: format!(
                     "Series {} · datum {}{}",
-                    layer.series().id,
+                    layer.id,
                     point.id,
-                    label(&point.label)
+                    label(point.label)
                 ),
             }
         }
@@ -169,7 +193,9 @@ mod tests {
     #[test]
     fn pages_reach_every_original_including_gaps_without_materializing_all_rows() {
         let data = Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![Layer::Line(Series {
                 id: 9,
                 name: "Originals".into(),
@@ -202,7 +228,7 @@ mod tests {
     }
     #[test]
     fn all_families_expose_original_values_and_flow_nodes_and_edges() {
-        for fixture in include_str!("../../../test/fixtures/chart-v1-data.hex").lines() {
+        for fixture in include_str!("../../../test/fixtures/chart-v3-data.hex").lines() {
             let (_, hex) = fixture.split_once(' ').unwrap();
             let bytes = (0..hex.len())
                 .step_by(2)
@@ -220,7 +246,9 @@ mod tests {
             }
         }
         let pie = Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Pie(vec![Slice {
                 id: 7,
                 label: "Zero".into(),
@@ -229,7 +257,9 @@ mod tests {
         };
         assert_eq!(row(&pie, 0).unwrap().value, "0");
         let radar = Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Radar(
                 vec![RadarAxis {
                     id: 42,
@@ -248,7 +278,9 @@ mod tests {
     #[test]
     fn isolated_nodes_have_zero_totals_and_do_not_disappear() {
         let data = Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Sankey(
                 vec![Node {
                     id: 7,

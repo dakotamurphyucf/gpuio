@@ -75,6 +75,8 @@ let breadcrumbs
       ?(appearance = Appearance.default)
       ~label
       ~current_description
+      ?(is_navigable = fun _ -> true)
+      ?item_style:custom_item_style
       ~on_navigate
       ()
   =
@@ -87,7 +89,12 @@ let breadcrumbs
   let%bind children =
     List.mapi members ~f:(fun index item ->
       let current = index = count - 1 in
-      let child_style = item_style appearance ~current in
+      let child_style =
+        Style.merge
+          [ item_style appearance ~current
+          ; Option.value_map custom_item_style ~default:Style.empty ~f:(fun f -> f item)
+          ]
+      in
       let%map child =
         if current
         then
@@ -96,6 +103,8 @@ let breadcrumbs
             ~current:Location
             ~description:current_description
             ()
+        else if not (is_navigable item)
+        then Ok (View.text ~key:(key "item") ~style:child_style (Choice.label item))
         else
           annotate
             (View.button
@@ -166,19 +175,45 @@ module Pagination_labels = struct
   ;;
 end
 
+module Pagination_layout = struct
+  type t =
+    | Full
+    | Compact
+  [@@deriving equal, sexp_of]
+end
+
+module Gap_popup = struct
+  type 'action t =
+    { style : Style.t option
+    ; config : Overlay.Config.t
+    ; on_dismiss : Overlay.Dismissal.t -> 'action
+    ; content : 'action View.t option
+    }
+
+  let create ?style ~config ~on_dismiss content = { style; config; on_dismiss; content }
+end
+
 let pagination
       model
       ?key:root_key
       ?style:custom
       ?(appearance = Appearance.default)
       ?(labels = Pagination_labels.english)
+      ?(layout = Pagination_layout.Full)
+      ?on_gap
+      ?gap_popup
       ~on_request
       ()
   =
   let open Or_error.Let_syntax in
+  let%bind () =
+    if Option.is_some gap_popup && Option.is_none on_gap
+    then Or_error.error_string "Pagination gap_popup requires on_gap"
+    else Ok ()
+  in
   let disabled = Pagination.is_disabled model in
   let current = Pagination.current model in
-  let button ~id ~label ~request ~disabled ~is_current =
+  let button ~id ~text ~label ~request ~disabled ~is_current =
     let%bind metadata =
       Accessibility.create
         ~label
@@ -192,7 +227,7 @@ let pagination
          ~style:(item_style appearance ~current:is_current)
          ~disabled
          ~on_click:(fun () -> on_request request)
-         label)
+         text)
       metadata
   in
   let can_previous = Option.exists current ~f:(fun page -> page > 1) in
@@ -200,7 +235,19 @@ let pagination
     Option.exists current ~f:(fun page -> page < Pagination.total_pages model)
   in
   let boundary id label request can_move =
-    button ~id ~label ~request ~disabled:(disabled || not can_move) ~is_current:false
+    let text =
+      match layout, id with
+      | Compact, "previous" -> "‹"
+      | Compact, "next" -> "›"
+      | (Full | Compact), _ -> label
+    in
+    button
+      ~id
+      ~text
+      ~label
+      ~request
+      ~disabled:(disabled || not can_move)
+      ~is_current:false
   in
   let%bind first = boundary "first" labels.first Pagination.Request.first can_previous in
   let%bind previous =
@@ -208,26 +255,58 @@ let pagination
   in
   let%bind next = boundary "next" labels.next Pagination.Request.next can_next in
   let%bind last = boundary "last" labels.last Pagination.Request.last can_next in
+  let items =
+    match layout with
+    | Full -> Pagination.items model
+    | Compact -> []
+  in
   let%map items =
-    List.map (Pagination.items model) ~f:(function
+    List.map items ~f:(function
       | Page page ->
         let%bind request = Pagination.Request.page page in
+        let label = labels.page page in
         button
           ~id:(sprintf "page-%d" page)
-          ~label:(labels.page page)
+          ~text:label
+          ~label
           ~request
           ~disabled
           ~is_current:(Option.equal Int.equal current (Some page))
       | Gap { first; last } ->
-        annotate
-          (View.text
-             ~key:(key (sprintf "gap-%d-%d" first last))
-             ~style:
-               (Style.merge
-                  [ style [ Foreground (token "muted") ]; appearance.gap_style ])
-             "…")
-          ~label:(labels.gap ~first ~last)
-          ())
+        let gap_key = key (sprintf "gap-%d-%d" first last) in
+        let view =
+          match on_gap with
+          | None ->
+            View.text
+              ~key:gap_key
+              ~style:
+                (Style.merge
+                   [ style [ Foreground (token "muted") ]; appearance.gap_style ])
+              "…"
+          | Some on_gap ->
+            View.button
+              ~key:gap_key
+              ~disabled
+              ~style:
+                (Style.merge
+                   [ item_style appearance ~current:false; appearance.gap_style ])
+              ~on_click:(fun () -> on_gap ~first ~last)
+              "…"
+        in
+        let%map anchor = annotate view ~label:(labels.gap ~first ~last) () in
+        (match gap_popup with
+         | None -> anchor
+         | Some gap_popup ->
+           let { Gap_popup.style; config; on_dismiss; content } =
+             gap_popup ~first ~last
+           in
+           View.popover
+             ~key:gap_key
+             ?style
+             ~config
+             ~on_dismiss
+             ~anchor
+             (if disabled then None else content)))
     |> Or_error.all
   in
   (* Labels have already passed validation in the constructor. *)
@@ -235,6 +314,8 @@ let pagination
     ?key:root_key
     ?custom
     ~label:labels.navigation
-    ([ first; previous ] @ items @ [ next; last ])
+    (match layout with
+     | Full -> [ first; previous ] @ items @ [ next; last ]
+     | Compact -> [ previous; next ])
   |> Or_error.ok_exn
 ;;

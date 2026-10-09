@@ -1,0 +1,2 @@
+ld: warning: ignoring duplicate libraries: '-lSystem', '-lc', '-lobjc'
+ld: warning: ignoring duplicate libraries: '-lSystem', '-lc', '-lobjc'

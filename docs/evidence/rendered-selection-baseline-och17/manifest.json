@@ -1,0 +1,29 @@
+{
+  "revision": "73b4e7134d6b8918094e40840c8a62b96da26b91",
+  "binary_sha256": "642b8767672883d22c74092fd8818150eec41cb3f7090d8246f5ecda989b24bb",
+  "platform": "ProductName:\t\tmacOS\nProductVersion:\t\t14.5\nBuildVersion:\t\t23F79",
+  "result": "Native Select All/Copy works; AX selected text and range missing. Baseline only, no repair or VoiceOver qualification.",
+  "archive_sha256": "f5d289c2fa0ae7a8efd5a739e9d7c9c2e76169277a98d35f9721cf56c07886e5",
+  "files": [
+    {
+      "path": "markdown-selection-probe-app.log",
+      "bytes": 52,
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46"
+    },
+    {
+      "path": "markdown-selection-probe.json",
+      "bytes": 2047,
+      "sha256": "7d16d9f9b25aa5db54a3b8d950a560a103853198f4df9ef58bef09857203d101"
+    },
+    {
+      "path": "markdown-selection-probe.log",
+      "bytes": 2123,
+      "sha256": "89cf80dc93039c4db30e5208dbc6f68d5a262548b45ca16f368ea6c56e6663fc"
+    },
+    {
+      "path": "markdown-selection-probe.py",
+      "bytes": 2510,
+      "sha256": "da3255552558733dc8ffd7bf27f9d5b75e448d5887df0471f322a7dd4047e7b1"
+    }
+  ]
+}

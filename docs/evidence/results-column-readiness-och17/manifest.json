@@ -1,0 +1,64 @@
+{
+  "head": "76081f1",
+  "scope": "test driver changes; pre-existing agent-chat executable, no fresh application build in this checkpoint",
+  "binary_sha256": "629df5e28318e70734b275cfef26898d13e572ddcbe94dbdc7a6dd60323acf3b",
+  "native_complete": false,
+  "files": [
+    {
+      "path": "results-after-down.png",
+      "bytes": 349038,
+      "sha256": "cd130a4b3e413b4ae45523e699cbf20c06a625aa42b9d2c3f59bec9e63c9cd7d"
+    },
+    {
+      "path": "results-before-cell.png",
+      "bytes": 342989,
+      "sha256": "437b8245bb03f4c99b7b9d31819c7fa8ca0924e4ca0f9d7c3f086dda35f8dda5"
+    },
+    {
+      "path": "results-click-phases.log",
+      "bytes": 6649,
+      "sha256": "7b878b1c415299a3b93c909ac678ada4abab79e62bea3a1e86f4140f689aca37"
+    },
+    {
+      "path": "results-click-phases.py",
+      "bytes": 1542,
+      "sha256": "bf317247fd70f799d33d43fd8f17815abec09a233f4d776d85b5b43361ff013b"
+    },
+    {
+      "path": "results-geometry-before-regression.log",
+      "bytes": 46,
+      "sha256": "06a0213ae6ea44e6140065d8b45cef67274555ac697b3d72fec459c0e157f03f"
+    },
+    {
+      "path": "results-geometry-before.png",
+      "bytes": 353471,
+      "sha256": "1d85e799e1232e4ac4561799d60b3375ff9a786d6522aa7b5e6725ce763e0c7d"
+    },
+    {
+      "path": "results-geometry-native-second.log",
+      "bytes": 1042,
+      "sha256": "1b86aa98623e751028788fd2bbaf88c19b7a11fc5a296a0fa8001a59a4d3101f"
+    },
+    {
+      "path": "results-geometry-native.log",
+      "bytes": 1042,
+      "sha256": "de040d7f3e87384c03a8b548e792be0c5879685ad8014a757b094240ca44cc12"
+    },
+    {
+      "path": "results-geometry-unit-final.log",
+      "bytes": 103,
+      "sha256": "464e0ee629edf74de09ef21e4232fbcedc26588ff7cc23c470f47fe2da88c255"
+    },
+    {
+      "path": "scripts/test_agent_chat_results.py",
+      "bytes": 20120,
+      "sha256": "e86148763d656234e199a859820748bad991df7ca05c55d35e3ce3a9f5b38fca"
+    },
+    {
+      "path": "scripts/test_results_geometry.py",
+      "bytes": 5019,
+      "sha256": "3cb03836941f2843e69de1483cb0e701a813cbfbc889a5c8d7deddd169ddb669"
+    }
+  ],
+  "archive_sha256": "2fdb0f1f48d17e2cef7d402f67934f5230f21efc4e4a0480aa4ccfb835202a5f"
+}

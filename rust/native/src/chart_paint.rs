@@ -3,14 +3,16 @@
 use crate::{
     canvas_mesh as mesh,
     canvas_paint::{self, FrameBudget as MeshFrameBudget, Placement},
+    chart_appearance::{self as appearance, gradient, native_brush, solid},
     chart_geometry as geometry,
 };
 use gpui::{Bounds, Pixels, Window, point, px, size};
 use gpuio_protocol::{
     canvas::{Path as MeshPath, PathCommand, Point as MeshPoint, Transform},
     canvas_view::Viewport,
+    chart_appearance::{Brush, Corners},
     chart_data::Data,
-    chart_options::{Options, Orientation},
+    chart_options::{LinkColor, Options},
     chart_sampling::Policy,
     chart_style::Style,
 };
@@ -19,6 +21,8 @@ use std::{
     mem::size_of,
     sync::atomic::{AtomicBool, Ordering},
 };
+
+mod decorations;
 
 pub const MAX_BYTES: usize = 64 * 1024 * 1024;
 pub const MAX_VERTICES: usize = 1_000_000;
@@ -58,13 +62,14 @@ impl FrameBudget {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     InvalidInput,
+    InvalidConfiguration,
     Cancelled,
     RenderLimit,
     NativeFailure,
 }
 struct MeshDraw {
     mesh: mesh::Mesh,
-    color: u32,
+    brush: Brush,
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Layout {
@@ -104,15 +109,14 @@ enum Draw {
 #[derive(Clone, Copy)]
 struct Quad {
     rect: geometry::Rect,
-    radius: f64,
-    color: u32,
-    gradient_end: Option<u32>,
-    horizontal: bool,
+    corners: Corners,
+    brush: Brush,
     border: Option<(f64, u32)>,
 }
 /// Keep the exact immutable chart snapshot beside this plan. Publication/release
 /// invalidation and application-wide admission belong to the mounted owner.
 pub struct Prepared {
+    colors: Vec<u32>,
     geometry: geometry::Plan,
     hit_index: crate::chart_hit::Index,
     stable_index: crate::chart_selection::StableIndex,
@@ -122,6 +126,9 @@ pub struct Prepared {
     vertices: usize,
 }
 impl Prepared {
+    pub(crate) fn series_color(&self, index: usize) -> u32 {
+        self.colors[index]
+    }
     pub fn geometry(&self) -> &geometry::Plan {
         &self.geometry
     }
@@ -141,6 +148,7 @@ impl Prepared {
     }
     pub fn retained_bytes(&self) -> usize {
         size_of::<Self>()
+            + self.colors.capacity() * size_of::<u32>()
             + self.hit_index.retained_bytes()
             + self.stable_index.retained_bytes()
             + self.geometry.retained_bytes()
@@ -201,10 +209,10 @@ impl Prepared {
                 let q = match *draw {
                     Draw::Mesh(index) => {
                         let draw = &self.meshes[index];
-                        canvas_paint::paint(
+                        canvas_paint::paint_background(
                             &draw.mesh,
                             &placement,
-                            draw.color,
+                            native_brush(draw.brush),
                             &mut budget.meshes,
                             window,
                         )
@@ -226,19 +234,16 @@ impl Prepared {
                 if !rect.intersects(&window.content_mask().bounds) {
                     continue;
                 }
-                let background = match q.gradient_end {
-                    None => gpui::Background::from(gpui::rgba(q.color)),
-                    Some(end) => gpui::linear_gradient(
-                        if q.horizontal { 90. } else { 180. },
-                        gpui::linear_color_stop(gpui::rgba(q.color), 0.),
-                        gpui::linear_color_stop(gpui::rgba(end), 1.),
-                    ),
-                };
                 let (border, color) = q.border.unwrap_or((0., 0));
                 window.paint_quad(gpui::quad(
                     rect,
-                    px(q.radius as f32),
-                    background,
+                    gpui::Corners {
+                        top_left: px(q.corners.top_left as f32),
+                        top_right: px(q.corners.top_right as f32),
+                        bottom_right: px(q.corners.bottom_right as f32),
+                        bottom_left: px(q.corners.bottom_left as f32),
+                    },
+                    native_brush(q.brush),
                     px(border as f32),
                     gpui::rgba(color),
                     gpui::BorderStyle::Solid,
@@ -287,6 +292,27 @@ struct Build<'a> {
 }
 impl Build<'_> {
     fn mesh(&mut self, path: &MeshPath, style: mesh::Style, color: u32) -> Result<(), Error> {
+        self.mesh_with_gradient(path, style, color, None)
+    }
+    fn mesh_with_gradient(
+        &mut self,
+        path: &MeshPath,
+        style: mesh::Style,
+        color: u32,
+        gradient_end: Option<u32>,
+    ) -> Result<(), Error> {
+        self.mesh_brush(
+            path,
+            style,
+            gradient_end.map_or(solid(color), |end| gradient(90., color, end)),
+        )
+    }
+    fn mesh_brush(
+        &mut self,
+        path: &MeshPath,
+        style: mesh::Style,
+        brush: Brush,
+    ) -> Result<(), Error> {
         check(self.cancel)?;
         let prepared =
             mesh::prepare_chart(path, style, self.tolerance, self.cancel).map_err(|error| {
@@ -310,7 +336,7 @@ impl Build<'_> {
         self.draws.push(Draw::Mesh(self.meshes.len()));
         self.meshes.push(MeshDraw {
             mesh: prepared,
-            color,
+            brush,
         });
         Ok(())
     }
@@ -321,6 +347,27 @@ impl Build<'_> {
         color: u32,
         gradient_end: Option<u32>,
         horizontal: bool,
+        border: Option<(f64, u32)>,
+    ) -> Result<(), Error> {
+        self.quad_brush(
+            rect,
+            Corners {
+                top_left: radius,
+                top_right: radius,
+                bottom_right: radius,
+                bottom_left: radius,
+            },
+            gradient_end.map_or(solid(color), |end| {
+                gradient(if horizontal { 90. } else { 180. }, color, end)
+            }),
+            border,
+        )
+    }
+    fn quad_brush(
+        &mut self,
+        rect: geometry::Rect,
+        corners: Corners,
+        brush: Brush,
         border: Option<(f64, u32)>,
     ) -> Result<(), Error> {
         if rect.right <= rect.left || rect.bottom <= rect.top {
@@ -335,12 +382,16 @@ impl Build<'_> {
         self.draws.push(Draw::Quad(self.quads.len()));
         self.quads.push(Quad {
             rect,
-            radius: radius
-                .min((rect.right - rect.left) / 2.)
-                .min((rect.bottom - rect.top) / 2.),
-            color,
-            gradient_end,
-            horizontal,
+            corners: {
+                let limit = ((rect.right - rect.left) / 2.).min((rect.bottom - rect.top) / 2.);
+                Corners {
+                    top_left: corners.top_left.min(limit),
+                    top_right: corners.top_right.min(limit),
+                    bottom_right: corners.bottom_right.min(limit),
+                    bottom_left: corners.bottom_left.min(limit),
+                }
+            },
+            brush,
             border,
         });
         Ok(())
@@ -422,6 +473,18 @@ pub fn prepare(
     layout: Layout,
     cancel: &AtomicBool,
 ) -> Result<Prepared, Error> {
+    prepare_with_text(data, policy, options, style, layout, None, cancel)
+}
+/// Native mounted views provide a captured font context for measured labels.
+pub fn prepare_with_text(
+    data: &Data,
+    policy: Policy,
+    options: &Options,
+    style: &Style,
+    layout: Layout,
+    text: Option<&crate::chart_label_metrics::Context>,
+    cancel: &AtomicBool,
+) -> Result<Prepared, Error> {
     check(cancel)?;
     let Layout {
         width,
@@ -431,70 +494,82 @@ pub fn prepare(
     if !style.is_valid() {
         return Err(Error::InvalidInput);
     }
-    let geometry =
-        geometry::prepare(data, policy, options, width, height, cancel).map_err(|e| match e {
-            geometry::Error::InvalidInput => Error::InvalidInput,
-            geometry::Error::Cancelled => Error::Cancelled,
-            geometry::Error::RenderLimit => Error::RenderLimit,
-        })?;
+    let outside = match &data.contents {
+        gpuio_protocol::chart_data::Contents::Sankey(..) => {
+            options.sankey.labels
+                && options.sankey.label_placement
+                    == gpuio_protocol::chart_options::LabelPlacement::Outside
+        }
+        gpuio_protocol::chart_data::Contents::Pie(_) => {
+            options.pie.labels
+                && options.pie.label_placement
+                    == gpuio_protocol::chart_options::LabelPlacement::Outside
+        }
+        _ => false,
+    };
+    let measured = if outside {
+        Some(
+            text.ok_or(Error::InvalidInput)?
+                .measure(data, style, cancel)?,
+        )
+    } else {
+        None
+    };
+    let appearance = appearance::Index::new(data, style, options, cancel)?;
+    let curves = appearance.curves()?;
+    let area_baselines = appearance.area_baselines()?;
+    let mut geometry = geometry::prepare_with_presentation(
+        data,
+        policy,
+        options,
+        (width, height),
+        measured.as_deref(),
+        geometry::Presentation {
+            axes: Some(geometry::axis_presentation::Styles::of(style)),
+            curves: &curves,
+            area_baselines: &area_baselines,
+        },
+        cancel,
+    )
+    .map_err(|e| match e {
+        geometry::Error::InvalidInput => Error::InvalidInput,
+        geometry::Error::InvalidConfiguration => Error::InvalidConfiguration,
+        geometry::Error::Cancelled => Error::Cancelled,
+        geometry::Error::RenderLimit => Error::RenderLimit,
+    })?;
+    crate::chart_node_labels::apply(&mut geometry, data, style, cancel).map_err(|e| match e {
+        geometry::Error::InvalidInput => Error::InvalidInput,
+        geometry::Error::InvalidConfiguration => Error::InvalidConfiguration,
+        geometry::Error::Cancelled => Error::Cancelled,
+        geometry::Error::RenderLimit => Error::RenderLimit,
+    })?;
+    let pie_overrides: std::collections::BTreeMap<_, _> =
+        style.pie_labels.iter().map(|e| (e.slice, e)).collect();
+    if let gpuio_protocol::chart_data::Contents::Pie(slices) = &data.contents {
+        geometry.labels.retain_mut(|label| {
+            if let geometry::LabelKind::Pie { slice_index, .. } = label.kind
+                && let Some(text) = pie_overrides
+                    .get(&slices[slice_index].id)
+                    .and_then(|e| e.text.as_ref())
+            {
+                label.text = text.clone();
+                return !text.is_empty();
+            }
+            true
+        });
+    }
+    let colors = crate::chart_colors::resolve(data, style, cancel)?;
+    let link_colors = crate::chart_colors::link_colors(data, &colors, cancel)?;
     let mut build = Build {
         meshes: vec![],
         quads: Vec::with_capacity(geometry.marks.len().min(MAX_QUADS)),
         draws: vec![],
         vertices: 0,
-        bytes: geometry.retained_bytes(),
+        bytes: geometry.retained_bytes() + colors.capacity() * size_of::<u32>(),
         tolerance: 0.25 / scale,
         cancel,
     };
-    // All grid segments share a retained stroke mesh; axes are distinct from
-    // grid visibility and use their own brush.
-    let segments = |lines: &[(geometry::Point, geometry::Point)]| {
-        MeshPath(
-            lines
-                .iter()
-                .flat_map(|(a, b)| {
-                    [
-                        PathCommand::Move(point_wire(*a)),
-                        PathCommand::Line(point_wire(*b)),
-                    ]
-                })
-                .collect(),
-        )
-    };
-    if !geometry.grid.is_empty() {
-        build.mesh(
-            &segments(&geometry.grid),
-            mesh::Style::Stroke(1.),
-            style.grid_color as u32,
-        )?;
-    }
-    let horizontal = options.cartesian.orientation == Orientation::Horizontal
-        && matches!(
-            data.contents,
-            gpuio_protocol::chart_data::Contents::Cartesian(_)
-        );
-    if geometry.x_domain.is_some() {
-        let a = geometry::Point { x: 0., y: height };
-        let b = geometry::Point {
-            x: width,
-            y: height,
-        };
-        let c = geometry::Point { x: 0., y: 0. };
-        let mut lines = vec![];
-        if options.axes.x {
-            lines.push(if horizontal { (c, a) } else { (a, b) });
-        }
-        if options.axes.y {
-            lines.push(if horizontal { (a, b) } else { (c, a) });
-        }
-        if !lines.is_empty() {
-            build.mesh(
-                &segments(&lines),
-                mesh::Style::Stroke(1.),
-                style.axis_color as u32,
-            )?;
-        }
-    }
+    decorations::prepare(&mut build, &geometry, data, options, style)?;
     let layers = geometry
         .paths
         .iter()
@@ -511,20 +586,30 @@ pub fn prepare(
     let passes = if sankey { 2 } else { layers };
     for pass in 0..passes {
         for shape in geometry.paths.iter().filter(|s| s.layer == pass) {
-            let color = style.color(shape.layer);
-            build.mesh(
-                &path(&shape.commands),
-                if shape.fill {
-                    mesh::Style::Fill
-                } else {
-                    mesh::Style::Stroke(style.stroke_width)
-                },
-                if shape.fill {
-                    alpha(color, style.area_opacity)
-                } else {
-                    color
-                },
-            )?;
+            let color = colors[shape.layer];
+            let path_style = appearance.path(shape.layer);
+            let (mesh_style, brush) = if shape.fill {
+                (
+                    mesh::Style::Fill,
+                    path_style
+                        .fill
+                        .unwrap_or(solid(alpha(color, style.area_opacity))),
+                )
+            } else {
+                if path_style.stroke.is_some_and(|s| !s.visible) {
+                    continue;
+                }
+                (
+                    mesh::Style::Stroke(
+                        path_style
+                            .stroke
+                            .and_then(|s| s.width)
+                            .unwrap_or(style.stroke_width),
+                    ),
+                    path_style.stroke.map_or(solid(color), |s| s.brush),
+                )
+            };
+            build.mesh_brush(&path(&shape.commands), mesh_style, brush)?;
         }
         for (index, mark) in geometry.marks.iter().enumerate().filter(|(_, m)| {
             if sankey {
@@ -536,13 +621,17 @@ pub fn prepare(
             if index & 255 == 0 {
                 check(cancel)?;
             }
-            let color = style.color(mark.layer);
+            let color = colors[mark.layer];
             match mark.shape {
                 geometry::Shape::Dot {
                     center,
                     visible: true,
                 } => {
-                    let r = style.point_radius;
+                    let marker = appearance.marker(mark, color);
+                    if !marker.visible {
+                        continue;
+                    }
+                    let r = marker.radius;
                     build.quad(
                         geometry::Rect {
                             left: center.x - r,
@@ -551,22 +640,32 @@ pub fn prepare(
                             bottom: center.y + r,
                         },
                         r,
-                        color,
+                        marker.fill,
                         None,
                         false,
-                        None,
+                        (marker.stroke_width > 0.).then_some((marker.stroke_width, marker.stroke)),
                     )?;
                 }
                 geometry::Shape::Dot { visible: false, .. } => {}
-                geometry::Shape::Bar(rect) => build.quad(
+                geometry::Shape::Bar(rect) => {
+                    let bar = appearance.bar(mark, color)?;
+                    let values = appearance.bar_values(&geometry, index)?;
+                    let brush = appearance::bar_brush(
+                        bar.fill.ok_or(Error::InvalidInput)?,
+                        values,
+                        geometry.y_domain.ok_or(Error::InvalidInput)?,
+                        options.cartesian.orientation,
+                    );
+                    build.quad_brush(rect, bar.corners.ok_or(Error::InvalidInput)?, brush, None)?;
+                }
+                geometry::Shape::Node(rect) => build.quad(
                     rect,
-                    style.bar_radius,
+                    options.sankey.node_corner_radius,
                     color,
-                    style.gradient_end.map(|c| c as u32),
-                    horizontal,
+                    None,
+                    false,
                     None,
                 )?,
-                geometry::Shape::Node(rect) => build.quad(rect, 1., color, None, false, None)?,
                 geometry::Shape::Candle {
                     center,
                     left,
@@ -577,7 +676,7 @@ pub fn prepare(
                     close,
                 } => {
                     let rise = close < open;
-                    let color = style.color(if rise { 0 } else { 1 });
+                    let color = colors[if rise { 0 } else { 1 }];
                     build.quad(
                         geometry::Rect {
                             left: center - 0.5,
@@ -655,20 +754,65 @@ pub fn prepare(
                     end_top,
                     end_bottom,
                 } => {
-                    build.mesh(
+                    let geometry::Source::Edge(edge) = mark.source else {
+                        return Err(Error::InvalidInput);
+                    };
+                    let (source, target) = *link_colors.get(edge).ok_or(Error::InvalidInput)?;
+                    let source = alpha(source, options.sankey.link_opacity);
+                    let target = alpha(target, options.sankey.link_opacity);
+                    let (start, end) = match options.sankey.link_color {
+                        LinkColor::Source => (source, None),
+                        LinkColor::Target => (target, None),
+                        LinkColor::Gradient => (source, Some(target)),
+                    };
+                    build.mesh_with_gradient(
                         &ribbon(start_top, start_bottom, end_top, end_bottom),
                         mesh::Style::Fill,
-                        alpha(color, 0.5),
+                        start,
+                        end,
                     )?;
                 }
             }
         }
     }
     check(cancel)?;
-    let hit_index = crate::chart_hit::Index::prepare(
+    if let gpuio_protocol::chart_data::Contents::Pie(slices) = &data.contents {
+        for label in &geometry.labels {
+            if let geometry::LabelKind::Pie {
+                slice_index,
+                placement: Some(p),
+            } = label.kind
+            {
+                let color = pie_overrides
+                    .get(&slices[slice_index].id)
+                    .and_then(|e| e.line_color)
+                    .or(style.pie_label_line_color)
+                    .unwrap_or(style.axis_color) as u32;
+                build.mesh(
+                    &decorations::segments(&[(p.edge, p.bend), (p.bend, p.end)]),
+                    mesh::Style::Stroke(1.),
+                    color,
+                )?;
+            }
+        }
+    }
+    let mut radii = Vec::with_capacity(geometry.marks.len());
+    for (i, mark) in geometry.marks.iter().enumerate() {
+        if i & 255 == 0 {
+            check(cancel)?;
+        }
+        let marker = appearance.marker(mark, colors[mark.layer]);
+        radii.push(if marker.visible {
+            marker.radius
+        } else {
+            style.point_radius
+        });
+    }
+    let hit_index = crate::chart_hit::Index::prepare_with_radii(
         &geometry,
         options.cartesian.orientation,
         style.point_radius,
+        Some(&radii),
         cancel,
     )
     .map_err(|error| match error {
@@ -684,7 +828,13 @@ pub fn prepare(
         crate::chart_selection::IndexError::InvalidSource => Error::InvalidInput,
         crate::chart_selection::IndexError::LimitExceeded => Error::RenderLimit,
     })?;
+    let colors = colors
+        .into_iter()
+        .enumerate()
+        .map(|(i, c)| appearance.legend(i, c))
+        .collect();
     let prepared = Prepared {
+        colors,
         geometry,
         hit_index,
         stable_index,
@@ -703,3 +853,21 @@ pub fn prepare(
 pub(crate) mod native_test;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod ordinal_tests;
+
+#[cfg(test)]
+mod sankey_tests;
+
+#[cfg(test)]
+fn brush_color(brush: Brush) -> u32 {
+    match brush {
+        Brush::Solid(c)
+        | Brush::Linear { from: c, .. }
+        | Brush::PatternSlash(c, ..)
+        | Brush::Checkerboard(c, ..) => c as u32,
+    }
+}
+#[cfg(test)]
+mod appearance_tests;

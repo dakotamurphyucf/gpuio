@@ -2,7 +2,11 @@
 use super::*;
 use crate::host::native_test::{mouse, move_mouse};
 use gpuio_protocol::chart_selection::Selection;
-fn position(x: f32, y: f32) -> gpui::Point<gpui::Pixels> {
+#[path = "chart_guide_span_test.rs"]
+mod guide_spans;
+#[path = "chart_label_input_test.rs"]
+mod labels;
+pub(super) fn position(x: f32, y: f32) -> gpui::Point<gpui::Pixels> {
     gpui::point(px(x), px(y))
 }
 fn observations(transport: &Transport) -> Vec<Option<Selection>> {
@@ -20,7 +24,7 @@ fn observations(transport: &Transport) -> Vec<Option<Selection>> {
         })
         .collect()
 }
-fn key(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, value: &str) {
+pub(super) fn key(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, value: &str) {
     cx.update_window(handle.into(), |_, window, cx| {
         window.dispatch_event(
             gpui::PlatformInput::KeyDown(gpui::KeyDownEvent {
@@ -61,7 +65,9 @@ pub(super) fn publish_input(
         base,
         generation,
         &Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Pie(values),
         },
     );
@@ -101,14 +107,91 @@ pub(super) async fn exercise(
             .update(cx, |_, window, _| window.is_window_active())
             .unwrap()
     );
+    guide_spans::exercise(cx, handle, source, &transport).await;
     observations(&transport);
+    // Moving inside the same pie wedge must repaint a cursor card without
+    // publishing selection or rerunning source preparation.
+    let mut cursor_config = config(source, 0xff0000ff);
+    cursor_config.style.inspection.card.placement =
+        gpuio_protocol::chart_inspection::Placement::Cursor;
+    cursor_config.style.inspection.card.width = 96.;
+    cursor_config.style.inspection.card.background = Some(0xff00ffff);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetChart(id(1), Box::new(cursor_config))],
+    );
+    ready(cx, handle, 1, 0xff0000ff).await;
+    observations(&transport);
+    let mut edges = vec![];
+    for x in [130., 155.] {
+        move_mouse(cx, handle, position(x, 100.), false);
+        draw(cx, handle);
+        edges.push(
+            handle
+                .update(cx, |view, window, _| {
+                    let state = view.charts[&id(1)].borrow();
+                    assert!(state.input.pointer.is_some());
+                    assert!(state.input.selected.is_none());
+                    let image = window.render_to_image().unwrap();
+                    let left = image
+                        .enumerate_pixels()
+                        .filter(|(_, _, p)| p.0 == [255, 0, 255, 255])
+                        .map(|(x, _, _)| x)
+                        .min()
+                        .expect("cursor card pixels");
+                    f64::from(left) / f64::from(window.scale_factor())
+                })
+                .unwrap(),
+        );
+        assert!(
+            observations(&transport).is_empty(),
+            "pointer motion stays native"
+        );
+    }
+    assert!(
+        (edges[1] - edges[0] - 25.).abs() <= 1.,
+        "same-wedge cursor movement: {edges:?}"
+    );
+    move_mouse(cx, handle, position(-10., 100.), false);
+    draw(cx, handle);
+    handle
+        .update(cx, |view, _, _| {
+            assert!(view.charts[&id(1)].borrow().input.pointer.is_none());
+        })
+        .unwrap();
+    move_mouse(cx, handle, position(155., 100.), false);
+    draw(cx, handle);
+    handle
+        .update(cx, |view, window, cx| {
+            let focus = view.charts[&id(1)].borrow().input.focus.clone();
+            window.focus(&focus, cx)
+        })
+        .unwrap();
+    key(cx, handle, "home");
+    draw(cx, handle);
+    handle
+        .update(cx, |view, _, _| {
+            assert!(view.charts[&id(1)].borrow().input.pointer.is_none())
+        })
+        .unwrap();
+    assert!(observations(&transport).is_empty());
+    apply(
+        cx,
+        handle,
+        vec![Op::SetChart(id(1), Box::new(config(source, 0xff0000ff)))],
+    );
+    ready(cx, handle, 1, 0xff0000ff).await;
+    eprintln!(
+        "GPUIO_CHART_CURSOR_CARD_OK: same-wedge pointer pixel movement, no selection events, keyboard anchor fallback"
+    );
     move_mouse(cx, handle, position(150., 100.), false);
     draw(cx, handle);
     assert!(
         handle
             .update(cx, |view, _, _| view.charts[&id(1)]
                 .borrow()
-                .input_overlay()
+                .input_overlay(None)
                 .is_some())
             .unwrap()
     );
@@ -242,16 +325,16 @@ pub(super) async fn exercise(
         handle,
         vec![Op::SetChart(
             id(1),
-            Config {
+            Box::new(Config {
                 disabled: true,
                 ..config(source, 0xff0000ff)
-            },
+            }),
         )],
     );
     apply(
         cx,
         handle,
-        vec![Op::SetChart(id(1), config(source, 0xff0000ff))],
+        vec![Op::SetChart(id(1), Box::new(config(source, 0xff0000ff)))],
     );
     mouse(cx, handle, position(150., 100.), false);
     assert!(observations(&transport).is_empty());
@@ -326,7 +409,7 @@ pub(super) async fn exercise(
     drop(budget_hold);
     let mut retry = config(source, 0xff0000ff);
     retry.style.stroke_width = 3.;
-    apply(cx, handle, vec![Op::SetChart(id(1), retry)]);
+    apply(cx, handle, vec![Op::SetChart(id(1), Box::new(retry))]);
     ready(cx, handle, 3, 0xff0000ff).await;
     key(cx, handle, "d");
     key(cx, handle, "end");
@@ -367,6 +450,7 @@ pub(super) async fn exercise(
     );
     key(cx, handle, "escape");
     draw(cx, handle);
+    labels::exercise(cx, handle, source, &session, &transport).await;
     move_mouse(cx, handle, position(150., 100.), false);
     mouse(cx, handle, position(150., 100.), true);
     cx.update(|cx| dispatch(cx, &transport, 40, Request::Release(source)));

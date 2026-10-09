@@ -18,15 +18,33 @@ Extend the existing `Animation` vocabulary with abstract `Spring`, `Timing` and
 delay and either duration/easing or physical spring timing. All stages name the
 same property set. At most 32 stages are accepted. The sum of stage maximum
 durations and per-stage delays is at most one day. A separate initial delay
-is applied only before the first cycle and is independently bounded to one day,
-preserving the established API’s full delay/duration range. Public constructors validate
+is applied once and has magnitude at most one day: positive values wait before
+the first cycle, while negative values advance the initial elapsed position.
+Public constructors validate
 before encoding; the native decoder independently bounds and validates input.
+
+Initial delay rounds away from zero to milliseconds; stage delays remain
+nonnegative and repeat each cycle. An advance may skip multiple stages or cycles
+using bounded arithmetic. Skipped finite stages report ordinary `Played`
+observations on the first accepted paint, followed by `Finished` if the entire
+program has elapsed; this does not claim a separate frame for each stage.
+Paused/hidden runs retain painted values and apply their offset when running;
+restart reapplies it from the declared initial values. Reduced motion keeps its
+existing endpoint policy. Shared clocks still require zero initial delay so
+members have a common phase. `Program.with_initial_delay` changes this setting
+while preserving playback and the monotonically increasing restart token; a
+changed delay replaces the run. It rechecks shared-clock and encoding limits.
 
 The existing `Config.create` continues to express a single duration-based stage.
 A spring constructor expresses a single spring stage, and a sequence constructor
 expresses ordered stages. Sequences start at explicit initial values; a standalone
 spring may omit initial values and first mounts at its target, matching OCH-12.
 The mounted wrapper owns native state. OCaml publishes configurations, not frames.
+
+[Explicit iteration policies](animation-iterations.md) extend both the baseline
+and program APIs with unsigned finite counts and directed timeline playback.
+They define their own bounded completion semantics while retaining the existing
+Once/Loop/Alternate behavior described below.
 Keep existing baseline wire operation/fixture semantics; introduce a distinct
 advanced-program operation. The established duration-based path retains its
 existing native owner and record encoding.

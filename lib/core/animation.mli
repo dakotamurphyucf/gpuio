@@ -16,7 +16,14 @@ module Property : sig
     | Top_right_radius
     | Bottom_left_radius
     | Bottom_right_radius
+    | Opacity_factor
   [@@deriving equal, sexp_of]
+
+  (** [Opacity] replaces the element's style opacity. [Opacity_factor] multiplies
+      its resolved base/interaction opacity, including background and children,
+      without adding a layout wrapper. The factor is in [0,1]; 1 preserves the
+      original style. A target cannot contain both opacity properties. Ancestor
+      opacity still multiplies normally. *)
 end
 
 module Target : sig
@@ -29,6 +36,22 @@ module Target : sig
 end
 
 module Easing : sig
+  module Linear_stop : sig
+    type t [@@deriving equal, sexp_of]
+
+    (** A finite output with an optional input position in [0,1]. *)
+    val create : ?input:float -> output:float -> unit -> t Or_error.t
+  end
+
+  module Step_position : sig
+    type t =
+      | Jump_start
+      | Jump_end
+      | Jump_none
+      | Jump_both
+    [@@deriving equal, sexp_of]
+  end
+
   type t [@@deriving equal, sexp_of]
 
   val linear : t
@@ -36,6 +59,34 @@ module Easing : sig
   val ease_in : t
   val ease_out : t
   val ease_in_out : t
+
+  (** Polynomial curves [t^3] and [1 - (1 - t)^3], respectively. These differ
+      from the CSS [ease_in]/[ease_out] presets. They use the existing native
+      cubic-Bezier representation with linear x; no OCaml frame callback or
+      protocol extension is needed. *)
+  val ease_in_cubic : t
+
+  val ease_out_cubic : t
+
+  (** Piecewise polynomial: [4 * t^3] up to the midpoint, then
+      [1 - 4 * (1 - t)^3]. Native evaluation preserves the exact midpoint and
+      endpoints. This differs from the CSS [ease_in_out] preset. *)
+  val ease_in_out_cubic : t
+
+  (** Constant-time stepped motion. [count] is in [1,4294967295];
+      [Jump_none] requires at least 2. At progress zero, [Jump_start] produces
+      [1/count] and [Jump_both] produces [1/(count+1)]; the other modes produce
+      zero. Each jump boundary selects the following step. Progress outside
+      [0,1] clamps before evaluation; all modes produce 1 at progress 1. *)
+  val steps : count:int -> position:Step_position.t -> t Or_error.t
+
+  (** Piecewise-linear easing with 2..256 stops. Omitted endpoint positions
+      default to 0 and 1; omitted interior positions are spaced evenly between
+      anchors. Explicit positions must be nondecreasing. At a duplicate position,
+      the last stop wins. Outside the first/last positions, output holds constant.
+      Outputs may overshoot; native properties retain their own clamps. Finite
+      animation completion still settles at the declared target. *)
+  val linear_stops : Linear_stop.t list -> t Or_error.t
 
   (** X control points in [0,1]; Y control points may be any finite value. Overshoot is permitted,
       with each interpolated property clamped to its valid numeric range. *)
@@ -51,7 +102,8 @@ module Spring : sig
       times the natural frequency. [max_duration] defaults to 10 seconds,
       is positive, rounds up to milliseconds and is at most 60 seconds.
       At that deadline the spring settles exactly at its target, including
-      undamped springs. Native spring rendering is under implementation. *)
+      undamped springs. Native animation programs evaluate springs without
+      calling OCaml on each frame. *)
   val create
     :  ?epsilon:float
     -> ?max_duration:Time_ns.Span.t
@@ -62,12 +114,50 @@ module Spring : sig
     -> t Or_error.t
 end
 
+module Iteration_count : sig
+  (** An unsigned count in [0, 2^64-1]. Zero finishes without playing a cycle. *)
+  type t [@@deriving equal, sexp_of]
+
+  val zero : t
+  val one : t
+  val of_int : int -> t Or_error.t
+  val of_int64 : int64 -> t Or_error.t
+
+  (** Decimal digits only; accepts the full unsigned range, including values
+      larger than [Int64.max_value]. [to_string] returns canonical decimal. *)
+  val of_string : string -> t Or_error.t
+
+  val to_string : t -> string
+end
+
+module Direction : sig
+  type t =
+    | Normal
+    | Reverse
+    | Alternate
+    | Alternate_reverse
+  [@@deriving equal, sexp_of]
+end
+
 module Repeat : sig
   type t =
     | Once
     | Loop
     | Alternate
+    | Finite of Iteration_count.t * Direction.t
+    | Infinite of Direction.t
   [@@deriving equal, sexp_of]
+
+  (** [Finite] and [Infinite] apply direction to timeline progress before easing.
+      They require explicit initial values. Finite policies emit one [Finished]
+      after paint, without per-cycle or per-stage observations. Infinite policies
+      never finish. Zero-duration finite policies settle immediately after their
+      initial delay; infinite policies require a positive cycle.
+
+      [Once], [Loop] and [Alternate] preserve their established behavior. In an
+      advanced program, legacy [Alternate] reverses declared intervals, preserving
+      each interval's easing; explicit [Direction.Alternate] reverses elapsed
+      timeline progress, including asymmetric easing and stage pauses. *)
 end
 
 module Timing : sig
@@ -155,13 +245,21 @@ module Program : sig
   type t [@@deriving equal, sexp_of]
 
   (** One to 32 stages with the same properties. Multi-stage programs and repeats
-      require initial values. The initial delay is applied once; stage delays apply
-      each cycle. The sum of stage maximum durations and delays is at most one day;
-      the separate initial delay is also at most one day. Repeats need positive cycle duration.
-      Shared clocks require repetition, timed stages, explicit initial values and
+      require initial values. The initial delay is signed and applied once:
+      negative values advance the initial timeline position, including across
+      repeat boundaries. Its magnitude is at most one day and rounds away from
+      zero to milliseconds. Nonnegative stage delays apply each cycle. The sum
+      of stage maximum durations and delays is at most one day.
+      Infinite policies need positive cycle duration.
+      Shared clocks require infinite repetition, timed stages, explicit initial values and
       zero initial delay. [clock] defaults to independent, [repeat] to once.
 
-      Use [View.animate_program] to mount a retained native program. *)
+      The complete encoding is bounded to 16,384 bytes, reserving the maximum
+      generation/restart encodings; large easing curves count toward that limit.
+      Boundaries skipped by a negative initial delay produce ordinary [Played]
+      observations on the first accepted paint, without claiming intermediate
+      frames. Paused/hidden runs apply the offset when they first run; reduced
+      motion retains its endpoint policy. Use [View.animate_program] to mount. *)
   val create
     :  ?initial:Target.t
     -> ?delay:Time_ns.Span.t
@@ -173,6 +271,15 @@ module Program : sig
   (** Playback changes preserve the run; cancellation holds its last painted value
       and is terminal until a new program or restart. *)
   val with_playback : t -> Playback.t -> t
+
+  (** Change the signed initial delay, retaining playback and the restart token.
+      This replaces the mounted program when the delay changes. The same bounds,
+      encoding limit and shared-clock restriction as [create] apply. *)
+  val with_initial_delay : t -> Time_ns.Span.t -> t Or_error.t
+
+  (** Change the iteration policy while retaining playback and restart identity.
+      Revalidates cycle duration, initial values, shared clock and encoding bounds. *)
+  val with_repeat : t -> Repeat.t -> t Or_error.t
 
   (** Increment the restart token, resetting playback to Running. Retain the returned
       value for subsequent restarts. Exhaustion returns an error. *)
@@ -195,14 +302,19 @@ module Config : sig
   type t [@@deriving equal, sexp_of]
 
   (** Default duration 200 ms, no delay, linear timing, once. Durations are between
-      zero and one day, rounded up to whole milliseconds. Initial and target must
+      zero and one day, rounded up to whole milliseconds. The initial delay is
+      in [-one day, one day], rounded away from zero to milliseconds. A negative
+      delay starts at that much active elapsed time, including across repeat
+      boundaries; this can intentionally jump ahead on retarget or finish on
+      the first paint. Initial and target must
       name the same properties. With no initial values, the first mount is placed
       immediately; subsequent targets start at the last painted values. Repetition
-      requires initial values and a positive duration. Initial values define the
+      requires initial values; infinite policies also require a positive duration. Initial values define the
       repeating range; an interrupted first cycle starts at the painted values.
 
-      Explicitly hidden animations pause. Reduced motion settles one-shot runs and
-      renders repeated runs at their initial values without requesting frames. *)
+      Explicitly hidden animations pause. Reduced motion settles finite runs at
+      their directed terminal endpoint; infinite runs hold their directed start
+      without frame requests. Legacy Loop/Alternate retain their initial hold. *)
   val create
     :  ?initial:Target.t
     -> ?duration:Time_ns.Span.t
@@ -238,6 +350,8 @@ module Event : sig
 end
 
 module Expert : sig
+  val easing_to_wire : Easing.t -> Gpuio_protocol.Wire.Animation.Easing.t
+
   val program_event_of_wire
     :  Gpuio_protocol.Wire.Animation_program.Signal.t list
     -> Program.Event.t Or_error.t

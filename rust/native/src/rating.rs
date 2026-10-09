@@ -1,7 +1,7 @@
 //! Application-controlled ratings; only hover preview is retained natively.
 use super::choice::Route;
 use gpui::{Context, Div, FocusHandle, Stateful, Window, canvas, div, point, prelude::*, px};
-use gpuio_protocol::rating::{Config, Request};
+use gpuio_protocol::rating::{Appearance, Config, Request};
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 #[derive(Default)]
@@ -44,7 +44,7 @@ fn request(
         }
     }
 }
-fn star(filled: bool) -> impl gpui::IntoElement {
+fn star(filled: bool, color: Option<i64>) -> impl gpui::IntoElement {
     canvas(
         |_, _, _| (),
         move |bounds, _, window, _| {
@@ -66,8 +66,18 @@ fn star(filled: bool) -> impl gpui::IntoElement {
             }
             path.close();
             if let Ok(path) = path.build() {
-                let color = window.text_style().color;
-                window.paint_path(path, if filled { color } else { color.opacity(0.7) });
+                let color = match color {
+                    Some(color) => gpui::Hsla::from(gpui::rgba(color as u32)),
+                    None => {
+                        let foreground = window.text_style().color;
+                        if filled {
+                            foreground
+                        } else {
+                            foreground.opacity(0.7)
+                        }
+                    }
+                };
+                window.paint_path(path, color);
             }
         },
     )
@@ -75,6 +85,7 @@ fn star(filled: bool) -> impl gpui::IntoElement {
 }
 pub(super) struct Render<'a> {
     pub config: &'a Arc<Config>,
+    pub appearance: Option<Appearance>,
     pub state: Rc<RefCell<State>>,
     pub focus: FocusHandle,
     pub route: Option<Route>,
@@ -88,6 +99,7 @@ pub(super) fn element<T: 'static>(
 ) -> Stateful<Div> {
     let Render {
         config,
+        appearance,
         state,
         focus,
         route,
@@ -119,7 +131,16 @@ pub(super) fn element<T: 'static>(
             .flex_none()
             .w(px(config.star_size as f32))
             .h(px(config.star_size as f32))
-            .child(star(index <= value));
+            .child(star(
+                index <= value,
+                appearance.and_then(|appearance| {
+                    if index <= value {
+                        appearance.active
+                    } else {
+                        appearance.inactive
+                    }
+                }),
+            ));
         if pointer && let Some(route) = &route {
             let hover_state = state.clone();
             let hover_route = route.clone();

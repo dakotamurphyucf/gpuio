@@ -1,5 +1,8 @@
 # Desktop Lab
 
+Read the [main source walkthrough](main.md) for API calls, runtime ownership,
+interaction traces, commands, and diagnostic limits.
+
 An application-scoped link receiver through `Gpuio_eio.Desktop`, with explicit
 readiness and application-selected document windows. Model state survives
 closing a window. The receiver is independent of window scopes.

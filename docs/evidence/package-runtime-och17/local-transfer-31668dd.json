@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "source_revision": "31668dddcf7ed3e319e29fe04fe6c1c50819b4e6",
+  "source_scope": "build-job checkout; build job must build these executables at this revision",
+  "github_run_id": null,
+  "github_run_attempt": null,
+  "producer_platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "qualification": "internal ad-hoc runtime inputs; notices incomplete; not release artifacts",
+  "applications": {
+    "agent_chat": {
+      "package_sha256": "bfa801c48c308208f09a705b7f7e4d155c7c44d658aaa25948e45716d8048128",
+      "archive_sha256": "5122b3c78919e7c06c59d4da901242081f5bb57e12100f74033303f6b691bb06",
+      "executable_sha256": "a3cd764cbfe17c2fd5920ea6baa08cdedef63bf4ed7de3ba6fd76460e475403e"
+    },
+    "gallery": {
+      "package_sha256": "c61db02ad9d6c31b0fed7830cf1ead5dfb1cfe1dce17ed48311c82694c1bf769",
+      "archive_sha256": "725a0a925c38e6c027b0bf92723b85129a63fe9076c1a1880f87056a46a96fce",
+      "executable_sha256": "96794950e26721eae25a045ed3b4ca3ae59b4b06555010b5b31720bc8ad83d3d"
+    },
+    "signal_studio": {
+      "package_sha256": "26a401b516b7a8acfca062ba40f50ffe71f9a867ae66daeabdd96905adeb8992",
+      "archive_sha256": "6995b906d68cfd660ab76482812778985bc279f8667ec7af41bc7e1f0cef3ffd",
+      "executable_sha256": "b19158d257d441dbd7ebce69bde9930bfd7b649601603f8d6bad917d1216a727"
+    }
+  }
+}

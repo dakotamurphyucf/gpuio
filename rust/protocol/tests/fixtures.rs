@@ -588,3 +588,15 @@ fn hover_card_kind_and_shared_ownership_events_match_ocaml() {
         bytes(include_str!("../../../test/fixtures/tooltip-v1-events.hex"))
     );
 }
+
+#[path = "common/style_values_fixture.rs"]
+mod style_values_fixture;
+#[test]
+fn extended_cursor_and_truncation_values_match_public_ocaml_encoding() {
+    let expected = bytes(include_str!("../../../test/fixtures/style-values-v1.hex"));
+    let request = style_values_fixture::request();
+    let mut actual = Vec::new();
+    request.binprot_write(&mut actual).unwrap();
+    assert_eq!(actual, expected);
+    assert_eq!(gpuio_protocol::decode(&expected).unwrap(), request);
+}

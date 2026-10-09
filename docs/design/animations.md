@@ -10,14 +10,29 @@ links the final PR checks/merge status.
 ## Configuration
 
 `Animation.Target.create` validates a nonempty property set: width, height, top,
-right, bottom, left, opacity and four corner radii. `Radius` is an OCaml shorthand
+right, bottom, left, opacity, multiplicative opacity and four corner radii. `Radius` is an OCaml shorthand
 for all four corners. Duplicate properties after expansion are errors. Geometry
 uses logical pixels, with the same finite bounds as the style API; opacity is in
-[0,1]. Numeric targets deliberately exclude `auto` and percentage interpolation.
+[0,1]. Absolute opacity and [multiplicative opacity](animation-opacity-factor.md)
+cannot occur in the same target; the latter preserves base/interaction styling.
+Numeric targets deliberately exclude `auto` and percentage interpolation.
 
 `Animation.Config.create` accepts a target, optional initial values, duration,
 delay, easing and repetition. Initial and target property sets must match.
 Duration defaults to 200 ms, delay to zero, easing to linear and repetition to once.
+
+[Explicit iteration policies](animation-iterations.md) add full unsigned finite
+counts and Normal/Reverse/Alternate/Alternate_reverse playback through
+`Repeat.Finite` and `Repeat.Infinite`. The legacy policies retain their behavior.
+
+Initial delay is signed, within ±one day, rounded away from zero to whole
+milliseconds. Positive values hold the starting value; negative values start that
+many milliseconds into the run, possibly beyond its endpoint or across repeat
+cycles. The native owner adds this offset to active elapsed time rather than
+backdating the clock origin. Hidden time remains excluded. With no initial values,
+first placement remains immediate; reduced motion retains its existing policy.
+On retargeting, a negative delay advances from the last painted value and can
+therefore cause a deliberate jump. Completion still requires an accepted paint.
 Core `Time_ns.Span` arguments are bounded to one day and rounded up to milliseconds.
 The public type is abstract and does not expose the bridge's generation counter.
 
@@ -42,6 +57,14 @@ zero derivatives. X controls are in [0,1]; Y controls may be any finite value. O
 allowed; resulting properties clamp to their valid domain, such as nonnegative
 width and opacity no greater than one. Timing is evaluated once per sample,
 then applied to at most eleven properties.
+
+The polynomial presets `ease_in_cubic`, `ease_out_cubic` and
+`ease_in_out_cubic` are distinct from the CSS presets. The first two use Bezier
+control points with linear x. The third evaluates `4*t^3` for `t <= 0.5`, then
+`1 - 4*(1-t)^3`, entirely in Rust. All three clamp progress to the endpoints;
+they share existing timing, interruption, reduced-motion and ownership rules.
+`Easing.steps` adds the four [step-position policies](stepped-easing.md),
+including immediate zero-progress jumps for Jump_start and Jump_both.
 
 ## Timing and ownership
 
@@ -206,3 +229,36 @@ is released and no late endpoint is delivered. Startup markers help distinguish
 launch problems from a frame wait. The background stall was diagnosed by activating
 the exact running process, after which every assertion completed; the test now
 activates itself, as the existing control tests do.
+
+## Piecewise-linear easing
+
+`Animation.Easing.Linear_stop.create ?input ~output ()` validates a finite output
+and an optional input in `[0,1]`. `Easing.linear_stops` accepts 2–256 stops. Omitted
+first/last positions become 0/1; omitted interior positions are evenly distributed
+between their surrounding explicit anchors. Explicit positions must be
+nondecreasing. Equal positions encode a jump: the last stop at that position wins.
+Before the first position and after the last, the curve holds the endpoint output.
+These are the pinned GPUI Kit `LinearStops` semantics, with an explicit bounded
+transport and double precision.
+
+Outputs need not start at zero, finish at one or stay within that range. Native
+property clamps still apply. Positive initial delay holds the declared initial value;
+at the start, the curve's zero-progress value applies. Finite completion settles
+at the declared target even when the last curve output differs from one. Reduced
+motion, retargeting and paint-confirmed completion retain their existing rules.
+
+The paired unpublished epoch-3 representation appends easing tag 8 followed by
+a bin-prot list of resolved `(input, output)` double pairs. Rust bounds the count
+before allocating and independently validates positions and outputs. It owns an
+immutable shared array, uses binary search and weighted interpolation without
+per-frame allocation or an OCaml callback, and accounts for retained curve data
+in admission reservations. Weighted interpolation avoids overflowing a subtraction
+between finite opposite-sign extreme outputs.
+
+Variable-length curves count toward the existing 16,384-byte program limit.
+Both public program construction and native validation reserve the largest
+generation/restart encodings, so later playback/restart changes remain encodable.
+Progress and spinner presentation envelopes are now 16,384 bytes to accommodate
+their existing maximum 4,096-byte labels together with a 256-stop curve; individual
+label and curve limits are unchanged. Carousel, progress and spinner motion share the
+same easing contract. Native consumers must rebuild with the paired OCaml schema.

@@ -1,0 +1,516 @@
+# Settings application composition
+
+The pinned Settings source row is a **locally validated functional equivalent**
+through the bounded [Core model](../../lib/core/settings.mli), controlled
+[Bonsai composite](../../lib/bonsai/settings_panel.mli), typed field helpers and
+public Settings gallery. The acceptance map below distinguishes actual macOS
+input/consumer evidence from deterministic race checks. OCH-41's other catalog
+reviews and OCH-17 release gates remain open.
+
+## Native composition and saved preview values
+
+The gallery records every native observation revision but mirrors name text and
+numeric draft/value into its saved model only outside marked composition. This
+preserves revision ordering without exporting provisional preedit. The next
+composition-free observation can update the model. Explicit page departure
+retires the editor and seeds a new owner from the last saved value/draft; it
+does not serialize or revive a platform IME session.
+
+Active fields display composition-specific reset guidance. A native reset during
+composition reports `Composing`, preserves the field and does not prevent other
+independent resets in the same request from succeeding. This is deliberately
+non-atomic. Layout, field size, group style and theme changes retain the native
+owner, focus, preedit and undo state.
+
+`python3 scripts/test_gallery.py --section settings-composition` exercises actual
+OS keyboard events with the existing `com.apple.keylayout.US` source. It reads
+the source without changing it and fails clearly if the prerequisite is absent.
+Coverage includes eleven responsive/style/size/theme refinements, individual and
+partial page-reset rejection, composition commit/undo/redo, text and numeric
+page retirement, unfinished numeric draft recovery and Escape followed by new
+typing. The cross-owner accent leak exposed by this test is repaired at the
+[native window text-context boundary](gpui-core-adaptation.md#window-text-input-context-lifetime).
+This scoped US dead-key evidence is not full Settings/catalog acceptance or
+multilingual IME/candidate-window qualification.
+
+## Source and ownership
+
+The pinned [settings module](../catalog/sources/component-setting-mod.rs.txt)
+composes searchable pages, virtualized groups, fields, reset controls and a
+resizable sidebar. Its [page](../catalog/sources/component-setting-page.rs.txt),
+[group](../catalog/sources/component-setting-group.rs.txt),
+[item](../catalog/sources/component-setting-item.rs.txt) and
+[field](../catalog/sources/component-setting-fields-mod.rs.txt) snapshots are
+catalog inputs. Rendering/get/set closures in those Rust types are not an FFI
+contract.
+
+GPUIO separates three responsibilities:
+
+1. `Gpuio.Settings` owns immutable descriptive metadata and navigation intent.
+   It contains no callbacks, native handles, values, tasks or persistence.
+2. The Bonsai composite owns the bounded active group presentation,
+   sidebar requests, search presentation and native layout observations. Application
+   field values/controllers and asynchronous tasks remain outside transient rows.
+3. Existing native input controllers own editing, composition, selection and undo.
+   Eio application services own loading/saving and report errors through application
+   state. Rendering and filtering never read a file or implicitly save a setting.
+
+## Implemented identity and filtering contract
+
+Page, group and item IDs are distinct OCaml types. Each is case-sensitive,
+1..256 UTF-8 bytes without NUL. IDs are unique across the entire catalog within
+their kind, so filtering, reordering and group virtualization cannot turn a list
+position into another field's identity.
+
+Normal item search matches the title, optional description and explicit keywords.
+Custom items match keywords only; empty search includes them. Page/group headings
+do not implicitly make all their descendants match. Matching uses Unicode
+lowercase substrings, independently per field, with no trimming, accent removal,
+normalization or locale-specific collation. This follows the pinned source's
+item-search structure; it is not a fuzzy search engine.
+
+Catalog bounds are 128 pages, 2048 groups, 32768 items and 8 MiB of text including
+IDs and cached search text. Query input is at most 1024 bytes. Titles are bounded
+to 4096 bytes, descriptions to 16384, keywords to 64 × 256, and an item's cached
+lowercase fields to 64 KiB. UTF-8/NUL and bounds are checked before admission.
+Aggregate counts are checked before flattening/index allocation. These bounds
+are admission policy, not measured application performance or total RSS.
+
+Filtering is cached with the immutable model and preserves source order. It
+omits groups/pages with no matching items. `preferred_selection` records the
+user/application's identity preference; `selection` is the effective visible
+selection. If its page survives, a hidden group selection temporarily falls back
+to that page. If the page is absent from the filtered result, the first matching
+page is shown. No match yields None. Clearing search restores the preference.
+
+`with_pages` validates replacement metadata atomically. It preserves a surviving
+page/group preference, downgrades a removed group to its page, clears a removed
+page preference and retains surviving page expansion. `default_open` applies
+only to new pages. Requests for removed or nonmatching destinations are ignored
+when reduced against current metadata. Programmatic selection can deliberately
+name a filtered-out destination, which becomes effective when it matches again.
+
+## Implemented reset intent contract
+
+Each item reports `Unavailable`, `Clean` or `Dirty`. A custom field participates
+only when the application supplies that status and an eventual reset handler.
+The model never infers equality between heterogeneous application values.
+
+`reset_targets` returns item IDs in catalog order:
+
+- `Matching_page page_id` covers matching items in that effective page. A delayed
+  request for an old page returns an empty list rather than resetting the new page.
+- `Matching_group group_id` covers matching items in that group of the effective
+  page.
+- `Whole_page page_id` explicitly includes filtered-out items in the named page.
+- `Item item_id` explicitly addresses one field, independently of search.
+
+Every scope excludes disabled, clean and unavailable fields and respects the
+page's `resettable` policy. Missing destinations return an empty list. This is
+an intentional, explicit policy instead of inheriting the source's filtered-clone
+reset loop or treating disabled presentation as permission to mutate a value.
+
+Reset handlers must resolve the captured scope against the latest model after
+asynchronous confirmation, rather than replaying an old list of setters. Native
+editor changes still require the existing lease/revision checks. A pure reset
+plan does not promise atomic persistence across multiple settings, guarantee a
+native edit will succeed, or overwrite in-flight composition. The gallery reports
+individual native failures and permits other independent resets to succeed.
+
+## Implemented controlled composition
+
+`Gpuio_bonsai.Settings.component` takes reactive metadata, appearance, a supplied
+search editor view, request/reset callbacks and an item renderer. It returns a
+view and active-group/budget observations, or a presentation error. It does not
+create an editor or infer application value types. Reducing a request and actually
+performing a reset remain application responsibilities.
+
+The sidebar uses ordinary disclosure and composed-link controls. Page and group
+IDs live in separate key namespaces, including full-length IDs and names that
+coincide with internal slot names. Page icons use passive composed-link content;
+rich page suffixes may contain ordinary controls. Current page/group destinations
+carry localized accessibility descriptions. Search, empty state, resize and reset
+labels are explicit. Invalid localized labels or unsupported icon contents are
+presentation errors.
+
+The native split defaults to a 250px sidebar with a 160..360px range. The caller
+must supply bounded dimensions. Groups use the managed native list, with a 200px
+estimated height, 400px overscan and 32 active groups by default; callers can
+replace these configurations. Native group reveal uses stable IDs. Repeated
+activation of the current group requests another reveal. Leaving a page or
+filtering out all its content retires its transient list and item computations;
+revisiting creates a fresh visit. Application values, editors and tasks must remain
+outside these computations. A page change starts a fresh viewport rather than
+implicitly persisting page-specific scroll positions.
+
+Keeping a controller alive does not by itself preserve an unmounted native editor
+session. The text/number controllers now expose explicit mount-seed overrides on
+`view`: `initial_text` for text and `initial`/`initial_draft` for numeric fields. Omitting the override keeps
+the original creation seed. Supplying current application data allows a later
+placement to start with that data, without replacing a live draft during ordinary
+observations. Numeric `initial` seeds the committed value; the optional validated
+`initial_draft` independently restores unfinished text before the first native
+observation. Omitting it formats the committed value. See the
+[numeric mount contract](numeric-inputs.md#milestone-07-independent-draft-mount-seeds).
+Native undo history, selection and IME state do not survive destruction.
+The gallery now checks a focused Boolean row pin, blur-driven eviction and saved
+value recovery across 48 groups. The scoped US dead-key checks above cover native
+composition retention and text/numeric page retirement. The field matrix below
+also verifies saved Boolean, numeric and dropdown values after page remount.
+
+Sidebar-only changes preserve the group collection. With an unchanged group
+order, metadata changes update only affected collection entries and their height
+invalidations. Structural membership/order changes rebuild collection metadata.
+This is bounded composition behavior, not measured native scroll performance.
+
+A native width observer has empty breakpoint branches; it changes styles on one
+stable set of controls. Below 480 logical pixels the field layout is vertical;
+at or above 480 it is horizontal. This exact boundary is an explicit GPUIO choice
+(the pinned source treats 480 itself as vertical). An item can force vertical
+layout at any width. Group size controls spacing, and the chosen appearance and
+group variant feed the existing group-box adapter. Disabled normal/custom items
+wrap their entire content in native `Style.Disabled true`. Native field
+names/help/error metadata remain the responsibility of supplied controls and the
+typed field helpers. The inherited policy preserves roles, names, values and
+native identities while exposing `AXEnabled=false` and blocking activation,
+editing and focus. It also protects arbitrary custom controls. Inert remains
+reserved for content that should disappear from accessibility. See the
+[disabled-subtree contract](disabled-subtrees.md) for implementation and evidence.
+
+The page-visit regression exposed an existing Bonsai virtual-list weakness:
+captured viewport, retention and controller effects could act after revisiting
+the same generation. Those effects, including tree-input delivery, now check the
+managed generation's lifetime at execution. This supplements native handler
+generation checks; it does not change wire formats or Rust ownership.
+
+## Typed field helpers and editor commands
+
+[`Gpuio.Settings_field`](../../lib/core/settings_field.mli) supplies controlled
+switch/checkbox helpers, typed dropdown collections and a decorator for existing
+native text/number/other form controls. The Settings panel owns the visible item
+title. Field metadata names the native control and supplies semantic help/error
+relationships; helpers display help/error in stable slots below that control.
+Avoid repeating the same help in both item and field metadata. Size controls
+spacing/font; control-specific configurations remain explicit. Horizontal helpers
+default to 256px, vertical to full width, with caller style refinements.
+
+Boolean callbacks are toggle intents reduced against current application state,
+so two queued activations are not two copies of a captured negation. Typed
+`Choices.create` takes a comparator and pairs application values with stable native
+options. Both values and IDs must be unique; labels may repeat. Reordering or
+renaming options does not redefine identity. Absent selection is supported;
+foreign selected values return errors. Disabled options can stay selected but
+cannot be activated natively. The ordinary `Choice.Appearance` controls popup
+styles, dimensions and visible-row budget, including scrolling long option sets.
+
+Text and numeric fields use their existing Eio controllers with `control`; there
+is no new editing runtime or implicit setter. Text now exposes
+`replace_if_unchanged`, matching the numeric controller's guarded replacement:
+the expected snapshot identifies both native lease and revision. Explicit reset
+handlers must also recheck application metadata/disabled/reset policy and report
+native errors. The existing native command path rejects active composition;
+this checkpoint does not add new OS IME acceptance evidence.
+
+## Implemented field and acceptance scope
+
+The implementation and acceptance checks use this model and composite:
+
+- Searchable page/group sidebar, selected destinations and group reveal; native
+  resizable split with source-equivalent 250px initial and 160..360px range.
+- Native managed virtualization of groups, with explicit ownership of field values,
+  editor sessions, active rows and reset requests. Hidden/evicted presentation must
+  not cancel application work or reset stored settings.
+- Horizontal/vertical field composition, a 480px content-width breakpoint,
+  group variants/sizes, page icons and rich header/suffix/custom slots. Responsive
+  changes must preserve the same control placement. Do not duplicate an editor
+  controller into two retained container-query branches; that violates its lease.
+  Use stable content plus layout observations/refinement, or an evaluated native
+  primitive if existing composition cannot satisfy this invariant.
+- Typed switch/checkbox, string, bounded-number, dropdown/scrollable-dropdown and
+  custom field adapters using existing public controls. Expose application values
+  and setters with their actual OCaml types, not a dynamic Rust type ID or a generic
+  JSON value. Native dirty drafts/composition are not implicit value replacements.
+- Explicit localized reset controls and scope labels; custom reset behavior;
+  disabled field enforcement for both built-in and custom controls; accessible
+  field labels/help/errors, keyboard navigation and focus reveal.
+- A public gallery application showing real edits, search/selection recovery,
+  resets, resize/virtualization and application-owned Eio save failures/recovery.
+
+Required acceptance includes filtering/empty results, stale navigation/reset
+intents, disabled/custom fields, in-flight edits and composition, control identity
+across responsive changes, group eviction/remount, multiwindow isolation,
+keyboard/clipboard/focus behavior, reset errors and persistence failures. The
+example must also run against independently installed public packages. Source
+presence, pure model tests and a screenshot cannot establish this acceptance.
+
+## Foundation evidence
+
+Local macOS 14.5 arm64: five Settings expect tests pass navigation/filter recovery,
+Unicode and per-field matching, custom keywords, reset scope/current-state guards,
+removed groups/expansion, malformed IDs, duplicate identities, foreign-group
+selection, page and text budgets. Full Dune build/tests/format pass:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @test/view_api/runtest
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
+```
+
+Three Bonsai expect tests additionally cover optimized/unoptimized page visits,
+stable control reconciliation across 479/480/700/320px observations, repeat group
+reveal, stale reset intent, absent-result teardown/recovery, localized-label
+errors, disabled custom-row styles and independent ID namespaces (including
+256-byte IDs and internal slot-name collisions). A metadata change invalidates
+only its group; sidebar expansion leaves height revisions unchanged. A separate
+virtual-list regression exercises captured viewport/pin/controller effects after
+revisiting a generation, with current observations still accepted. Full Dune
+build/tests/format and the structural catalog audit pass locally.
+
+These checks synthesize observations and inspect Bonsai/Core reconciliation; they
+do not establish actual native breakpoint geometry, editor/IME preservation,
+disabled OS input, accessibility-reader behavior or scrolling performance.
+
+Three field-helper expect tests cover typed choice mapping/ambiguity, relabeling
+and reordering, native dispatch policy, queued Boolean intents, semantic help/error
+and editor identity across annotation/layout changes. The public text-input
+example passes two actual background macOS windows (single/multiline), confirming
+mount-seed changes leave live text unchanged, remount uses the supplied text,
+fresh guarded resets succeed and stale revisions/leases fail. The public numeric
+example passes its command/history/policy checks plus a changed mount seed leaving
+the live `1e-` draft unchanged. Remount atomically restores that draft with the
+new committed value `4.5`; Cancel then restores `4.5`. These are native
+programmatic command tests, not physical-keyboard or OS IME qualification:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec _build/default/examples/text_input/main.exe --self-test
+GPUIO_JOBS=2 ./scripts/gpuio exec _build/default/examples/numeric/number.exe --self-test
+```
+
+## Public gallery integration checkpoint — 2026-09-30
+
+Component Studio now has a dedicated **Settings** page, using the public model,
+composite and field helpers. Its typed example model lives in
+`examples/gallery/model/settings_state.mli`; the renderer/controller integration
+is `examples/gallery/settings_preview.ml`. Values and native controllers live
+outside transient group/item computations. The example includes text, independent
+numeric draft/committed value, Boolean fields, three typed regions, 250 stable
+model choices, a policy-locked custom action, a disabled organization preference
+and 48 virtualized Advanced groups. Four group variants, three field sizes and
+narrow/wide controls exercise the existing composite rather than a separate demo
+implementation. Identical focus/selection observations do not republish application
+values or rebuild the catalog.
+
+Reset requests resolve against current metadata. Multi-field loops recheck the
+original scope after asynchronous native reads; visible text/number replacements
+also fence native identity and revision, and retain the existing IME rejection.
+Unmounted text/number resets now update saved application values directly. They
+use placement lifecycle state, not an arbitrary stale command reply as permission
+to edit data. The runtime triggers the captured placement lifecycles when native
+code acknowledges the candidate tree. An absent placement therefore has no active
+row visit to deliver another draft observation.
+
+`Text_input.view` and `Number_input.view` in Eio now accept placement-local
+`on_event` callbacks alongside their existing controller handlers. The callback
+runs on the native event path; correlated command results remain explicit. The
+gallery mirrors data from these callbacks guarded by the managed-row lifetime,
+rather than watching a retained controller's possibly obsolete last snapshot.
+Its example `Editor_visit` owner also rejects retired visits and older/duplicate
+revisions. Each reactivation allocates a fresh visit that can accept revision zero.
+Native reset replies use the same visit/revision check before updating saved data;
+an old reply cannot overwrite a new visit or later input. Active resets still
+recheck policy/visit after the read and use native lease/revision guards.
+
+The panel now supplies localized **Reset group** buttons. `Labels.create` requires
+`reset_group` in addition to the page labels; update custom label constructors
+accordingly. The button's accessible description names its group. Disabled state
+comes from current `Matching_group` targets, and callbacks carry the group row's
+lifetime. Reset batches collect and report all field errors after processing the
+requested targets; a later success cannot hide an earlier failure. Multi-field
+reset remains non-atomic, including native composition/lease errors.
+
+Export is explicit: the native Save panel selects a destination, then a scoped
+Eio task writes one immutable, versioned example snapshot captured at the export
+request. A blank workspace name is rejected before opening the panel or doing I/O. The snapshot includes
+committed numeric values, not the separate draft or native selection/history/IME.
+`examples/gallery/files/settings_file.mli` documents the 64 KiB write bound,
+exclusive temporary sibling, file sync, atomic rename, cleanup and durability
+limits. Filesystem work does not run during rendering/filtering. An explicit
+**Try failed export** action injects writer failure through the same task lane;
+it does not pretend an OS error occurred. Errors retain application data. Export
+cancellation clears busy state, and retired scopes cannot overwrite a new visit's
+status. This is an example export format, not framework settings persistence.
+
+Model expect tests cover queued Boolean intents, policy-locked custom actions,
+current reset scopes, navigation-independent data/drafts, validated choices and
+56 stable field identities, blank export rejection and stale/retired editor visits.
+The Bonsai tests now also check group reset targets and silence after retirement.
+The filesystem expect test performs actual Eio writes,
+size-bound rejection, failed destination replacement with original-data retention,
+temporary cleanup and destination-symlink replacement.
+
+The repository's macOS `--section settings` driver passes actual keyboard edits,
+AX identity across responsive changes, four group variants, text and unfinished
+numeric draft recovery across page visits, Escape to committed value, empty search
+and clearing recovery, guarded text reset, injected export failure and native Save
+panel cancellation/retry. A fresh independent consumer of staged public packages
+passes all of these checks, keyboard End/Return selection of model 249 followed by
+reset to model 0, and actual AppKit clipboard paste of `Aster 京都 👩‍💻` followed
+by guarded reset. The user's original plain-text clipboard contents were restored. Consumer build used
+its own locked native backend and did not install into or change the opam switch.
+
+Expanded repository and fresh installed-consumer runs additionally pass the intended
+group reset while preserving another group's dirty model choice, whole-page resets of text and
+numeric fields absent under search, remount with reset values, blank-name export
+rejection without a Save panel, and successful native Save selection followed by
+actual Eio export/readback after prior injected failure/cancellation. The test
+uses a unique `/private/tmp` filename and removes the export afterward. Group
+buttons are selected by their accessibility help text, so navigation timing cannot
+accidentally choose a different identically labelled button.
+
+The expanded repository and installed-consumer runs additionally pass native pointer
+sidebar dragging,
+16px Left/Right resizing and name-editor identity/draft retention (drag geometry
+allows 1.5 logical pixels for native/AX rounding). Keyboard custom actions work
+when unlocked; at that checkpoint, locking removed their native focus/AX subtree
+and whole-page reset preserved the disabled dirty value. The disabled-subtree
+follow-up below retains disabled AX controls instead. Unlocking permits an
+explicit reset.
+
+Across 48 Advanced groups, real Space changes the first row. Navigating to the
+last group retains the focused first native owner; moving focus permits eviction.
+Returning creates a new native owner with the saved value, and Reset clears it.
+The sampled AX materialized counts are 3/3 within the 32-group budget; these are
+fixture observations, not total-memory or performance measurements. The test
+exposed a [native warm-row retention defect](../evidence/scrolling-och11.md#milestone-07-focused-row-overdraw)
+when the sole visible row was a focus pin. Including actual visible-range overlap
+in warm-set retention repairs the scoped navigation reproducer without changing
+scroll commands, the active budget or the wire protocol.
+
+Two normal windows also pass actual mouse/keyboard edits, independent reset and
+continued editing after closing the other window. Native hit testing checks which
+window owns the input point. The test exposed an initial second-window
+`AXFocused` mismatch despite correct keyboard routing. A scoped adapter
+initialization patch now passes initial focus, inactive-peer state, switching
+back and actual independent edits; see [window accessibility evidence](../evidence/window-accessibility-och17.md).
+No VoiceOver acceptance is claimed.
+
+The ordinary driver waits for intermediate page content when testing draft
+recovery. The separate US dead-key check also returns through the page and group
+links without waiting between those two actions. That exposed an initial native
+list reveal using estimated heights before real group rows arrived. Native reveal
+now retains its destination until actual row paint, requests that bounded row
+ahead of ordinary viewport demand and reanchors an offscreen materialized target
+by row identity. New scroll commands, pointer/wheel intent, target removal and
+owner retirement cancel it; no recurring timer is added. A native sparse-row
+fixture covers pre-layout reveal, materialization, supersession and cancellation.
+The Bonsai expect check verifies the final request under coalesced navigation.
+The US dead-key check adds composition retention and partial `Composing` reset-failure
+coverage. The field matrix and race evidence below complete the local source-row review.
+Broader IME and application performance remain release requirements.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 examples/gallery/main.exe @test/gallery/runtest @examples/gallery/files/test/runtest
+python3 scripts/test_gallery.py --section settings
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-settings-overdraw-20260930-1
+python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-settings-overdraw-20260930-1/consumer/_build/default/main.exe
+```
+
+The filesystem/model tests, full Dune build/expect/format suite, Python driver
+syntax check and structural catalog audit pass locally. Both native runs used a
+180-second process-group watchdog and closed/reaped normally. The temporary
+consumer path is evidence only; builds never depend on it.
+
+Settings, OCH-41 and milestone 07 remain incomplete. Required Linux non-GUI checks and OCH-17
+release gates remain; full Linux desktop qualification is deferred to OCH-47.
+
+## Disabled-field discoverability follow-up — 2026-09-30
+
+Settings now uses the inherited [native disabled policy](disabled-subtrees.md)
+for normal and custom rows. Controls remain in accessibility with their original
+identities and `AXEnabled=false`; generic custom controls no longer need to
+repeat a disabled flag. Application callbacks still recheck current policy for
+reset/data authority. Locked dirty values remain excluded from page resets.
+
+The public gallery and a fresh installed-library consumer pass the Settings
+walkthrough, including an AX reference retained from before disabling: attempting
+AXPress and Return cannot increment the custom value. Enabling preserves the
+semantic object and allows input; re-locking revokes it. Native tests additionally
+cover editor identity/text, inherited false overrides, painted opacity, active
+popup/capture/timer retirement, extension callback leases and macOS menu actions.
+This closes the scoped discoverability gap, not the remaining Settings or release
+acceptance requirements above.
+
+```sh
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-disabled-subtrees-20260930-1
+python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-disabled-subtrees-20260930-1/consumer/_build/default/main.exe
+```
+
+Both repository and consumer GUI checks use a 180-second process-group watchdog.
+The temporary workspace is recorded evidence only, not a build dependency or a
+clean-machine distribution claim. No Linux GUI or VoiceOver acceptance is added.
+
+## Composition and initial-reveal checkpoint — 2026-09-30
+
+A newly installed gallery consumer passes both the actual US dead-key scenario
+and the full Settings walkthrough after the native text-context and initial-reveal
+repairs. Clearing search now explicitly checks restoration of the preferred group
+before navigating back to inspect the saved name. The earlier test had accidentally
+relied on the defective reveal leaving the first group visible.
+
+```sh
+GPUIO_JOBS=2 python3 scripts/test_extension_consumer.py --example gallery --workspace /private/tmp/gpuio-composition-20260930-2
+python3 scripts/test_gallery.py --section settings-composition --executable /private/tmp/gpuio-composition-20260930-2/consumer/_build/default/main.exe
+python3 scripts/test_gallery.py --section settings --executable /private/tmp/gpuio-composition-20260930-2/consumer/_build/default/main.exe
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j 2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j 2 -p gpuio-native --lib
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j 2 -p gpuio-native --features native-tests --all-targets -- -D warnings
+```
+
+All passed on local macOS 14.5 arm64; native units report 422 passed and two
+ignored. GUI checks used bounded process groups and closed normally. Native
+tree and nested-scroll checks also pass after the reveal change. This does not
+establish multilingual IME, VoiceOver, Linux desktop or whole-release acceptance.
+The independently captured [initial black frame](../evidence/window-startup-och17.md)
+remains an open startup issue.
+
+## Local source-row acceptance map — 2026-09-30
+
+The public `settings-fields` driver passes in the independently installed consumer
+built at `4bae944`. It edits all six standard control kinds using native keys,
+checks numeric commits at both bounds, then checks retained control identity and
+application values in 24 group cases. Each group covers all four variant × three
+size pairs, alternating narrow/wide and light/dark. This is not the full Cartesian
+product of all appearance dimensions. Page retirement/remount preserves the saved
+values; an explicit whole-page reset restores all defaults and dirty-control state.
+
+| Required behavior | Evidence and scope |
+| --- | --- |
+| Search, empty results, preferred selection and removed destinations | Core `test/view_api/settings_test.ml`; public `settings` verifies empty results, restored preferred group and filtered-out resets. |
+| Sidebar resize, responsive stable placements, variants and sizes | Core/Bonsai boundary checks at 479/480px; public pointer/keyboard split resize; `settings-fields` retains six native identities through 24 cases. Shared group-box paint coverage is linked in the presentation review. |
+| Typed Boolean, string, bounded number, dropdown and scrollable dropdown | `settings-fields` uses native Space, numeric commit and popup End/Return; 250 options exercise the long choice. `settings` adds Unicode clipboard editing; typed mapping/disabled-option/reorder checks are in `settings_field_test.ml`. |
+| Application-owned values and managed group lifetime | `settings-fields` remounts standard fields; `settings` exercises 48 groups, focused pin/blur eviction, custom controls and independent windows. No controller or task is owned by a transient row. |
+| Current-state reset scope and disabled/custom policy | `settings_test.ml`, `settings_state_test.ml` and Bonsai captured-effect tests; public `settings` covers group/matching/whole-page scopes, hidden editors and locked dirty custom values. |
+| Delayed reset/observation safety | `editor_visit_test.ml` rejects retired visits and older replies; Bonsai tests reject captured row/page effects; native text/number suites reject stale revisions and native leases. These are deterministic interleaving checks, not a claim to have induced every race through OS timing. |
+| Composition and partial failure | `settings-composition` uses real US dead keys, preserves preedit through refinements, rejects composing resets and permits an independent Boolean reset; page retirement and Escape clear the old OS context. |
+| Native keyboard/focus/metadata/clipboard and teardown | Public Settings drivers plus `native_editor`/`native_number_input` cover actual windows, native client/AX actions and stale guards. The number suite also passes three 256-owner disposal cycles and zero retained owners. Direct native text-client tests are distinct from multilingual OS candidate-window acceptance. |
+| Persistence failure, validation, cancellation and success | Public `settings` drives failure/cancel/save and Eio readback; filesystem/model expect tests validate encoded committed values. |
+| Installed public API consumption | A fresh isolated consumer built with installed packages passes `settings`, `settings-composition` and `settings-fields`; no private native test API is used by the application. |
+
+Commands added to the preceding checkpoint:
+
+```sh
+python3 scripts/test_gallery.py --section settings-fields --executable /private/tmp/gpuio-composition-20260930-2/consumer/_build/default/main.exe
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-tests --test native_editor --test native_number_input
+```
+
+Both passed on macOS 14.5 arm64 with bounded process-group watchdogs and normal
+cleanup. Source-row equivalence means the documented application functionality,
+not identical Rust builder APIs, default pixel styling or incidental source bugs.
+The explicit differences above (typed values, reset scopes, bounds, 480px boundary,
+and application-owned persistence) remain part of the public contract.
+
+Required hosted macOS/Linux checks have not passed for this checkpoint. The
+initial black startup frame, multilingual OS IME, VoiceOver, physical performance
+budgets and clean-machine release qualification remain OCH-17 work. Linux desktop
+qualification is deferred to OCH-47. This source-row result does not close OCH-41
+or the milestone.

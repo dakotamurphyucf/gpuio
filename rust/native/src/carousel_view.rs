@@ -340,7 +340,7 @@ impl View {
         let control_focused = self
             .focus
             .borrow()
-            .focused_node(window)
+            .focused_node(window, cx)
             .is_some_and(|focused| {
                 let session = self.session.borrow();
                 let Some(tree) = session.tree(self.id) else {
@@ -431,6 +431,7 @@ impl View {
                                 recorded.clone(),
                                 enabled,
                                 recorded.is_focused(window),
+                                bounds,
                             );
                         }
                     },

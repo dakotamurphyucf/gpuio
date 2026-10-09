@@ -1,0 +1,27 @@
+{
+  "archive": "installed-gallery.tar.gz",
+  "sha256": "879ce74f960835eff2910002aa028c756bf2e37926085dc24f2603e669638cd5",
+  "bytes": 313062,
+  "files": [
+    {
+      "path": "validation.json",
+      "sha256": "34e41b7ed0cb1df7340b4d5fb6bcad939bdd6a6a7ccb31b522997c586fbf89b4",
+      "bytes": 1138
+    },
+    {
+      "path": "installed-consumer.log",
+      "sha256": "cbb903c9b89db564d690f0c2d3e5e0f839cd1c9327c90995c78e1e9990bd4af6",
+      "bytes": 200976
+    },
+    {
+      "path": "gallery-driver.log",
+      "sha256": "ef45aa09de76c4062a5aeed1960470c7598dfa52422bbc8627ad4f8c4d5ef05f",
+      "bytes": 1954
+    },
+    {
+      "path": "gallery-motion.png",
+      "sha256": "392b4e66013ce3faa4ff05d2524f276d110621785ea7377b502bffa703961aa1",
+      "bytes": 349559
+    }
+  ]
+}

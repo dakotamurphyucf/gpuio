@@ -1,0 +1,1294 @@
+{
+  "run_id": 37825342234,
+  "run_url": "https://github.com/dakotamurphyucf/gpuio/actions/runs/37825342234",
+  "source_revision": "1f360479c4f2aacc744c908b27202de52012796a",
+  "scope": "Terminal Linux job only; macOS foundation and receiver results remain pending.",
+  "job": {
+    "id": 113476639497,
+    "name": "foundation (ubuntu-24.04)",
+    "status": "completed",
+    "conclusion": "success",
+    "run_id": 37825342234,
+    "logs_url": null,
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1
+      },
+      {
+        "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2
+      },
+      {
+        "name": "Example documentation inventory",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3
+      },
+      {
+        "name": "Linux system prerequisites",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4
+      },
+      {
+        "name": "macOS system prerequisites",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 5
+      },
+      {
+        "name": "macOS GUI desktop space",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 6
+      },
+      {
+        "name": "macOS notification service",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 7
+      },
+      {
+        "name": "Install pinned opam",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8
+      },
+      {
+        "name": "Restore dependency caches",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 9
+      },
+      {
+        "name": "Prepare bounded CI build storage",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 10
+      },
+      {
+        "name": "Bootstrap isolated environment",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11
+      },
+      {
+        "name": "Formatting",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 12
+      },
+      {
+        "name": "Offline Bonsai reconstruction admission",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13
+      },
+      {
+        "name": "Pinned accessibility consumer reconstruction",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14
+      },
+      {
+        "name": "Build",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15
+      },
+      {
+        "name": "Preserve successful dependency build",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 16
+      },
+      {
+        "name": "OCaml and Rust tests",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17
+      },
+      {
+        "name": "macOS AppKit scroll phase conversion (no window)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 18
+      },
+      {
+        "name": "Diagnose Linux native test stack failure",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 19
+      },
+      {
+        "name": "Inherited output and Eio cancellation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 20
+      },
+      {
+        "name": "Chart measurement diagnostics (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 21
+      },
+      {
+        "name": "Accessibility traversal diagnostics (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 22
+      },
+      {
+        "name": "Window pointer readiness (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 23
+      },
+      {
+        "name": "Results column geometry readiness (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 24
+      },
+      {
+        "name": "Document profile focus acknowledgement (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 25
+      },
+      {
+        "name": "Input-source restoration scope (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 26
+      },
+      {
+        "name": "Clipboard preservation scope (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 27
+      },
+      {
+        "name": "System appearance restoration scope (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 28
+      },
+      {
+        "name": "Appearance palette backing-scale validation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 29
+      },
+      {
+        "name": "Loaded-history measurement diagnostics (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 30
+      },
+      {
+        "name": "Presentation report pairing and failure sensitivity (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 31
+      },
+      {
+        "name": "Hosted Metal timing availability classification (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 32
+      },
+      {
+        "name": "Table performance report validation",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 33
+      },
+      {
+        "name": "Resource lifecycle report validation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 34
+      },
+      {
+        "name": "Native entity audit sensitivity (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 35
+      },
+      {
+        "name": "macOS physical-memory report validation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 36
+      },
+      {
+        "name": "macOS Metal counter calibration (no visible window)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 37
+      },
+      {
+        "name": "GPUI standalone manifest validation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 38
+      },
+      {
+        "name": "Document growth report validation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 39
+      },
+      {
+        "name": "Concurrent streaming and typing report validation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 40
+      },
+      {
+        "name": "Focused and unfocused idle report validation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 41
+      },
+      {
+        "name": "Reference packaging input validation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 42
+      },
+      {
+        "name": "Extracted package runtime admission (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 43
+      },
+      {
+        "name": "Package transfer provenance validation (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 44
+      },
+      {
+        "name": "Notarization final-artifact validation (simulated Apple tools, no upload)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 45
+      },
+      {
+        "name": "Static backend composition tests (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 46
+      },
+      {
+        "name": "Dependency notice collection tests (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 47
+      },
+      {
+        "name": "OCaml dependency notice collection (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 48
+      },
+      {
+        "name": "Linux desktop instance arbitration (private bus, no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 49
+      },
+      {
+        "name": "Linux desktop entry executable dispatch (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 50
+      },
+      {
+        "name": "Linux notification transport (private bus, no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 51
+      },
+      {
+        "name": "Verify native runtime has no Async symbols",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 52
+      },
+      {
+        "name": "Lint",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 53
+      },
+      {
+        "name": "Performance collector checks (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 54
+      },
+      {
+        "name": "Presentation workload builds and probe contracts (no display)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 55
+      },
+      {
+        "name": "Build and lint native UI tests",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 56
+      },
+      {
+        "name": "Record storage before independent consumers",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 57
+      },
+      {
+        "name": "Independent default-backend starter consumer",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 58
+      },
+      {
+        "name": "Independent native extension consumer",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 59
+      },
+      {
+        "name": "Independent public gallery consumer",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 60
+      },
+      {
+        "name": "macOS Settings keyboard composition",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 61
+      },
+      {
+        "name": "macOS Settings field retention",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 62
+      },
+      {
+        "name": "macOS gallery forms and editor admission",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 63
+      },
+      {
+        "name": "macOS public editor and accessibility range geometry",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 64
+      },
+      {
+        "name": "macOS screen-point accessibility routing",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 65
+      },
+      {
+        "name": "macOS public choice picker keyboard search",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 66
+      },
+      {
+        "name": "macOS native scrollbar preference application",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 67
+      },
+      {
+        "name": "macOS measured carousel keyboard and retained cards",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 68
+      },
+      {
+        "name": "macOS rich tabs and retained panels",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 69
+      },
+      {
+        "name": "macOS flat split-group input and retention",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 70
+      },
+      {
+        "name": "macOS pagination themes and chooser lifetimes",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 71
+      },
+      {
+        "name": "macOS searchable list keyboard and source lifetimes",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 72
+      },
+      {
+        "name": "macOS scrollbar input and retained offsets",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 73
+      },
+      {
+        "name": "macOS managed collection scrollbar input and retained offsets",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 74
+      },
+      {
+        "name": "macOS message follow input and reading anchors",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 75
+      },
+      {
+        "name": "macOS horizontal list input and geometry",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 76
+      },
+      {
+        "name": "macOS overlay focus and live geometry",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 77
+      },
+      {
+        "name": "macOS disclosure themes and draft lifetimes",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 78
+      },
+      {
+        "name": "macOS measured carousel automatic pause and resume",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 79
+      },
+      {
+        "name": "macOS measured carousel pointer ownership and cancellation",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 80
+      },
+      {
+        "name": "macOS measured carousel line-wheel routing and edges",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 81
+      },
+      {
+        "name": "macOS measured carousel interrupted drag lifecycle",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 82
+      },
+      {
+        "name": "macOS measured carousel focus and clipped cards",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 83
+      },
+      {
+        "name": "Navigation history and page retention (macOS)",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 84
+      },
+      {
+        "name": "macOS sidebar policies and retained appearance",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 85
+      },
+      {
+        "name": "macOS notification placement and keyboard lifecycle",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 86
+      },
+      {
+        "name": "macOS notification hover and active-time expiry",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 87
+      },
+      {
+        "name": "macOS notification entrance and reduced-motion geometry",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 88
+      },
+      {
+        "name": "macOS public clipboard writes and feedback",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 89
+      },
+      {
+        "name": "macOS selected document shutdown with Rust backtraces",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 90
+      },
+      {
+        "name": "macOS native context popup interaction and lifecycle",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 91
+      },
+      {
+        "name": "macOS native popup window and editor ownership",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 92
+      },
+      {
+        "name": "macOS native popup queued-start cancellation",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 93
+      },
+      {
+        "name": "macOS cross-application file drop",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 94
+      },
+      {
+        "name": "macOS file themes and scoped reads",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 95
+      },
+      {
+        "name": "macOS public native document profile",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 96
+      },
+      {
+        "name": "macOS system appearance and retained editing",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 97
+      },
+      {
+        "name": "macOS public focused-input query",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 98
+      },
+      {
+        "name": "macOS public window selection helpers",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 99
+      },
+      {
+        "name": "macOS window commands and custom chrome",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 100
+      },
+      {
+        "name": "Independent Signal Studio consumer",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 101
+      },
+      {
+        "name": "macOS Signal Studio input and responsive composition",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 102
+      },
+      {
+        "name": "macOS Signal Studio documents and packaged desktop",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 103
+      },
+      {
+        "name": "macOS Signal Studio full and reduced motion",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 104
+      },
+      {
+        "name": "macOS Signal Studio streaming and native component lifetime",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 105
+      },
+      {
+        "name": "macOS Signal Studio packaged run notifications",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 106
+      },
+      {
+        "name": "macOS notification service and real OS actions",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 107
+      },
+      {
+        "name": "macOS desktop links and actual file services",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 108
+      },
+      {
+        "name": "macOS native extension checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 109
+      },
+      {
+        "name": "macOS canvas scene uploads without windows",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 110
+      },
+      {
+        "name": "macOS chart resource uploads without windows",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 111
+      },
+      {
+        "name": "macOS worker chart font measurement without windows",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 112
+      },
+      {
+        "name": "macOS prepared chart GPU pixels",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 113
+      },
+      {
+        "name": "macOS retained chart inspection content",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 114
+      },
+      {
+        "name": "macOS mounted charts and public chart gallery",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 115
+      },
+      {
+        "name": "macOS canvas rendering, input and accessibility checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 116
+      },
+      {
+        "name": "macOS public canvas checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 117
+      },
+      {
+        "name": "Document worker measurements",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 118
+      },
+      {
+        "name": "macOS public runtime checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 119
+      },
+      {
+        "name": "macOS typed UI checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 120
+      },
+      {
+        "name": "macOS native control checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 121
+      },
+      {
+        "name": "macOS native binding observation checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 122
+      },
+      {
+        "name": "macOS native input-region checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 123
+      },
+      {
+        "name": "macOS highlight worker lifecycle checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 124
+      },
+      {
+        "name": "macOS shaped highlight paint checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 125
+      },
+      {
+        "name": "macOS mounted highlight view checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 126
+      },
+      {
+        "name": "macOS ordinary styled text checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 127
+      },
+      {
+        "name": "macOS native text shimmer checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 128
+      },
+      {
+        "name": "macOS native border style checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 129
+      },
+      {
+        "name": "macOS native aspect ratio checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 130
+      },
+      {
+        "name": "macOS native grid placement checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 131
+      },
+      {
+        "name": "macOS native opacity factor checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 132
+      },
+      {
+        "name": "macOS composed link checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 133
+      },
+      {
+        "name": "macOS native document highlighting checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 134
+      },
+      {
+        "name": "macOS native drag-drop and public lifecycle checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 135
+      },
+      {
+        "name": "macOS native and public animations",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 136
+      },
+      {
+        "name": "macOS native and public container queries",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 137
+      },
+      {
+        "name": "macOS components - Native presentation",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 138
+      },
+      {
+        "name": "macOS components - Native slider",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 139
+      },
+      {
+        "name": "macOS components - Native numeric input",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 140
+      },
+      {
+        "name": "macOS components - Native OTP input",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 141
+      },
+      {
+        "name": "macOS components - Native calendar",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 142
+      },
+      {
+        "name": "macOS components - Native color input",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 143
+      },
+      {
+        "name": "macOS components - Public color input",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 144
+      },
+      {
+        "name": "macOS components - Public color picker",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 145
+      },
+      {
+        "name": "macOS components - Color picker accessibility",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 146
+      },
+      {
+        "name": "macOS components - Public presentation",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 147
+      },
+      {
+        "name": "macOS components - Public slider",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 148
+      },
+      {
+        "name": "macOS components - Public numeric input",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 149
+      },
+      {
+        "name": "macOS components - Public OTP input",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 150
+      },
+      {
+        "name": "macOS components - Public calendar",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 151
+      },
+      {
+        "name": "macOS components - Calendar accessibility",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 152
+      },
+      {
+        "name": "macOS components - Public date picker",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 153
+      },
+      {
+        "name": "macOS components - Date picker accessibility",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 154
+      },
+      {
+        "name": "macOS components - Slider accessibility",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 155
+      },
+      {
+        "name": "macOS components - Numeric input accessibility",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 156
+      },
+      {
+        "name": "macOS components - OTP input accessibility",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 157
+      },
+      {
+        "name": "macOS components - Presentation accessibility",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 158
+      },
+      {
+        "name": "macOS components - Presentation content",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 159
+      },
+      {
+        "name": "macOS native nested scrolling",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 160
+      },
+      {
+        "name": "macOS managed lists and public paging",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 161
+      },
+      {
+        "name": "macOS native disclosure and navigation",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 162
+      },
+      {
+        "name": "macOS native managed tree semantics",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 163
+      },
+      {
+        "name": "macOS native table adapter",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 164
+      },
+      {
+        "name": "macOS retained table host",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 165
+      },
+      {
+        "name": "macOS native table full-history retention",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 166
+      },
+      {
+        "name": "macOS public Bonsai table and paging",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 167
+      },
+      {
+        "name": "macOS public managed trees and approved moves",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 168
+      },
+      {
+        "name": "macOS native interactive hover cards",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 169
+      },
+      {
+        "name": "Native carousel gestures, keyboard, timing and presentation",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 170
+      },
+      {
+        "name": "macOS public navigation and independent content lifetimes",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 171
+      },
+      {
+        "name": "macOS public carousel keyboard, accessibility and native lifetimes",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 172
+      },
+      {
+        "name": "macOS public sidebar accessibility and context commands",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 173
+      },
+      {
+        "name": "macOS public sidebar width motion",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 174
+      },
+      {
+        "name": "macOS native tabs and retained panels",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 175
+      },
+      {
+        "name": "macOS native split panes",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 176
+      },
+      {
+        "name": "macOS window lifecycle",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 177
+      },
+      {
+        "name": "macOS renderer allocation and entity lifecycle smoke",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 178
+      },
+      {
+        "name": "macOS streaming documents",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 179
+      },
+      {
+        "name": "macOS agent workspace - Self-test",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 180
+      },
+      {
+        "name": "macOS agent workspace - Native workspace",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 181
+      },
+      {
+        "name": "macOS agent workspace - Review extension",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 182
+      },
+      {
+        "name": "macOS agent workspace - Diagram",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 183
+      },
+      {
+        "name": "macOS agent workspace - Sources",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 184
+      },
+      {
+        "name": "macOS agent workspace - Results",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 185
+      },
+      {
+        "name": "macOS agent workspace - Settings",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 186
+      },
+      {
+        "name": "macOS agent workspace - Dates and colors",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 187
+      },
+      {
+        "name": "macOS agent workspace - Feedback",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 188
+      },
+      {
+        "name": "macOS agent workspace - Feature tour",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 189
+      },
+      {
+        "name": "macOS agent workspace - Sidebar",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 190
+      },
+      {
+        "name": "macOS agent workspace - Presentation",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 191
+      },
+      {
+        "name": "macOS agent workspace - Motion",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 192
+      },
+      {
+        "name": "macOS agent workspace - Streaming geometry",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 193
+      },
+      {
+        "name": "macOS agent workspace - Responsive layout",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 194
+      },
+      {
+        "name": "macOS agent workspace - Combined workload",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 195
+      },
+      {
+        "name": "macOS native image pixels and cleanup",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 196
+      },
+      {
+        "name": "macOS native editor checks",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 197
+      },
+      {
+        "name": "macOS native smoke",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 198
+      },
+      {
+        "name": "macOS production bridge smoke",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 199
+      },
+      {
+        "name": "Linux X11 native smoke",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 200
+      },
+      {
+        "name": "Linux Wayland native smoke",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 201
+      },
+      {
+        "name": "Report informational Linux GUI results",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 202
+      },
+      {
+        "name": "macOS GPUI Metal presentation hook",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 203
+      },
+      {
+        "name": "macOS Metal presentation API calibration",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 204
+      },
+      {
+        "name": "Check independent Metal timing evidence",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 205
+      },
+      {
+        "name": "Record environment",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 206
+      },
+      {
+        "name": "Assemble macOS runtime qualification inputs",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 207
+      },
+      {
+        "name": "Transfer macOS qualification archives",
+        "status": "completed",
+        "conclusion": "skipped",
+        "number": 208
+      },
+      {
+        "name": "Preserve validation logs",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 209
+      },
+      {
+        "name": "Development executable",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 210
+      },
+      {
+        "name": "Post Restore dependency caches",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 419
+      },
+      {
+        "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 420
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 421
+      }
+    ]
+  }
+}

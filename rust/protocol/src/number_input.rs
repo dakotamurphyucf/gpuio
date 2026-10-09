@@ -34,6 +34,12 @@ pub enum StepControls {
     Sides,
     Stacked,
 }
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, BinProtWrite)]
+pub enum StepMode {
+    #[default]
+    Native,
+    Application,
+}
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub struct Config {
     pub domain: Domain,
@@ -175,12 +181,31 @@ pub enum CancelReason {
     Programmatic,
 }
 #[derive(Clone, Debug, PartialEq, BinProtWrite)]
+pub struct StepRequest {
+    pub id: i64,
+    pub direction: Direction,
+    pub source: Source,
+    pub snapshot: Snapshot,
+}
+impl StepRequest {
+    pub fn is_valid(&self) -> bool {
+        self.id > 0
+            && self.snapshot.is_valid()
+            && self.snapshot.composition.is_none()
+            && matches!(
+                self.snapshot.classification(),
+                Draft::Empty | Draft::Valid(_) | Draft::OutOfRange(_)
+            )
+    }
+}
+#[derive(Clone, Debug, PartialEq, BinProtWrite)]
 pub enum Event {
     Observed(Snapshot),
     Changed(Snapshot),
     Committed(Source, Snapshot),
     Rejected(Rejection, Snapshot),
     Cancelled(CancelReason, Snapshot),
+    StepRequested(StepRequest),
 }
 impl Event {
     pub fn snapshot(&self) -> &Snapshot {
@@ -190,6 +215,7 @@ impl Event {
             | Self::Committed(_, s)
             | Self::Rejected(_, s)
             | Self::Cancelled(_, s) => s,
+            Self::StepRequested(request) => &request.snapshot,
         }
     }
     pub fn is_valid(&self) -> bool {
@@ -197,6 +223,7 @@ impl Event {
         s.is_valid()
             && match self {
                 Self::Observed(_) => true,
+                Self::StepRequested(request) => request.is_valid(),
                 Self::Changed(_) => s.revision > 0,
                 Self::Committed(..) | Self::Cancelled(..) => s.revision > 0 && s.is_settled(),
                 Self::Rejected(reason, _) => s.revision > 0 && reason.matches(s),
@@ -225,10 +252,21 @@ pub enum Command {
     Cancel,
     Step(Direction),
     ReadSnapshot,
+    ResolveStep {
+        request_id: i64,
+        revision: i64,
+        value: Option<Value>,
+    },
 }
 impl Command {
     pub fn is_valid(&self) -> bool {
         match self {
+            Self::ResolveStep {
+                request_id,
+                revision,
+                value,
+            } => *request_id > 0 && *revision >= 0 && value.is_none_or(Value::is_valid),
+
             Self::ReplaceDraft {
                 text,
                 selection,

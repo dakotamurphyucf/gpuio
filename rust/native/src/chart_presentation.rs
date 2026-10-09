@@ -1,8 +1,8 @@
 //! Bounded native text layout around a prepared chart. Coordinates are logical pixels.
 use crate::chart_geometry::{Label, LabelKind};
+mod axis;
 use gpuio_protocol::{
     chart_data::{Contents, Data},
-    chart_options::Orientation,
     chart_view::Config,
 };
 
@@ -41,6 +41,9 @@ pub(crate) struct Placement {
 pub(crate) fn legend(data: &Data) -> Vec<&str> {
     match &data.contents {
         Contents::Cartesian(layers) => layers.iter().map(|l| l.series().name.as_str()).collect(),
+        Contents::Categorical(_, layers) => {
+            layers.iter().map(|l| l.series().name.as_str()).collect()
+        }
         Contents::Pie(slices) => slices.iter().map(|s| s.label.as_str()).collect(),
         Contents::Radar(_, series) => series.iter().map(|s| s.name.as_str()).collect(),
         Contents::Candlestick(_) => vec!["Rise · hollow", "Fall · filled"],
@@ -94,6 +97,7 @@ impl Frame {
         let rows = if config.legend {
             let count = match &data.contents {
                 Contents::Cartesian(layers) => layers.len(),
+                Contents::Categorical(_, layers) => layers.len(),
                 Contents::Pie(slices) => slices.len(),
                 Contents::Radar(_, series) => series.len(),
                 Contents::Candlestick(_) => 2,
@@ -105,11 +109,13 @@ impl Frame {
         };
         let legend_height = (rows as f64 * LEGEND_ROW).min(height * 0.3);
         let body_height = height - legend_height;
-        let horizontal = matches!(data.contents, Contents::Cartesian(_))
-            && config.options.cartesian.orientation == Orientation::Horizontal;
+        let horizontal = matches!(
+            data.contents,
+            Contents::Cartesian(_) | Contents::Categorical(..)
+        ) && config.options.cartesian.orientation.is_horizontal();
         let numeric = matches!(
             data.contents,
-            Contents::Cartesian(_) | Contents::Candlestick(_)
+            Contents::Cartesian(_) | Contents::Categorical(..) | Contents::Candlestick(_)
         );
         let (left_axis, bottom_axis) = if horizontal {
             (config.options.axes.x, config.options.axes.y)
@@ -118,15 +124,20 @@ impl Frame {
         };
         let radar_labels =
             matches!(data.contents, Contents::Radar(..)) && config.options.radar.labels;
+        let radar_gap = if radar_labels {
+            config.options.radar.label_gap
+        } else {
+            0.
+        };
         let left: f64 = if numeric && left_axis {
             76.
         } else if radar_labels {
-            64.
+            64. + radar_gap
         } else {
             0.
         };
         let right: f64 = if radar_labels {
-            64.
+            64. + radar_gap
         } else if numeric && bottom_axis {
             28.
         } else {
@@ -140,12 +151,18 @@ impl Frame {
             } else {
                 0.
             };
+        let top = top + radar_gap;
         let bottom: f64 = if numeric && bottom_axis {
             28.
         } else if radar_labels {
-            24.
+            24. + radar_gap
         } else {
             0.
+        };
+        let (left, right, top, bottom) = if numeric {
+            axis::gutters(config, horizontal)
+        } else {
+            (left, right, top, bottom)
         };
         // Bound gutters proportionally so even a tiny view has a positive plot.
         let left = left.min(width * 0.3);
@@ -174,6 +191,99 @@ impl Frame {
     pub fn label(&self, label: &Label) -> Placement {
         let x = self.plot.x + label.position.x;
         let y = self.plot.y + label.position.y;
+        if let LabelKind::Axis(axis) = label.kind {
+            return axis::label(self, x, y, axis);
+        }
+        if let LabelKind::Pie {
+            placement: Some(p), ..
+        } = label.kind
+        {
+            return Placement {
+                rect: Rect {
+                    x: x - if p.align_right { p.width } else { 0. },
+                    y: y - 9.,
+                    width: p.width,
+                    height: 18.,
+                },
+                align: if p.align_right {
+                    Align::Right
+                } else {
+                    Align::Left
+                },
+            };
+        }
+        let measured = match label.kind {
+            LabelKind::Flow {
+                placement: Some(p), ..
+            } => Some((p, TEXT_HEIGHT, 0.)),
+            LabelKind::FlowLine {
+                placement: Some(p),
+                font_size,
+                offset,
+                ..
+            } => Some((p, (font_size + 4.).max(TEXT_HEIGHT), offset)),
+            _ => None,
+        };
+        if let Some((p, line_height, offset)) = measured {
+            use crate::chart_geometry::FlowAlign;
+            let width = p.width.min(self.plot.width);
+            let top = (y - if p.above {
+                p.block_height
+            } else {
+                p.block_height / 2.
+            })
+            .clamp(
+                self.plot.y,
+                self.plot.y + (self.plot.height - p.block_height).max(0.),
+            );
+            let bottom = self.plot.y + self.plot.height;
+            let row_y = (top + offset).min(bottom);
+            let (x, align) = match p.align {
+                FlowAlign::Left => (x, Align::Left),
+                FlowAlign::Center => (x - width / 2., Align::Center),
+                FlowAlign::Right => (x - width, Align::Right),
+            };
+            return Placement {
+                rect: Rect {
+                    x: x.clamp(self.plot.x, self.plot.x + self.plot.width - width),
+                    y: row_y,
+                    width,
+                    height: line_height.min(bottom - row_y),
+                },
+                align,
+            };
+        }
+        if let LabelKind::FlowLine {
+            align_right,
+            font_size,
+            block_height,
+            offset,
+            ..
+        } = label.kind
+        {
+            // Clip one coherent block, rather than clamping each line onto its
+            // neighbor when the viewport is shorter than the label.
+            let bottom = self.plot.y + self.plot.height;
+            let top = (y - block_height / 2.).clamp(
+                self.plot.y,
+                self.plot.y + (self.plot.height - block_height).max(0.),
+            );
+            let row_y = (top + offset).min(bottom);
+            let width = 140_f64.min(self.width);
+            return Placement {
+                rect: Rect {
+                    x: (if align_right { x - width } else { x }).clamp(0., self.width - width),
+                    y: row_y,
+                    width,
+                    height: (font_size + 4.).max(TEXT_HEIGHT).min(bottom - row_y),
+                },
+                align: if align_right {
+                    Align::Right
+                } else {
+                    Align::Left
+                },
+            };
+        }
         let left_axis = matches!(label.kind, LabelKind::Y) && !self.horizontal
             || matches!(label.kind, LabelKind::X) && self.horizontal;
         let bottom_axis = matches!(label.kind, LabelKind::X | LabelKind::Y) && !left_axis;
@@ -188,11 +298,11 @@ impl Frame {
             (80., x - 40., y + 6., Align::Center)
         } else if matches!(label.kind, LabelKind::Series(_)) {
             (22., x - 11., y - TEXT_HEIGHT / 2., Align::Center)
-        } else if matches!(label.kind, LabelKind::Flow) {
-            if x > self.plot.x + self.plot.width / 2. {
-                (140., x - 6. - 140., y - TEXT_HEIGHT / 2., Align::Right)
+        } else if let LabelKind::Flow { align_right, .. } = label.kind {
+            if align_right {
+                (140., x - 140., y - TEXT_HEIGHT / 2., Align::Right)
             } else {
-                (140., x + 6., y - TEXT_HEIGHT / 2., Align::Left)
+                (140., x, y - TEXT_HEIGHT / 2., Align::Left)
             }
         } else {
             (120., x - 60., y - TEXT_HEIGHT / 2., Align::Center)
@@ -215,8 +325,12 @@ impl Frame {
 mod tests {
     use super::*;
     use crate::chart_geometry::Point;
+    use gpuio_protocol::chart_options::Orientation;
     fn config() -> Config {
         Config {
+            version: -2,
+            radar_labels: vec![],
+            inspection_content: vec![],
             source: None,
             label: "Chart".into(),
             options: Default::default(),
@@ -227,9 +341,35 @@ mod tests {
         }
     }
     #[test]
+    fn radar_label_gap_reserves_gutters_only_for_visible_labels() {
+        let data = Data {
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
+            contents: Contents::Radar(vec![], vec![]),
+        };
+        let mut config = config();
+        let original = Frame::new(800., 400., &data, &config);
+        config.options.radar.label_gap = 24.;
+        let spaced = Frame::new(800., 400., &data, &config);
+        assert_eq!(spaced.plot.x, original.plot.x + 24.);
+        assert_eq!(spaced.plot.y, original.plot.y + 24.);
+        assert_eq!(spaced.plot.width, original.plot.width - 48.);
+        assert_eq!(spaced.plot.height, original.plot.height - 48.);
+        let tiny = Frame::new(1., 1., &data, &config);
+        assert!(tiny.plot.width > 0. && tiny.plot.height > 0.);
+        config.options.radar.labels = false;
+        let hidden = Frame::new(800., 400., &data, &config);
+        config.options.radar.label_gap = 0.;
+        let no_gap = Frame::new(800., 400., &data, &config);
+        assert_eq!(hidden.plot, no_gap.plot);
+    }
+    #[test]
     fn axes_follow_orientation_and_tiny_views_stay_bounded() {
         let data = Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Cartesian(vec![]),
         };
         let mut config = config();
@@ -247,7 +387,17 @@ mod tests {
                     LabelKind::X,
                     LabelKind::Y,
                     LabelKind::Radial,
-                    LabelKind::Flow,
+                    LabelKind::RadarAxis(1),
+                    LabelKind::Flow {
+                        placement: None,
+                        align_right: false,
+                        node_index: 0,
+                    },
+                    LabelKind::Flow {
+                        placement: None,
+                        align_right: true,
+                        node_index: 0,
+                    },
                     LabelKind::Series(0),
                 ] {
                     let placement = frame.label(&Label {
@@ -286,7 +436,9 @@ mod tests {
     #[test]
     fn dense_legend_has_three_visible_rows_and_retains_all_names() {
         let data = Data {
-            version: 1,
+            version: 3,
+            bar_baselines: vec![],
+            bar_backgrounds: vec![],
             contents: Contents::Pie(
                 (1..=256)
                     .map(|id| gpuio_protocol::chart_data::Slice {

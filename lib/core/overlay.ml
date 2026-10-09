@@ -7,6 +7,13 @@ module Dismissal = struct
   [@@deriving equal, sexp_of]
 end
 
+module Motion = struct
+  type t =
+    | Immediate
+    | Enter
+  [@@deriving equal, sexp_of]
+end
+
 module Config = struct
   type t =
     { label : string

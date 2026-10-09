@@ -50,6 +50,19 @@ retains its native state. Unmount/close invalidates old commands, observations a
 pending deliveries. Configuration changes do not replay initial or observed text.
 Changing single-line/multiline mode creates a new native session.
 
+Single-line inputs also accept `~privacy:(Password Hidden)` or
+`~privacy:(Password Revealed)`; omitted privacy defaults to Plain. Hide/reveal
+retains the editing session. Hidden blocks native Copy/Cut; both password modes
+omit the accessibility value. Application snapshots and submissions still contain
+plaintext. See the [password contract](plain-input-extensions.md#password-policy--implemented-contract)
+for exact behavior, validation scope and remaining native acceptance.
+
+An optional [bound edit menu](editor-menu.md) is available through
+`View.editor_menu (Gpuio_eio.Text_input.view editor)`. It supplies native Cut,
+Copy, Paste and Select all, with current password/read-only/composition rules and
+identity checks through deferred delivery. Keep the wrapper mounted; disable its
+menu through `Editor_menu.create ~enabled:false ()` to retain the editing session.
+
 Selections use UTF-8 byte boundaries with explicit anchor/head direction. OS
 UTF-16 coordinates are converted inside Rust. Command ranges are validated before
 mutation. Replacements specify selection policy and whether the edit is undoable
@@ -58,8 +71,20 @@ text mutation, including composition and undo/redo; typing then deleting back to
 the same text must still invalidate a stale conditional clear. Revision counters
 never wrap.
 
+Bridge-owned single-line and multiline editors retain the bounded draft and
+active selection at the start of native composition. Cancelling marked text
+restores both, including when an input method explicitly reconverts preceding
+committed text. Provisional edits add no undo entry when cancelled; the previous
+commit's undo/redo history remains available. Restoration still advances the
+native revision, so old conditional commands cannot become valid again. This
+uses the existing text admission bound and does not change ordinary unbridged
+Base inputs. Native regression tests cover selected and explicit UTF-16
+replacement ranges with multibyte text.
+
 Native declared key rules decide whether Enter submits or inserts a newline;
-Shift+Enter inserts a newline in a chat composer. Composition suppresses submit.
+Shift+Enter inserts a newline in a chat composer. `Text_input.Config` defaults
+to submit-on-Enter; ordinary notes/document editors should explicitly pass
+`~submit_on_enter:false`. Composition suppresses submit.
 A submit event captures exact native text and revision. No late OCaml callback
 can cancel an already performed native default action.
 
@@ -111,6 +136,15 @@ the actual focus-owning editor element. The decorator lets GPUIO attach labels,
 values, semantic state and accessibility actions without registering duplicate
 tab stops on an outer wrapper. It does not transfer callbacks across the FFI.
 
+The input-format investigation also repairs Unicode mask validation (scalar
+counts, required slot matching) and makes history replay restore recorded text
+without applying a newer format/validation policy to intermediate states.
+Replaying history is distinct from suppressing history during a normal `set_value`:
+new assignments must still format. Native regressions cover composition commit,
+undo/redo, rejected edits and policy changes; these are TestPlatform checks,
+not physical IME acceptance. The public formatting API remains pending; see the
+[formatting contract](input-formatting.md).
+
 A retained editor can lose focus while its pointer selection drag is still held
 (for example, its navigation panel becomes inert). The vendored blur path stops
 its auto-scroll task and transient drag/column/word state before returning, while
@@ -120,6 +154,13 @@ its ancestor inert without mouse-up and requires the whole window to become idle
 The unpatched widget continued about 10 redraws per 180 ms; the adaptation passes.
 The source pin stays unchanged and the reconstructible patch digest is updated.
 
+The visible byte-range geometry lookup also preserves gaps between source lines.
+Folded and earlier scrolled-out offsets return no position rather than clamping
+to the next visible line. The native diff regression clicks actual gutter controls,
+checks hidden and later ranges, unfolds them, and verifies selection precedence;
+source-scroll checks also reject a range above the laid-out viewport. This affects
+geometry lookup, not the stored text, selection offsets or folding policy.
+
 The ordinary test command runs OCaml expect/codec/reconciliation tests and Rust
 protocol/session/mailbox tests without opening application windows. The optional
 `native-tests` feature builds an actual-window harness; run it locally for fast iteration and on macOS CI for the final gate.
@@ -128,10 +169,15 @@ suppression, undo/redo, graphemes, clipboard, Tab/Shift+Tab, auto-grow, disabled
 read-only behavior, revision races, and native accessibility focus/value actions.
 The public example's `--self-test` exercises two windows through the OCaml API.
 Linux compiles these tests and runs the non-Mac scenarios in the informational
-X11/Wayland jobs. Full Linux GUI/IME acceptance remains OCH-17.
+X11/Wayland jobs. Full Linux GUI/IME acceptance is deferred to OCH-47.
 
 Direct NSTextInputClient and accessibility calls exercise actual native callback
 paths. They do not automate a physical input-method candidate panel or constitute
 a complete screen-reader audit. The linked evidence report records the hosted editor checks; completion also
 requires the protected-branch merge. Local foreground GUI tests are authorized for fast iteration when focus is
 necessary. Prefer background checks where valid and retain macOS CI validation.
+
+`View.input_frame` adds retained prefix/suffix content, guarded native clear,
+loading/busy state and application-controlled password reveal. Apply the bound
+edit menu after the frame. See the [frame contract](input-frame.md) and
+[local validation](../evidence/input-frame-och41.md). Physical acceptance remains open.

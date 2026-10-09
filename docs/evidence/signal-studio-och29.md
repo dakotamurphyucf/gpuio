@@ -1,5 +1,39 @@
 # Signal Studio combined workload and lifetime evidence (OCH-29)
 
+## Milestone 07 installed-consumer regression — 2026-09-29
+
+A fresh independent consumer of the staged public libraries now builds with the
+current native sources and passes both `--self-test` and the real macOS AppKit
+walkthrough. This checks native canvas select/key/drag/pan/zoom, chart selection,
+extension AX/keyboard/disabled/hidden state, streaming, wide/compact/wide layout,
+remount and OS window close. Both child processes exit normally with status zero;
+the interaction driver reports `SIGNAL_STUDIO_APPKIT_OK`. Unbundled notification
+unavailability follows the documented in-app fallback.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec python3 scripts/test_extension_consumer.py \
+  --example signal_studio --workspace scratch/signal-consumer
+scratch/signal-consumer/consumer/_build/default/main.exe --self-test
+python3 scripts/test_signal_studio.py \
+  --executable scratch/signal-consumer/consumer/_build/default/main.exe \
+  --output scratch/signal-consumer-input
+```
+
+Use a fresh workspace. The driver now accepts `--executable`, so the same input
+assertions run against repository and independently built applications. Its normal
+120-second deadline and child cleanup remain active; this run also used an outer
+180-second process-group watchdog. Local logs use the `signal-consolidated-consumer`
+prefix in the implementing agent's ignored notes directory.
+
+The application lockfile was missing the new `gpui-base -> unicode-bidi` edge;
+adding it changes no package versions. This result verifies that independent
+`--locked` build and input regression on macOS 14.5 arm64. It does not rerun the
+performance measurements below or establish clean-machine, packaged OS-service,
+hosted CI or Linux desktop acceptance. OCH-17 retains the macOS release gates;
+OCH-47 owns deferred Linux desktop qualification.
+
+## Earlier workload checkpoint
+
 Local Apple M1 Max, 32 GiB unified memory, macOS 14.5 arm64. Stock OCaml 5.3,
 Rust 1.97.1, development build, unchanged pinned GPUI. Measured after `7a7b48a`
 with the workload and opt-in component instrumentation in this checkpoint.

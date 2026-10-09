@@ -1,0 +1,199 @@
+{
+  "source_base": "47c8a1a068f9a8ccf2b01e578dc9b5eba10c30b5",
+  "scope": "Chart-view schema -2 transport and retained-tree admission; custom inspection renderer not implemented",
+  "archive_sha256": "8d58e13aae69da13ddcd2d9392ce6c5d85adfd86d9c31637300771229d76f35e",
+  "source_files": [
+    {
+      "path": "lib/core/chart.ml",
+      "bytes": 3597,
+      "sha256": "8723d75a54e0c0619dda9978aa289f71924aeb086c6198d0a04d21f9cdf5d7a3"
+    },
+    {
+      "path": "lib/core/chart.mli",
+      "bytes": 4317,
+      "sha256": "4dca9b8359dbea71d14b21570734acfaa710ad654647659cb6df0fdb4675aedd"
+    },
+    {
+      "path": "lib/protocol/chart_view_wire.ml",
+      "bytes": 2299,
+      "sha256": "e5be92f415db57fe99c80196a65db77f1812b52029efce649850240bd60f679e"
+    },
+    {
+      "path": "rust/native/src/chart_geometry/flow_labels_tests.rs",
+      "bytes": 11622,
+      "sha256": "ab176efaeab06658ae809263ad7132ac4d4ebdc92d1ac70d8711823be66e79f5"
+    },
+    {
+      "path": "rust/native/src/chart_jobs.rs",
+      "bytes": 19054,
+      "sha256": "53fb5cc3908c61c554db6b32d987a8eb72ba64736628c1d1f2a19d650b4df565"
+    },
+    {
+      "path": "rust/native/src/chart_node_labels.rs",
+      "bytes": 8736,
+      "sha256": "f9ba194f8da5b0ef157ba84f2107605fb918ebea5f0cfd0cf240ea998929ea17"
+    },
+    {
+      "path": "rust/native/src/chart_paint/ordinal_tests.rs",
+      "bytes": 8426,
+      "sha256": "a738be7a41ca72f75e20bd1659a5fb8e33a36979e876fd9a436b9e0191207ac3"
+    },
+    {
+      "path": "rust/native/src/chart_presentation.rs",
+      "bytes": 17090,
+      "sha256": "546a9eef1d05ee9581b668647b7a51b38b516d36ed49a5be07ab4b5a5ee7090d"
+    },
+    {
+      "path": "rust/native/src/chart_presentation/axis.rs",
+      "bytes": 8761,
+      "sha256": "e3bc6fdf12388e54db0e600e07b0412a1900944ce5c96605be613b8c7fe81000"
+    },
+    {
+      "path": "rust/native/src/chart_view.rs",
+      "bytes": 28995,
+      "sha256": "befd3937b1617e9bad42b392cda1efa1f858cc935a9a0210a4cad4aa50c9c61a"
+    },
+    {
+      "path": "rust/native/src/chart_view_test.rs",
+      "bytes": 16342,
+      "sha256": "4879183015ed732e9f86c14a750ab826a5a9c3302cc3ab5ebd366fd850c0dcaa"
+    },
+    {
+      "path": "rust/native/src/menu_popup_chart_test.rs",
+      "bytes": 13110,
+      "sha256": "d06afc25ff1a7d67feef083ded0d36e8d4c29197f32b76d606a2d69663d3b2ae"
+    },
+    {
+      "path": "rust/native/src/tree.rs",
+      "bytes": 192929,
+      "sha256": "1d548a509f9fa17755624c868a843b09fccbcd3be749e02d22f873f575ac2e24"
+    },
+    {
+      "path": "rust/native/tests/chart_tree.rs",
+      "bytes": 9347,
+      "sha256": "d1449061418a6d1edae5dbdb4b77fa971752dd76c53fe36fae255ef508273bea"
+    },
+    {
+      "path": "rust/protocol/src/chart_view.rs",
+      "bytes": 3210,
+      "sha256": "26ecfe8e48be7303bc591d502ae5eb201148cf4d9e01ad254fb2bb4f4cb4dbca"
+    },
+    {
+      "path": "rust/protocol/src/decode/chart_view.rs",
+      "bytes": 1289,
+      "sha256": "fc4822593385cfb88c1f188ccd107cbda4a762a00fc611bffa41d760d0735446"
+    },
+    {
+      "path": "rust/protocol/tests/chart_axis.rs",
+      "bytes": 8764,
+      "sha256": "85d72ac7a760f192dd40e62ccc910e1806ea11501b553e07a4623dfc341e0a60"
+    },
+    {
+      "path": "rust/protocol/tests/chart_node_labels.rs",
+      "bytes": 5409,
+      "sha256": "b04012bcf2669d1e2eafd83650570e15f0640f46c4480229f45154aae643fa1f"
+    },
+    {
+      "path": "rust/protocol/tests/chart_view.rs",
+      "bytes": 17247,
+      "sha256": "2531a1c6df61b5294703b1e2449c4292c3e47cc21bbf789446e05d61ae645a43"
+    },
+    {
+      "path": "test/chart/chart_view_test.ml",
+      "bytes": 10299,
+      "sha256": "e6f3add4063fbfc98e200fbd03f7e7dd2c55b255d5bfc3f3c65b6f4c895a7da2"
+    },
+    {
+      "path": "test/chart/dune",
+      "bytes": 567,
+      "sha256": "337e4e0ff6861d21fdb4a6809bf07645d6e21fed2a5281e6901d0ed0cbb78a67"
+    },
+    {
+      "path": "test/fixtures/chart-view-v2-inspection.hex",
+      "bytes": 741,
+      "sha256": "dc6324125ea3bf1035c21f1c5ba6a6ca3c599ddc384b439e5dbf5460b4f7810b"
+    },
+    {
+      "path": "test/fixtures/chart-view-v2-labels.hex",
+      "bytes": 725,
+      "sha256": "fd48b1a010aeca9a55dadaedb2f3110d13b5c1296c24bb2eb28b0f5eb0b344fc"
+    },
+    {
+      "path": "test/fixtures/chart-view-v2-rich-labels.hex",
+      "bytes": 729,
+      "sha256": "6f2b688820162450890bce9da1f11678612cd0541deadc25e0882c9bf4e9f93d"
+    }
+  ],
+  "files": [
+    {
+      "path": "chart-expect.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "clippy.log",
+      "bytes": 588425,
+      "sha256": "10edea45e2b12657ecad7eafe4b9090c813581a1ae83f723effd444f4fa9d6cc"
+    },
+    {
+      "path": "dune.log",
+      "bytes": 705858,
+      "sha256": "eb0b641946d21b576574f582ace2b0f545f4b39e8887b77a44949237fd96b5b1"
+    },
+    {
+      "path": "environment.txt",
+      "bytes": 128,
+      "sha256": "1c0fe52f76240b52af7ea16be380fefb6b271ab58725b748760ecf84323458c3"
+    },
+    {
+      "path": "feature-clippy.log",
+      "bytes": 588348,
+      "sha256": "f81ee346113c9191912aca3a3c7fee77da58efe4612b5ec8074a7332b8d61bd2"
+    },
+    {
+      "path": "fixture-derivation.txt",
+      "bytes": 449,
+      "sha256": "7f70c722d9f91955398ada3c4bffcd2592098978c1dbf094c1e0b235a829b1a7"
+    },
+    {
+      "path": "integration-results.json",
+      "bytes": 865,
+      "sha256": "287873e4055c69a5b3390126f4cafe482dcec1c8967538f20875f93f66af907a"
+    },
+    {
+      "path": "native-tree.log",
+      "bytes": 588909,
+      "sha256": "a2f0d93fcb62bf831d04480694058ed795688aaf75798ea85891a93e66d8b038"
+    },
+    {
+      "path": "native-view.log",
+      "bytes": 592997,
+      "sha256": "d847953fa3c00965eec8d3223c6dfc84d206c0701d3db223fb2f1e7082829699"
+    },
+    {
+      "path": "native.log",
+      "bytes": 700348,
+      "sha256": "a5eb1e15955b3ebedf4774d2a99af76f380cf84a3f8d0cbd532ad363e71db812"
+    },
+    {
+      "path": "ocaml-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "protocol.log",
+      "bytes": 58589,
+      "sha256": "ac8ba125a9c84df330e88ea7a3069064bff1fd5be88900fbc9e95ad150ef8908"
+    },
+    {
+      "path": "results.json",
+      "bytes": 1645,
+      "sha256": "8cc942647763779f04a10e4ec87618d0a9fa46c326334df278adc08dd84f2cc1"
+    },
+    {
+      "path": "rust-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

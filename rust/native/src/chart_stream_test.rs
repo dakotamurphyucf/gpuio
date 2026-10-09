@@ -36,7 +36,7 @@ fn mount_list(source: ResourceId) -> Vec<Op> {
     for slot in 1..=3 {
         operations.extend([
             Op::Create(id(slot), Kind::ChartView, String::new(), None),
-            Op::SetChart(id(slot), config(source, 0x00ff00ff)),
+            Op::SetChart(id(slot), Box::new(config(source, 0x00ff00ff))),
             Op::SetStyle(id(slot), dimensions(200., 120.)),
         ]);
     }

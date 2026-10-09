@@ -1,9 +1,9 @@
 open Core
 
 (** Explicit source-to-geometry policies. Source datasets and IDs are never
-    modified. Buckets partition the shared numeric x domain, rather than input
-    array positions. Effective buckets are bounded by the plot's logical-pixel
-    width and [max_buckets], which must be in [1,8192]. *)
+    modified. Buckets partition the shared numeric x domain or projected
+    categorical positions, including padding. Effective buckets are bounded by
+    the plot's category-axis extent in logical pixels and [max_buckets], which must be in [1,8192]. *)
 module Line : sig
   type t [@@deriving equal, sexp_of]
 
@@ -13,7 +13,12 @@ module Line : sig
       bucket, in source order without duplicates. Each contiguous defined run is
       reduced independently: missing values always break paths, including gaps
       within a single bucket. Retained points keep their original datum IDs.
-      Many short runs can therefore retain more than four points per bucket. *)
+      Many short runs can therefore retain more than four points per bucket.
+      Stacked areas instead share the union of both cumulative boundaries'
+      envelope extrema/endpoints and missing-value transitions across layers.
+      Curves are shared before clipping each layer to its own defined runs, so
+      neighboring boundaries retain matching tangents. This can retain more
+      points, still bounded by the total source count. *)
   val envelope : max_buckets:int -> t Or_error.t
 end
 
@@ -22,7 +27,7 @@ module Bar : sig
 
   val exact : t
 
-  (** Explicit aggregation, independently per series. Each output keeps its
+  (** Explicit aggregation, independently per series, before optional stacking. Each output keeps its
       contiguous source index range (and thus original IDs at that revision).
       X is the midpoint of the first/last source x; sum may exceed the source
       value bound, but remains finite within the bounded source count. *)

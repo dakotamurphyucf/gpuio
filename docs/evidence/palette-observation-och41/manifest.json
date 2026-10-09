@@ -1,0 +1,162 @@
+{
+  "commands/README.txt": {
+    "bytes": 1485,
+    "sha256": "55ef9bd21030be4d170f5dfeb5dbab49929854e67a76032d3e69c5b3d950ce5b"
+  },
+  "commands/binary-sha256.txt": {
+    "bytes": 84,
+    "sha256": "39121755c7143fd18a6f6916c0ebfe2d604d465555193ac2a61fe8dc5625c739"
+  },
+  "commands/run_palette_observation_gui.py": {
+    "bytes": 1004,
+    "sha256": "2912a754341625e0a9739d8f7658527b72abf3c52ccee4929a945d37529bd992"
+  },
+  "images/gallery-feedback.png": {
+    "bytes": 398611,
+    "sha256": "7e65dcc0eafa85defd4199a96ff3fe91f6d5175e3a02c4149c02377cb33dccb6"
+  },
+  "images/gallery-menu-dropdown-plain.png": {
+    "bytes": 389499,
+    "sha256": "96ce8ee5ced43ab5f44af83796821708b40911d3eac6487bdb6f83754cccec41"
+  },
+  "images/gallery-menu-dropdown-restored.png": {
+    "bytes": 390417,
+    "sha256": "81aaab093e4215367a8976f25921c5d0736efcc1d8f1265a906c7269987aa8b5"
+  },
+  "images/gallery-menu-dropdown-rich.png": {
+    "bytes": 390417,
+    "sha256": "81aaab093e4215367a8976f25921c5d0736efcc1d8f1265a906c7269987aa8b5"
+  },
+  "images/gallery-menu-nested-rich.png": {
+    "bytes": 384322,
+    "sha256": "d1872f24f081f6574290bd947c44ef2a8cfa078dd93e95ca51253979ecfcce54"
+  },
+  "images/gallery-palette-groups.png": {
+    "bytes": 352933,
+    "sha256": "8b469b36b78742ad5028a061e746f093eff7d10101032c91adc04ae2ce7b202a"
+  },
+  "images/gallery-palette-keywords.png": {
+    "bytes": 350247,
+    "sha256": "8b2516e0cff1233cceaf70b59d07b76168022eb1bf49ae41d8939114a44c3616"
+  },
+  "logs/palette-observation-aba-counterfactual.log": {
+    "bytes": 589341,
+    "sha256": "55f37b6ff170a97f05e6fff0deedc04a2338ca305c391f74df492d61d27ee23d"
+  },
+  "logs/palette-observation-build-1.log": {
+    "bytes": 101166,
+    "sha256": "8762ebbf1e8ba48181ccab5c16a87ec492491fbf9176067e8a6660a025622ebc"
+  },
+  "logs/palette-observation-build-final.log": {
+    "bytes": 200638,
+    "sha256": "fa2523b627fa7812a4265f78c2d887d28b0b04cfd6620a9f0e84231c9f832a42"
+  },
+  "logs/palette-observation-catalog.log": {
+    "bytes": 640,
+    "sha256": "ec7f045757abb1d7e2907d8e645fbd6c7fa3e9b0e1e808e2fdc2dd20215b9a75"
+  },
+  "logs/palette-observation-clippy-final.log": {
+    "bytes": 588275,
+    "sha256": "f7d67813e01a1c06fa148a9e264fce53bf35efce7c04e3f8ca5392c7ca2c3405"
+  },
+  "logs/palette-observation-clippy.log": {
+    "bytes": 589503,
+    "sha256": "068375c495e40bc732da39016c4fb87ec4e51abaa4665c9a546fb090ee80269e"
+  },
+  "logs/palette-observation-consumer.log": {
+    "bytes": 100871,
+    "sha256": "ca015e9511886ae28937e46421371493cc0ca15c1dba404ba9e860a040ec26c9"
+  },
+  "logs/palette-observation-core-build.log": {
+    "bytes": 124,
+    "sha256": "d7b3b09f98c33d037253f14af1a65104d6f92fabee0f236a33c88c9d76251fb9"
+  },
+  "logs/palette-observation-core-tests.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "logs/palette-observation-failure-detail.log": {
+    "bytes": 592030,
+    "sha256": "97fbede392388e8e206c8a2787409ad6020a1244241d1e3e63365a75820c62b1"
+  },
+  "logs/palette-observation-format-2.log": {
+    "bytes": 1072,
+    "sha256": "ea11ca0775348894c01754f43cf0af7b6f008941a5420df71581ce4216b5a122"
+  },
+  "logs/palette-observation-format-3.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "logs/palette-observation-format.log": {
+    "bytes": 22383,
+    "sha256": "0ab0d71f570fbdd843417010c8307402643df0331f37e4eef506a6195226606d"
+  },
+  "logs/palette-observation-full-build.log": {
+    "bytes": 200508,
+    "sha256": "bc257099114cf18062208fab54fd23404164d945fb47b35a10c06e6d447ff164"
+  },
+  "logs/palette-observation-gallery.log": {
+    "bytes": 1914,
+    "sha256": "d21089a0126a4cd7ab77c1302e31b0f580395ba9bd7cf8c3121279d1225e8963"
+  },
+  "logs/palette-observation-native-1.log": {
+    "bytes": 588656,
+    "sha256": "7947b99a29e96af8c1610badafba7ff75e241782273c936e6f3a7ded05c40007"
+  },
+  "logs/palette-observation-native-2.log": {
+    "bytes": 588818,
+    "sha256": "fb0dc7129dc2ecd164ada7987987a99941a4d11d7e09b7914477fdbf97c237a4"
+  },
+  "logs/palette-observation-native-3.log": {
+    "bytes": 588594,
+    "sha256": "5ac718da379ac527a6c3b4bf57bf4a22e8a7445d9025f0fe5ff5e4bd68a0ea46"
+  },
+  "logs/palette-observation-native-4.log": {
+    "bytes": 590988,
+    "sha256": "249c372222a764eaba0f918c7e580f9c1bbee34fb3708da125fda2b3184927b7"
+  },
+  "logs/palette-observation-native-5.log": {
+    "bytes": 590352,
+    "sha256": "dd0ad271070e4f1e972d6f9d46ff216f719c37337973745ea93594a896e19f66"
+  },
+  "logs/palette-observation-native-final.log": {
+    "bytes": 590510,
+    "sha256": "d8532d98ee0164f7b965c15c7456735a6ee916263d5b05f10c4ed5dfd489d443"
+  },
+  "logs/palette-observation-native-full.log": {
+    "bytes": 690311,
+    "sha256": "7697587d350b956cf1137cf7bdb5177bf6ee87a5d57db6580d48aa9fb2c03289"
+  },
+  "logs/palette-observation-protocol.log": {
+    "bytes": 410,
+    "sha256": "4ff44cae4351ba76d882f5891e6a4146e656a9a28321f35fe8ecbcd6bdd48022"
+  },
+  "logs/palette-observation-rust-format-check.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "source/lib/protocol/palette_state_wire.ml": {
+    "bytes": 787,
+    "sha256": "9cac46a749020e3e63a6a8297f166f2e0a446f70ea81f9f39c616962002fba72"
+  },
+  "source/palette-observation.md": {
+    "bytes": 3570,
+    "sha256": "5579e20faaca731d38b8ce0b85f95e6de453cb449c5c771d29c5807b67ff435f"
+  },
+  "source/rust/protocol/src/palette_state.rs": {
+    "bytes": 1003,
+    "sha256": "32feffd6afd772f5fa382d2cf20f6c0cec47044bc60d650feb04c5c253330f5e"
+  },
+  "source/rust/protocol/tests/palette_state.rs": {
+    "bytes": 2261,
+    "sha256": "c17234eaf8301586fcca84be2d56d7cf6e9240cdd606d0961ffc39e563827d51"
+  },
+  "source/test/view_api/palette_observation_test.ml": {
+    "bytes": 5235,
+    "sha256": "ac2af2bea07cd39ad5790e0e7feca0ade86ce63384d3a75a4f2370ff598a01ec"
+  },
+  "source/tracked.patch": {
+    "bytes": 37039,
+    "sha256": "dfab947a50a8dc3298668227a6f4666ff2f94701a0b42d6f51ba9f5dc3081d0a"
+  }
+}

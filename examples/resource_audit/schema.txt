@@ -1,0 +1,21 @@
+qualification.resource_audit version 3
+properties: exactly five unsigned bytes (warmups, measurements, cycle, metal_memory, presentation)
+warmups 1..=3; measurements 1..=30; cycle 1..=warmups+measurements
+metal_memory: 0 disabled, 1 required; other values rejected; enabled requires macOS Metal
+properties are immutable per mount; exactly one mount per sequential window
+commands: none (all bytes rejected)
+events: none (the host Mounted/Failed events retain their ordinary meaning)
+qualification stdout: GPUIO_ENTITY_AUDIT checkpoint (cycle warmup|baseline|checked)
+qualification stdout: GPUIO_ENTITY_AUDIT complete total
+qualification stdout: GPUIO_ENTITY_AUDIT failed cycle
+baseline after final warmup window closes; later checkpoints assert no new live GPUI entity handles
+stdout is a qualification process record, never an event delivered to a retired component
+qualification stdout when metal_memory=1: GPUIO_METAL_AUDIT checkpoint (cycle registry_id render_samples live_sampled_max_bytes closed_bytes)
+Metal checkpoint follows entity checkpoint, before final entity completion; one per closed cycle
+retain actual renderer device only; same device across windows; live samples only on render; closed sample after settlement
+presentation: 0 disabled, 1 required; other values rejected; enabled requires compiled presentation-diagnostics and native macOS Metal
+one presentation Session starts immediately on mount; stop on close; settle at existing one-second cutoff; drop before checkpoint export
+qualification stdout when presentation=1: GPUIO_PRESENTATION_AUDIT JSON object with schema=1, cycle, session, window, accepting, window_closed, pending, attempted, admitted, presented, zero, not_submitted, missing, invalid_clock, saturated, duplicate_callbacks, histogram_overflow, trace_truncated
+presentation checkpoint follows entity and optional Metal checkpoints, before final entity completion; one per cycle with unique session/window IDs
+require closed/stopped/settled, nonzero supported drawable outcomes and exact accounting; no saturation/duplicates/histogram overflow
+settled zero/missing/invalid-clock outcomes are retained resource-only observations, not timing or successful-presentation acceptance

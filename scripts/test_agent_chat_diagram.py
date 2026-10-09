@@ -141,6 +141,24 @@ class Diagram(Review):
         self.press(TITLE, 'Diagram')
         self.wait_text(TITLE, 'Read sources · x 55 · y 52')
         self.press(TITLE, 'Close workspace inspector')
+        # Closing is asynchronous and changes the responsive toolbar branch.
+        # Do not grab its old Explore button while that branch is retiring.
+        # Require the inspector's semantics to stay absent for a brief interval,
+        # then locate the current opener and issue exactly one action.
+        deadline = time.monotonic() + 10
+        absent_since = None
+        while True:
+            node = self.find(TITLE, 'Close workspace inspector', 'AXButton')
+            if node:
+                self.release(node)
+                absent_since = None
+            elif absent_since is None:
+                absent_since = time.monotonic()
+            elif time.monotonic() - absent_since >= .15:
+                break
+            if self.child.poll() is not None or time.monotonic() >= deadline:
+                raise RuntimeError('Closed inspector still exposes its close action')
+            time.sleep(.03)
         self.press(TITLE, 'Explore workspace')
         self.wait_text(TITLE, 'Read sources · x 55 · y 52')
         self.press(TITLE, 'Light theme')

@@ -55,8 +55,32 @@ module Orientation = struct
   type t = Wire.Orientation.t =
     | Vertical
     | Horizontal
+    | Vertical_reversed
+    | Horizontal_reversed
   [@@deriving equal, sexp_of]
 end
+
+module Category_layout = struct
+  type t = Wire.Category_layout.t [@@deriving equal, sexp_of]
+
+  let auto = Wire.Category_layout.Auto
+
+  let point ?(padding = 0.) () =
+    checked
+      Wire.Category_layout.valid
+      (Wire.Category_layout.Point padding)
+      "category point padding must be in [0,1]"
+  ;;
+
+  let band ?(inner_padding = 0.2) ?(outer_padding = 0.1) () =
+    checked
+      Wire.Category_layout.valid
+      (Wire.Category_layout.Band { inner = inner_padding; outer = outer_padding })
+      "category band inner padding must be in [0,1), outer padding in [0,1]"
+  ;;
+end
+
+module Stacking = Wire.Stacking
 
 module Cartesian = struct
   type t = Wire.Cartesian.t [@@deriving equal, sexp_of]
@@ -66,11 +90,13 @@ module Cartesian = struct
         ?(dots = false)
         ?(orientation = Orientation.Vertical)
         ?(bar_width = 0.8)
+        ?(category_layout = Category_layout.auto)
+        ?(stacking = Stacking.Grouped)
         ()
     =
     checked
       Wire.Cartesian.valid
-      { Wire.Cartesian.curve; dots; orientation; bar_width }
+      { Wire.Cartesian.curve; dots; orientation; bar_width; category_layout; stacking }
       "chart bar_width must be finite and in (0,1]"
   ;;
 
@@ -78,13 +104,50 @@ module Cartesian = struct
 end
 
 module Pie = struct
+  module Label_placement = Wire.Pie.Label_placement
+
   type t = Wire.Pie.t [@@deriving equal, sexp_of]
 
-  let create ?(inner_radius = 0.) ?(pad_angle = 0.) ?(labels = true) () =
+  module Radius = struct
+    type t = Wire.Pie.Radius.t =
+      | Fit
+      | Pixels of float
+    [@@deriving equal, sexp_of]
+  end
+
+  module Slice_radii = struct
+    type t = Wire.Pie.Slice_radii.t [@@deriving equal, sexp_of]
+
+    let create ~slice ~inner ~outer () =
+      checked
+        Wire.Pie.Slice_radii.valid
+        { Wire.Pie.Slice_radii.slice = Chart_data.Datum_id.to_int64 slice; inner; outer }
+        "pie slice radii require finite logical pixels 0 <= inner <= outer <= 32768"
+    ;;
+  end
+
+  let create
+        ?(inner_radius = 0.)
+        ?(pad_angle = 0.)
+        ?(labels = true)
+        ?(radius = Radius.Fit)
+        ?(slice_radii = [])
+        ?(label_placement = Label_placement.Inside)
+        ?(label_gap = 15.)
+        ()
+    =
     checked
       Wire.Pie.valid
-      { Wire.Pie.inner_radius; pad_angle; labels }
-      "chart inner_radius must be in [0,0.95] and pad_angle in [0,0.2]"
+      { Wire.Pie.inner_radius
+      ; pad_angle
+      ; labels
+      ; radius
+      ; slice_radii
+      ; label_placement
+      ; label_gap
+      }
+      "pie requires inner fraction [0,0.95], pad [0,0.2], radius (0,32768] and at most \
+       256 unique valid slice radii"
   ;;
 
   let default = create () |> Or_error.ok_exn
@@ -93,11 +156,35 @@ end
 module Radar = struct
   type t = Wire.Radar.t [@@deriving equal, sexp_of]
 
-  let create ?(levels = 4) ?(dots = true) ?(labels = true) () =
+  module Scale = struct
+    type t = Wire.Radar.Scale.t =
+      | Per_axis
+      | Data_max
+      | Maximum of float
+    [@@deriving equal, sexp_of]
+  end
+
+  module Radius = struct
+    type t = Wire.Radar.Radius.t =
+      | Fit
+      | Pixels of float
+    [@@deriving equal, sexp_of]
+  end
+
+  let create
+        ?(levels = 4)
+        ?(dots = true)
+        ?(labels = true)
+        ?(scale = Scale.Per_axis)
+        ?(radius = Radius.Fit)
+        ?(label_gap = 0.)
+        ()
+    =
     checked
       Wire.Radar.valid
-      { Wire.Radar.levels = Int64.of_int levels; dots; labels }
-      "chart radar levels must be in [1,12]"
+      { Wire.Radar.levels = Int64.of_int levels; dots; labels; scale; radius; label_gap }
+      "chart radar requires levels [1,12], maximum (0,1e100], radius (0,32768], gap \
+       [0,64]; all floats finite"
   ;;
 
   let default = create () |> Or_error.ok_exn
@@ -133,6 +220,21 @@ module Sankey = struct
     [@@deriving equal, sexp_of]
   end
 
+  module Link_color = struct
+    type t = Wire.Sankey.Link_color.t =
+      | Source
+      | Target
+      | Gradient
+    [@@deriving equal, sexp_of]
+  end
+
+  module Label_placement = struct
+    type t = Wire.Sankey.Label_placement.t =
+      | Inside
+      | Outside
+    [@@deriving equal, sexp_of]
+  end
+
   type t = Wire.Sankey.t [@@deriving equal, sexp_of]
 
   let create
@@ -142,6 +244,12 @@ module Sankey = struct
         ?(scale = Scale.Linear)
         ?(iterations = 6)
         ?(labels = true)
+        ?(node_corner_radius = 1.)
+        ?(link_opacity = 0.5)
+        ?(min_link_width = 0.)
+        ?(label_gap = 6.)
+        ?(link_color = Link_color.Source)
+        ?(label_placement = Label_placement.Inside)
         ()
     =
     checked
@@ -152,8 +260,15 @@ module Sankey = struct
       ; scale
       ; iterations = Int64.of_int iterations
       ; labels
+      ; node_corner_radius
+      ; link_opacity
+      ; min_link_width
+      ; label_gap
+      ; link_color
+      ; label_placement
       }
-      "chart Sankey width must be in [1,64], padding in [0,64], iterations in [0,32]"
+      "invalid Sankey options: width [1,64], padding/gap/minimum link width [0,64], \
+       iterations/radius [0,32], opacity [0,1]"
   ;;
 
   let default = create () |> Or_error.ok_exn
@@ -170,7 +285,7 @@ let create
       ?(sankey = Sankey.default)
       ()
   =
-  { Wire.version = 1L; axes; cartesian; pie; radar; candlestick; sankey }
+  { Wire.version = 9L; axes; cartesian; pie; radar; candlestick; sankey }
 ;;
 
 let default = create ()

@@ -1,0 +1,809 @@
+# Milestone 07 hosted validation follow-up
+
+## Terminal run — 37862430983: platform condition and cleanup snapshot
+
+[Foundation 37862430983](https://github.com/dakotamurphyucf/gpuio/actions/runs/37862430983)
+at `83a9f398` is terminal. macOS fails only the public document-profile cleanup
+snapshot; Linux fails only collector Clippy on an unused macOS test helper.
+The previous point-routing, popup-readiness and navigation-clock repairs pass
+hosted checks. Table full-history retention and the chat combined workload pass.
+The [focused follow-up](preview-document-cleanup-och17.md) records both fixes,
+local validation and the original failures in a verified 42-file archive.
+
+Linux consumer checks and the macOS independent Signal Studio consumer were
+skipped after the failures and still require a passing repaired candidate.
+Informational Wayland smoke fails the native-controls text assertion; X11 is
+skipped. This is not Linux desktop acceptance.
+
+All three fresh-runner extracted apps pass, with complete reports and clipboard
+restoration. Both hosted Metal probes classify as unavailable, confirmed by
+local revalidation of their raw reports; this is not physical timing acceptance.
+C2/R2 remain open pending repaired-candidate CI and preview publication.
+
+## Terminal run — 37848090787: three native test failures
+
+[Foundation 37848090787](https://github.com/dakotamurphyucf/gpuio/actions/runs/37848090787)
+at `0c8f94d2c3b3f22d4f487202eace60156d3bd528` has successful Linux Foundation and
+fresh macOS extracted-app jobs. Required Linux build/unit/private-bus and all four
+consumer checks pass; the passing X11/Wayland smokes remain informational.
+All three receiver reports are complete and restore the clipboard; packaging
+revision is explicitly distinct from binary provenance, whose hashes are retained.
+
+macOS Foundation fails only screen-point accessibility routing, native popup
+queued-start cancellation and native disclosure/navigation. The
+[focused synchronization follow-up](preview-native-test-readiness-och17.md)
+records the exact assertions, local diagnostic reproduction and candidate repairs.
+The preceding dates/colors draft check now passes, as do all other required
+steps. Both raw Metal reports again agree on unavailable timing; local
+revalidation confirms the classification, without a positive presentation claim.
+
+The [32-file archive](foundation-37848090787-och17/reports.tar.gz) and
+[manifest](foundation-37848090787-och17/manifest.json) retain original failures,
+terminal metadata, raw timing and receiver evidence, plus scoped local follow-up.
+The locally passing repairs await one batched CI submission. C2/R2 remain open;
+this is neither a green integration run nor a published preview.
+
+## Terminal run — 37825342234: one dates/colors failure
+
+[Foundation 37825342234](https://github.com/dakotamurphyucf/gpuio/actions/runs/37825342234)
+at `1f360479c4f2aacc744c908b27202de52012796a` has a terminal **successful Linux
+foundation job** (`113476639497`). The retained
+[job-step snapshot](milestone-07-ci/run-37825342234-linux.json) records every
+step's actual conclusion. Build, OCaml/Rust tests, lint, private-bus instance and
+notification checks, native entity sensitivity, portable timing classification,
+and all four independent consumers (starter, extension, gallery, Signal Studio)
+pass. The X11 and Wayland smoke steps also pass, but remain informational; these
+smokes do not close OCH-47 or certify full Linux desktop behavior.
+
+macOS Foundation is terminal with exactly one failed step: Agent Workspace
+dates/colors, at its final exact composer-draft assertion. All other required
+steps pass. The [draft-observation follow-up](chat-draft-observation-och17.md)
+records a passing local reproduction attempt, asynchronous AX observation and a
+candidate harness synchronization change; the hosted failure's cause remains
+unconfirmed. Final current-candidate integration and publication remain open.
+
+A later snapshot confirms the new **managed collection scrollbar** interaction
+step also passes on macOS, together with the independent gallery consumer build.
+See the [scoped repair follow-up](managed-scrollbar-routing-och41.md#hosted-repair-validation--37825342234).
+This is a repository-gallery interaction pass, not a new hosted installed-GUI or
+whole-job pass.
+
+Both raw hosted Metal reports classify as unavailable, and the independent
+agreement check passes. Revalidating the downloaded raw reports locally produces
+the same result. This is unavailable timing, not physical presentation acceptance.
+
+The fresh macOS extracted-app receiver passes all three applications. Its reports
+have `complete: true` and confirm clipboard restoration. Packaging revision
+`0ba76e70` describes the packaging checkout, not an attestation of the binary
+build revision; exact archive and executable hashes remain in each report.
+These checks do not establish signed/notarized distribution acceptance.
+
+The [17-file archive](foundation-37825342234-och17/reports.tar.gz) and
+[manifest](foundation-37825342234-och17/manifest.json) preserve terminal metadata,
+the failed log, raw timing/availability reports, receiver evidence and the local
+draft-observation follow-up. The next batch combines pending source-preview docs
+with that harness change. Its required checks must pass before publication.
+
+## Terminal run — 37789987337 (2026-10-08)
+
+[Run37789987337](https://github.com/dakotamurphyucf/gpuio/actions/runs/37789987337)
+at `2d429f2a` completes: Linux Foundation and the separate fresh macOS extracted-app
+receiver pass. The corrected scrollbar-preference and public document-profile
+checks now pass on hosted macOS. Foundation's four failing macOS steps are the
+automatic carousel, interrupted-drag carousel and both Metal presentation probes.
+The [carousel remount driver repair](carousel-remount-harness-och41.md) has local
+and installed before/after evidence; this run predates it.
+
+Both GPUI windows finish with 90 zero presentation timestamps, no positive
+presentations and no missing/lost entries. The standalone Apple Paravirtual
+calibration records 120 zero timestamps and fails its unchanged clock checks.
+These results do not qualify presentation. No gate/classifier change is made.
+
+All three extracted-app reports (gallery, Agent Workspace, Signal Studio) are
+complete and restore the clipboard. Existing development paths are denied;
+absent paths are recorded as absent. This receiver run does not reproduce the
+prior Python SIGTRAP. It does not establish its cause or qualify Developer ID,
+notarization or signed-release distribution. Reports distinguish packaging
+revision `c57ba2f9` from binary build provenance, which is not attested by that
+field; archive/executable hashes identify the exact tested artifacts.
+
+The [verified eleven-artifact archive](foundation-37789987337-och17/reports.tar.gz)
+and [manifest](foundation-37789987337-och17/manifest.json) preserve terminal
+job/step metadata, presentation reports, transfer verification and all receiver
+reports. Later local repairs and matrices require a new hosted run. OCH-17/OCH-41
+remain open; neither the whole run nor release acceptance is green.
+
+## Terminal run — 37772649589 (2026-10-08)
+
+[Run37772649589](https://github.com/dakotamurphyucf/gpuio/actions/runs/37772649589)
+at `6be17496` finishes with Linux Foundation passing. macOS Foundation completes
+within its updated job allowance; four steps fail: scrollbar preference, public
+document profile, GPUI Metal presentation and standalone Metal API calibration.
+The [scrollbar oracle](scrollbar-preference-och41.md) and
+[flow-document clipping repair](document-profile-flow-focus-och17.md) are now
+locally validated; this run predates them. Both Metal failures remain unresolved.
+Table full-history and the subsequent agent-workspace checks complete.
+
+The fresh-runner job receives the archives successfully. Extracted gallery and
+Signal Studio reports have `complete: true`. The Agent Workspace Python test
+process terminates with Trace/BPT trap (exit133) after “Attach text…”, before its
+finally block can write a report. No Python/native stack was retained. This is
+not passing receiver acceptance and does not by itself identify a packaged-app
+crash or a particular AX call as the cause.
+
+The next batch enables fatal Python stack capture including SIGTRAP, chaining
+to the original fatal behavior, and collects up to ten recent hosted `.ips`
+reports (5MB maximum each). A child-process self-test confirms SIGTRAP still
+terminates with signal5 while printing its Python location. No acceptance check
+is weakened and no speculative native repair is claimed.
+
+[Six-artifact manifest](foundation-37772649589-och17/manifest.json) retains the
+terminal job/step metadata, failed-step logs, complete receiver reports and
+stack-capture self-test. The pagination follow-up and other local commits also
+require a new hosted run. OCH-17/OCH-41 remain open; no merge or release acceptance.
+
+
+The [exact-artifact follow-up](receiver-replay-och17.md) passes locally and on a
+new macOS15.7.9 hosted receiver. It retains the earlier trap as unexplained;
+successful replays are scoped evidence, not a diagnosed repair or current-source
+release acceptance.
+
+## Earlier terminal run — 37731811839
+
+[Run 37731811839](https://github.com/dakotamurphyucf/gpuio/actions/runs/37731811839)
+at `de452dea` passes Linux Foundation and the separate fresh macOS extracted-app
+receiver. macOS Foundation fails three steps: native controls, GPUI Metal
+presentation hook and independent Metal API calibration. The document-profile
+step now passes on this repaired source.
+
+The controls failure is test-fixture reuse of a retired window generation, not
+a newly established native-menu production failure. The
+[fixture repair and complete local reruns](native-menu-bar-icons-och41.md#full-suite-fixture-generations--2026-10-08)
+pass both `native_controls` and `native_menus`, preserving production stale-handle
+rejection. Updated-source hosted validation remains required.
+
+The [Metal investigation](hosted-metal-diagnostic-och17.md) retains separate ARM
+and Intel experiments. Neither idle delay nor separately recorded active warmup
+has made the Intel two-window strict probe pass. These outcomes do not waive the
+required checks or invalidate the separately recorded physical-Mac results.
+
+The receiver's gallery, chat and Signal Studio reports are all complete, with
+clipboard restoration. They identify packaging revision `f0243fd5` and explicitly
+do not attest the binaries' source revisions. The job uses a separate hosted
+runner and denies development paths; it does not certify a signed/notarized
+release. Raw reports accompany the fixture archive linked above. Earlier failures
+and qualified limitations remain historical evidence below.
+
+## Earlier terminal run — 37713213949
+
+[Run 37713213949](https://github.com/dakotamurphyucf/gpuio/actions/runs/37713213949)
+at `88d3c3d8` passes Linux Foundation and the separate fresh macOS extracted-app
+receiver. macOS Foundation fails three steps: the public native document profile,
+GPUI Metal presentation hook and independent Metal API calibration.
+
+The profile's AX dump contains a preparation `ResourceLimit` fallback after a
+property change. A deterministic two-profile regression reproduces premature
+failure under another worker's temporary reservation. The
+[local worker-pressure repair](document-worker-pressure-och17.md) now passes the
+native regression and both normal/Large real gallery walkthroughs. This has not
+yet passed hosted CI on the repaired source.
+
+Both hosted presentation probes report only zero presentation timestamps. The
+independent Metal probe reports 120 active/visible submissions with valid GPU
+completion, on an Apple Paravirtual device with an empty display inventory. This
+does not qualify presentation or establish a general VM limitation. Raw reports
+are retained with the linked evidence; both required checks remain failed.
+
+## Historical runs and repairs
+
+Historical run [37241646017](https://github.com/dakotamurphyucf/gpuio/actions/runs/37241646017)
+at `6d6d96f` is terminal. The entire Linux foundation job passes, including
+required OCaml/Rust tests, private-bus arbitration and independent consumers,
+with unchanged stack settings. This validates the renderer repair below and
+does not establish Linux desktop qualification. macOS has 16 failed steps; no
+whole-run pass is claimed. The optional collector and loaded-list workload in
+local `10ac15e` / `c0d2eaf` are not included in this run.
+
+Ten macOS chat walkthroughs failed on the same Python `find(deadline=...)`
+override incompatibility, repaired in `2c0e41c`; see
+[the AX helper evidence](ax-traversal-och41.md). All ten now pass locally. The
+remaining native/public failures also have passing local reruns after the
+[macOS repair batch](macos-validation-repairs-och17.md), including a production
+numeric hold regression and corrected fixture ownership/readiness/animation
+assumptions. The full 920-test native suite (two existing skips), full OCaml
+expect tests, strict native lint and formatting pass. Fresh hosted validation
+is still required.
+
+Prior run [37239659043](https://github.com/dakotamurphyucf/gpuio/actions/runs/37239659043)
+at `984210e` has a terminal Linux unit-test failure. Its diagnostic succeeds:
+GDB stops in `View::node_presentation`, beneath recursive `element_body`, tooltip
+and rich-label construction. The exact fixture passes with an 8 MiB stack.
+This supports excessive finite renderer stack usage, rather than the earlier
+suspected recursive accessibility assertion. macOS unit tests and lint pass;
+its native-test build/lint and independent extension consumer pass; the independent
+public gallery consumer was running when the new push cancelled the superseded run.
+
+A local repair extracts component-specific construction into `node_content` so
+its builder temporaries are absent from ordinary recursive container frames.
+The moved branches retain their order and behavior. Local arm64 debug assembly
+shows `element_body` reserving 157,904 bytes before and 88,416 bytes after,
+including saved registers (about 44% less). This is stack-frame evidence, not
+heap/GPU usage or an x86-64 measurement. The full native suite passes 920 tests
+with two existing macOS private-bus skips; strict all-target native lint passes.
+The exact sidebar fixture also passes locally with an explicit 2 MiB test stack.
+Required CI stack settings remain unchanged. Linux required unit tests now pass;
+the change does not establish a maximum-depth stack budget for every component.
+
+Diagnostic artifacts are from `foundation-logs-Linux-X64` (artifact 11317542140),
+retained locally in `ci-linux-artifacts-003`. Local follow-up logs use
+`renderer-stack-native-001.log`, `renderer-stack-clippy-001.log`,
+`renderer-sidebar-2m-001.log` and `stack-prolog-*-macos-00{1,2}.txt` under
+`scratch/agents/root-20261004-resumed/`.
+
+Prior result: [run 37236900248](https://github.com/dakotamurphyucf/gpuio/actions/runs/37236900248)
+at `1cd5de9622a2b3841d63f1ef85e928b2373f78df` is terminal with both jobs failed.
+The earlier missing TestAppContext guard is resolved. macOS passed unit tests and
+workspace lint, then failed the independent table native-test build because its
+optional observation wrapper changed the row type passed to `finish_row`. Linux
+reached the feature-enabled native library tests and aborted on a sidebar fixture
+stack overflow. Later gates remain unqualified.
+
+## Historical follow-up
+
+The table now applies `.test_support()` after the delegate finishes its concrete
+`Stateful<Div>` row, before accessibility decoration. That preserves the delegate
+contract with and without the optional `Observed` wrapper. The exact independent
+CI build and strict all-target table lint pass locally. The resulting native
+`native_table` executable also exits zero under a 120-second process-group bound:
+four sampled positions across 100,000 logical rows and 64 columns, keyed selection,
+gesture/event identity, anchor preservation and entity release pass. These are
+native fixture/layout/dispatch checks, not external OS keyboard or full-history
+performance acceptance. Evidence: `table-observed-{build,clippy,native}-001.log`.
+Hosted revalidation remains pending.
+
+A subsequent local check of the plain `native-tests` configuration found four
+TestPlatform modules guarded by that feature even though it does not enable GPUI
+test support: editor frame, input content, menu observations and split-button
+view tests. Their guards now use `native-image-tests`, consistent with the other
+TestPlatform modules and the required feature-enabled library suite. The tests
+remain required there. Plain, image-only and canvas-only strict all-target native
+Clippy now pass locally. The final combined library run still reports **919
+passed, two existing private-bus skips**; no tests were dropped from that required
+suite. Dune/Rust formatting and the workflow's YAML/embedded Python syntax checks
+also pass. Logs use `native-basic-clippy-002.log`, `native-image-clippy-001.log`,
+`native-canvas-clippy-001.log` and `native-final-feature-tests-001.log` in the local
+session directory.
+
+The failing Linux fixture is
+`host::sidebar_labels_view_test::public_sidebar_labels_retain_focus_paint_once_and_route_one_activation`.
+It passes locally on macOS with an explicit `RUST_MIN_STACK=2097152`; this neither
+reproduces nor fixes Linux. A conditional CI diagnostic captures a default-stack
+GDB backtrace and then compares an 8 MiB run. It leaves the required suite and its
+stack setting unchanged. Each probe has a 90-second process-group limit so a
+debugger timeout cannot leave its inferior running. The original required failure
+remains a failure regardless of the diagnostic outcome. Cause investigation is
+open; no larger-stack production policy is inferred.
+
+Logs: `ci-macos-002.log`, `ci-linux-002.log`, `sidebar-stack-2m-001.log` in
+`scratch/agents/root-20261004-resumed/`.
+
+Prior checkpoint: [run 37234888418](https://github.com/dakotamurphyucf/gpuio/actions/runs/37234888418)
+at `4453cbb1573533288e0ba9af303f10efe00b904c` failed on both macOS 15 and
+Ubuntu 24.04 during the OCaml/Rust tests step. Both platforms completed bootstrap,
+formatting and the build. Later acceptance steps were skipped; this is not a
+current green result.
+
+## Default-feature compilation repair — 2026-10-04
+
+Both jobs report the same compile error in `desktop_host.rs`: the scrollbar
+correlation test refers to `gpui::TestAppContext`, which is unavailable in the
+default-feature workspace test build. The test now uses the existing
+`native-image-tests` feature guard, matching other TestPlatform tests. The next
+command in `scripts/gpuio test` explicitly enables that feature and runs library
+tests on both platforms without OS windows; the test remains part of required CI.
+The pure scrollbar policy tests remain in the default build.
+
+Local default-feature compilation also exposed unused carousel snapshot helpers
+whose callers already require that feature. Their guards now match the callers,
+without suppressing warnings or changing production code. Local macOS 14.5 arm64 validation:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --offline --locked -j 2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test -p gpuio-native --features native-image-tests,native-canvas-tests --lib --offline --locked -j 2
+```
+
+Both commands exit successfully: the default workspace reports 1,386 passed and
+13 ignored across 260 reports; the feature-enabled native library reports 919
+passed and two existing private-bus skips. The scrollbar correlation test is
+explicitly present and passes in the second run. The default run began before
+the helper-guard cleanup and reported two dead-code warnings; subsequent `cargo clippy --workspace --all-targets --offline --locked -j 2 --
+-D warnings` through the repository wrapper passes and validates that cleanup
+separately. Cargo retains an upstream `block 0.1.6` future-incompatibility notice;
+this is not a first-party warning or a claim of future compiler compatibility.
+No hosted rerun has yet validated this repair. Local logs are in `scratch/agents/root-20261004-resumed/` as
+`default-tests-001.log` and `native-feature-tests-001.log`.
+
+## Earlier hosted checkpoints
+
+Run **36791905054** is terminal, with Linux success and macOS cancelled after two
+failed steps. See its final-result section below. Later local grid/Form/avatar
+changes remain outside that older run's coverage.
+
+[Run 36781947346](https://github.com/dakotamurphyucf/gpuio/actions/runs/36781947346)
+tested `afb4bba48892b25527db158d533f92eb1fdcaad6`. Linux completed successfully;
+macOS failed seven steps. This run predates the Settings composition/reveal
+repairs and subsequent catalog work. It does not validate those changes.
+
+## Display-scale assertions — locally repaired
+
+Two failures reproduce exactly on local macOS 14.5 arm64 when the native test
+fixture overrides GPUI's scale to 1. This exercises real native layout and GPU
+readback; it does not change or qualify the physical desktop's display mode.
+
+- Passive link animation expected 112.5 logical pixels at 200ms, but native
+  layout returned 112. The pinned layout snaps to device pixels, with half ties
+  toward zero. The test now compares the analytic tween width after device-pixel
+  snapping, retaining its 0.1 logical-pixel tolerance. At 2×, 112.5 remains exact.
+- The dashed border test required a pure-black sample in every gap. On the
+  rounded panel's one-device-pixel left edge, successive three-pixel samples
+  had valleys of 61..119, shoulders of 192..133 and peaks of 255. The one-pixel
+  gaps crossed sample centers and remained visibly antialiased. The check now
+  accepts a midpoint-or-darker RGB sample only for one-device-pixel strokes;
+  thicker gaps still require near-black. Every edge still needs multiple bright
+  and gap samples; solid and absent edges retain their original strict checks.
+
+Both failing-before cases and corrected suites ran locally. The 72-case border
+matrix and complete composed-link suite pass with `--scale-one` and the normal
+Retina scale. No production renderer change was needed for these two failures.
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests --test native_border_style --test native_link -- --scale-one
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-image-tests --test native_border_style --test native_link
+```
+
+Each invocation used a 180-second process-group watchdog and closed/reaped
+normally. Local diagnostics are in the ignored per-agent scratch directory;
+the original hosted logs remain attached to the linked run.
+
+## Document scroll geometry — locally repaired
+
+The document failure reproduces locally. After a request for `(−70, −10000)`,
+the stored editor offset was already clamped to `(0, −2138)`, with an 800 × 300
+input viewport. However, the first frame had neither source bounds for the last
+diff header nor any visible header actions. The deferred request was used for
+row selection and painting before the stored scroll offset was clamped.
+
+The Base adapter now clamps deferred caret/text offsets against the current
+layout dimensions. Source-row selection also bounds the request against current
+content and the configured empty bottom area; completion ghost rows can extend
+final scroll height without excluding earlier source rows needed for shaping.
+The stored-offset and layout paths share the same horizontal/vertical clamp.
+Ordinary cursor following and auto-grow policy remain unchanged.
+
+The native regression checks negative and positive overscroll on the first frame,
+source/header alignment, absent offscreen actions, zero horizontal offset for a
+short source, and identical geometry on the next frame. It retains the existing
+stale-action, focus and disposal checks. The complete document, editor and table
+host suites pass locally on macOS 14.5 arm64:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native --features native-tests --test native_document --test native_editor --test native_table_host
+```
+
+The invocation used a 180-second process-group watchdog. Document validation
+builds native layout/paint scenes; it does not establish physical presentation.
+Its background window can appear blank. This is separate from the unresolved
+[public-gallery startup observation](window-startup-och17.md).
+
+The cumulative Base patch SHA-256 is
+`56d0526fccf8afb11c2510827d7cf76f39cae05d5efae56eb93a58dc79a39ee9`.
+Reconstruction from the hash-verified pinned archive matches the vendored tree
+byte-for-byte, excluding generated `Cargo.lock`.
+
+## Retained navigation and worker diagnostics — locally repaired
+
+The navigation failure also reproduces locally. Before/after snapshots retain
+identical native window/node generations, editing revision, text, selection and
+composition; hiding the route changes only focus from true to false. Retention
+assertions now compare all ownership/editing fields independently of focus.
+Hidden-editor focus commands must still fail, and returning to the route must
+allow focusing the same editor. The public navigation self-test passes locally.
+
+The picker investigation exposed a separate diagnostic defect: raising a worker
+exception inside its OCaml domain caused `Domain.join` to replace the useful
+origin with its join site. The Eio application now carries the exception and raw
+backtrace as data across the join, then reraises with that trace. It also copies
+the caller's backtrace-recording setting into the worker domain. A deliberate
+worker failure first failed the new origin assertion and now passes. The
+`examples/runtime/main.exe --worker-backtrace-test` regression is part of macOS
+CI. The full Dune build/expect/format suite passes, as do runtime
+`--self-test`, `--shutdown-test`, `--last-window-test` and
+`--worker-backtrace-test`, followed by the picker/navigation self-tests against
+the rebuilt backend. Runtime self-test checks include scoped cancellation,
+Bonsai timers, idle commit stability, reopen and frame acknowledgements.
+
+Full Rust workspace tests and strict all-target Clippy also pass:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build -j2 @all @runtest @fmt
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --workspace --locked -j2
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --workspace --locked -j2 --all-targets --features gpuio-native/native-image-tests,gpuio-table-adapter/native-tests -- -D warnings
+```
+
+The native library's unit suite reports 422 passed and two existing ignored;
+platform-specific skipped tests retain their own restrictions. Runtime and public
+self-tests used bounded process-group wrappers and closed/reaped normally.
+
+## Table keyboard readiness and traversal execution budget
+
+Local instrumentation observed `is_window_active = false` immediately before the
+first targeted OS key, even though activation had been requested and manual
+layout frames had run. That local baseline happened to pass; it does not prove
+that activation caused the hosted failure. The fixture now yields until AppKit
+reports this window active, with a two-second bound, before posting the first
+key. The corrected native table suite passes actual process-targeted arrows,
+Return, Shift-F10, Copy and embedded-editor checks. Hosted confirmation remains
+required; no synthetic replacement or key retry was introduced.
+
+The hosted full-history test made steady progress to 171,936 of 200,000 visits
+at 895.8 seconds: 33.8 seconds applying updates, 859.8 seconds in layout/paint,
+and 0.8 seconds checking/yielding. Active rows/cells were bounded at 128/512,
+retired cached payloads were zero and peak RSS was 153,665,536 bytes in that
+partial log. These observations do not establish completion or final cleanup.
+
+The runner now permits 1,800 seconds for the unchanged 100,000-row × two-pass
+debug-build ownership workload, retaining group termination/reaping and the
+separate deliberate-failure cleanup check. This accommodates the observed hosted
+throughput; it is not a release latency or memory budget. Named-hardware
+performance and a completed hosted traversal remain required.
+
+## Completed local full-history rerun
+
+`GPUIO_JOBS=2 python3 scripts/test_table_history.py` completed successfully on the
+local M1 Max/macOS 14.5 machine. The full traversal executable was built at the
+`e54d279` checkpoint, before subsequent grid-placement work began.
+
+| Measurement | Result |
+| --- | ---: |
+| Logical rows / traversals / visits | 100,000 / 2 / 200,000 |
+| Active rows / cells | at most 128 / 512 |
+| Peak retired text payloads retained at batch checks | 0 |
+| Retired text after unmount | 0 |
+| Baseline / peak admission accounting | 19,200,689 / 19,659,441 bytes |
+| Peak mounted accounting above baseline | 458,752 bytes |
+| Initial / final process peak RSS | 80,150,528 / 249,806,848 bytes |
+| Traversal duration | 809.3 seconds |
+
+The window-release marker passed. The runner's separate deliberate-failure
+invocation rebuilt while local grid-placement protocol work was in progress;
+it produced the expected assertion, cleanup and verified-failure-exit markers,
+and the parent runner exited zero. That short cleanup run is evidence for the
+newer working tree's failure path; the complete traversal metrics above apply
+to the pre-grid executable. Both child processes exited and were reaped.
+
+This hidden-window debug workload exercises actual retained layout and ownership.
+It does not establish physical input-to-paint latency, a named release performance
+budget, or complete traversal on the hosted runner. The 1,800-second limit is a
+bounded test execution allowance, not a frame-time requirement.
+
+## Remaining validation
+
+The public date-picker failure is still unreproduced locally: both its original
+self-test and the version with named draft-read diagnostics pass. No production
+picker fix is claimed. New failures will include the draft stage and original
+worker backtrace; investigate observation readiness rather than assuming a fixed
+number of rendered frames proves native snapshot delivery.
+
+Current-head required CI, complete hosted table traversal, other catalog families
+and broader OCH-17 requirements remain open. No milestone or release acceptance
+is claimed. Full Linux desktop qualification remains OCH-47; a passing Linux job
+does not establish graphical acceptance.
+
+
+## Follow-up run — still incomplete
+
+[Run 36791905054](https://github.com/dakotamurphyucf/gpuio/actions/runs/36791905054)
+tests `e54d2795df761e05067b5359a9b074c8590cb770`. Its Linux job completed
+successfully, including build/unit/private-bus/lint and independent consumer
+checks; the informational X11/Wayland smoke steps also report success. This is
+not full Linux desktop qualification.
+
+At the 2026-09-30 local follow-up, macOS had passed native-test compilation and
+advanced into native table full-history execution, but **macOS public canvas
+checks and Public date picker failed**. The job was still running. Its job-log endpoint returned `BlobNotFound` (404),
+so no failure cause is established yet; inspect the completed job logs/artifact
+before diagnosing or changing the canvas test. Do not rerun/cancel the active
+job just because its archived log is not yet available.
+
+This hosted revision excludes the local grid-location commit and the uncommitted
+rich Form/avatar-group work. Their local checks and remaining native acceptance
+must not be inferred from this run.
+
+## Follow-up run — terminal result, 2026-10-01 UTC
+
+The same run is now complete: Linux **success**, macOS **cancelled**. Archived
+[job logs](https://github.com/dakotamurphyucf/gpuio/actions/runs/36791905054/job/110146488948)
+and the [macOS artifact](https://github.com/dakotamurphyucf/gpuio/actions/runs/36791905054/artifacts/11134164397)
+are available. This supersedes the in-progress checkpoint above; no rerun was
+started and no cancellation was requested by this agent.
+
+The hosted full-history regression passed all **200,000 visits / 100,000 logical
+rows**, retaining at most 128 rows and 512 cells, with zero retired cached row
+payloads. Accounted bytes rose from 19,200,689 to 19,659,441 (458,752 bytes). Peak
+process RSS rose from 73,891,840 to 153,731,072 bytes. The measured traversal took
+1,034.9 seconds. Normal window release and the deliberately failing cleanup
+subprocess both passed. These are hosted debug ownership/workload measurements,
+not physical interactive latency or complete release-performance acceptance.
+
+Two steps failed before cancellation:
+
+- **Public canvas:** `scripts/test_canvas.py:102` timed out waiting for
+  `Activated: Swift` after AXPress. The dump still showed `Moved: Swift` and
+  native scene revision 1/generation 1. Keyboard movement had already passed.
+  Source review shows that native AX routes fence captured scene snapshots and
+  input is unavailable while a replacement publication is being prepared. A
+  publication/AX timing race is a hypothesis, not an established cause. No canvas
+  production fix, repeated activation, relaxed assertion or larger timeout has
+  been substituted for a reproduction.
+- **Public date picker:** the named diagnostic reports `initial open`,
+  `is_open=true`, no error, and no draft. The preserved worker backtrace points to
+  the initial selection assertion in `examples/calendar/picker.ml`. Two window
+  frame acknowledgments do not promise delivery of the native calendar snapshot.
+  The local self-test now waits for the current reactive picker to expose an open
+  draft, with at most 120 frame requests and immediate failure on a picker error.
+  Placement remount uses the same readiness condition. All selection, stale-action,
+  cancellation and disposal assertions remain. Public interface docs now state
+  this asynchronous readiness contract. The changed native self-test has **not**
+  run successfully yet under the current desktop execution restrictions; if the
+  observation never arrives, it must still fail rather than assume readiness.
+
+The job was cancelled at 01:06:30 UTC during the combined agent-chat workload,
+after runner setup began at 23:36:04 UTC. This is consistent with its configured
+90-minute job ceiling; the API reports `cancelled`, not a separate causal timeout
+annotation. Local workflow configuration gives macOS 120 minutes, with Linux
+remaining at 90. This accommodates the measured full-history work without changing
+individual test watchdogs, workloads or assertions. It still needs a complete
+hosted run. Native image cleanup, editor, native smoke and production bridge smoke
+were skipped after cancellation and are **not passes**.
+
+The local corrections and the new avatar phase regression are uncommitted and
+absent from the tested `e54d279` revision. Required current-head CI, the remaining
+canvas investigation and wider catalog/release acceptance are still outstanding.
+
+
+### Canvas investigation follow-up
+
+The [canvas activation investigation](canvas-activation-och17.md) adds opt-in
+native semantic-tree/callback/mailbox traces and independent example event
+logging to the next public test run. A TestPlatform test now exercises scene
+replacement, callback retirement and input admission; the full native library
+suite with image/canvas test support passed locally (425 tests, two ignored).
+These diagnostics preserve the existing production fences and do not establish
+the hosted failure's cause or resolution. No new native AX run has passed.
+
+
+### Rich avatar local implementation follow-up
+
+The [rich avatar fallback](../design/avatar-fallback.md) adds checked Core/Bonsai
+and group-item constructors, native slot selection and a separately owned hidden
+set. Raster/SVG TestPlatform checks cover retained source leases, source failure,
+first-frame SVG size failure/recovery, hidden tween deadlines, inert versus hidden
+ancestors and teardown. An inert-ancestor regression failed before the corrected
+paint-visibility decision and now passes. Passive-child mutation rollback and
+node-count limits have native transaction coverage; the new contract requires
+paired capability bit 56, without changing operation tags.
+
+The Rust workspace suite, feature-enabled native library suite (426 passed,
+two ignored), strict native/protocol all-target Clippy and fresh installed-gallery
+consumer build pass locally on macOS arm64. Three Core expect tests and the OCaml
+examples compile; the gallery uses an original registered person SVG for its
+custom fallback. Its native driver has been extended but **not run**. No physical
+GPU clipping, macOS AX ownership or Linux qualification is inferred from these
+checks. Changes remain local/uncommitted and absent from the earlier hosted run.
+
+The final `dune build -j2 @all @runtest @fmt` also passed after the inert-ancestor
+correction, through the repository's isolated `scripts/gpuio exec` environment.
+No native windows or new hosted workflow runs were started for this addition.
+
+### Rich avatar acceptance-fixture follow-up
+
+The retained-slot TestPlatform scenario now includes a nested avatar and delayed
+animation program as well as a tween. It passes hidden deadline cancellation,
+no wakes after a 20-second test-clock advance, owner identity on restoration,
+inert/hidden ancestry and weak-owner retirement. The feature-enabled native
+library suite again passes locally: 426 tests, two ignored private-bus tests.
+
+`avatar_rich_test.rs` is wired into the existing `native_images` background
+window. It includes GPU clipping/corner/hover, native macOS AX, retained image
+leases, raster/SVG/GIF selection, event order and idle/disposal assertions.
+**Execution is pending**: compiling this fixture does not make those assertions
+passing native evidence. The harness now logs window-open, tree-application,
+first-pixel and semantic-check phases to help distinguish startup failures on
+the next actual run. These diagnostics do not repair or establish the cause of
+the earlier black window/desktop-service timeout.
+
+Final local checks passed on macOS arm64, using the isolated repository toolchain:
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native \
+  --features native-image-tests,native-canvas-tests --lib
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo test --locked -j2 -p gpuio-native \
+  --features native-image-tests,native-canvas-tests --test native_images --no-run
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo clippy --locked -j2 -p gpuio-native \
+  --features native-image-tests,native-canvas-tests --all-targets -- -D warnings
+GPUIO_JOBS=2 ./scripts/gpuio exec cargo fmt --all --check
+```
+
+These test-only changes remain uncommitted on top of `83eb87e` and the prior local
+implementation. No new Linux, native desktop or hosted CI result is claimed.
+
+The subsequent TestPlatform window-close case passes with live nested avatar
+tween/program deadlines. It closes the Session and GPUI window without first
+unmounting the tree or stopping the global image service, then checks weak-owner
+release, motion declarations, fallback source leases and post-close output.
+The updated feature-enabled library suite passes **427 tests, two ignored**;
+strict all-target native Clippy also passes. This is additional deterministic
+lifecycle evidence, not real macOS window-close acceptance.
+
+### Rating appearance follow-up
+
+The [pinned Rating review](../catalog/rating-review.md) identified an independent
+active/outline color gap. The new [appearance API](../design/rating-appearance.md)
+now connects Core/Bonsai theme resolution, appearance-only retained updates,
+bounded native RGBA admission and the star painter. Op64/capability57 extend the
+paired protocol; existing config, request and event encodings remain unchanged.
+
+The full OCaml build/expect/format suite, Rust workspace suite, feature-enabled
+native library suite (427 passed, two ignored), strict native/protocol all-target
+Clippy, Rust formatting and fresh installed-gallery consumer build pass locally.
+Independent bytes, invalid-update rollback, theme failure/reset/no-op/identity
+and current reducer policy have deterministic coverage. The first Rust workspace
+run found eight stale aggregate capability-mask expectations; those were corrected
+before the final passing run. No production behavior was weakened for those tests.
+
+The native presentation executable links with the new GPU assertions and the
+gallery has a dedicated `--section rating` driver. Neither was run on the desktop;
+the consumer result is build-only (`run=False`). Actual colors, input, accessibility
+and gallery retirement remain unaccepted. Changes remain local/uncommitted on
+`83eb87e` plus earlier milestone work and are absent from the last hosted run.
+
+## Run 37248158426 — macOS storage exhaustion
+
+[Hosted run 37248158426](https://github.com/dakotamurphyucf/gpuio/actions/runs/37248158426)
+at `b8d261c` is terminal. **Linux passes the full required job. macOS fails.**
+The macOS main OCaml/Rust tests, collector checks and native build/lint pass;
+the independent extension consumer fails writing `gpuio-native` metadata with
+`No space left on device`. Notification and desktop-service packaging then fail
+copying their executables with the same OS error. These are three reported
+failed steps with one observed storage cause, not three proven runtime defects.
+
+Downstream GUI steps gated on the failed consumer are skipped, including the
+sixteen previously repaired checks. Their prior local passing results remain;
+this run does not supply hosted passes for them. The complete macOS job log is
+retained as `scratch/agents/root-20261004-resumed/ci-macos-005-job.log`.
+
+The follow-up bounds CI storage without removing acceptance tests:
+
+- Cache v2 retains the isolated opam environment and downloaded Cargo sources,
+  excluding `target/`. A legacy v1 fallback is allowed for migration; its restored
+  Rust output directory is discarded before any build. This avoids accumulating
+  old first-party/feature-variant artifacts across jobs, at the cost of rebuilding
+  Rust outputs in each job.
+- CI sets `CARGO_INCREMENTAL=0`; local developer compiler settings are unchanged.
+- Independent consumer checks opt into removing their automatically generated
+  temporary workspaces on interpreter exit. Explicit `--workspace` paths cannot
+  be combined with cleanup, and local default runs continue retaining evidence.
+- Storage diagnostics report free bytes at startup and before consumer builds.
+  The destructive operation refuses local use, a mismatched GitHub workspace,
+  absent project markers, or a symlink/non-directory target.
+
+Four portable tests pass, covering the CI-only deletion boundary, unrelated-file
+preservation, symlink rejection, idempotence, and actual interpreter-exit cleanup
+after an injected consumer build failure. The normal consumer path still retains
+that failed workspace. Workflow YAML and cache/env structure checks pass using
+Ruby's standard YAML parser; the explicit-workspace/cleanup CLI combination exits
+with an argument error before creating a workspace. This is local tooling evidence;
+only a fresh hosted job can qualify its actual disk budget and full GUI checks.
+
+## Completed follow-up at 1921ae3
+
+[Run37251380938](https://github.com/dakotamurphyucf/gpuio/actions/runs/37251380938)
+finishes with the complete Linux job passing. Storage preparation and all four
+independent consumers (starter, extension, gallery and Signal Studio) pass on
+both macOS and Linux; the prior disk exhaustion does not recur in this run.
+macOS still reports four native/public behavior failures, documented with local
+repairs in [the macOS repair evidence](macos-validation-repairs-och17.md).
+No overall hosted pass or clean-machine packaged GUI acceptance is inferred.
+
+## Full hosted pass at 2fdf53b
+
+[Run 37260437591](https://github.com/dakotamurphyucf/gpuio/actions/runs/37260437591)
+is terminal **success for both complete macOS and Linux jobs**, with no failed
+steps. Its source is `2fdf53b97ffabbb9a861af1ee4a81d3d8cf791a8`. Required
+builds, OCaml/Rust unit checks, native lint, independent consumers and the hosted
+macOS native/public application checks pass at that checkpoint. The preceding
+storage and four behavior failures no longer reproduce in this hosted run.
+
+Linux real-desktop/OS-integration acceptance remains OCH-47; compilation, private
+bus and consumer success do not establish it. This run also does not complete
+physical VoiceOver/IME, performance/GPU/resource, notice or distribution gates
+that are outside its checks. Later source changes require their own hosted result.
+
+[Run 37266229651](https://github.com/dakotamurphyucf/gpuio/actions/runs/37266229651)
+at `84827c0db4dcaa33e431f458d2d96e5c3cb726d5` passes both complete jobs,
+including the growing-document workload and source-page accessibility labels.
+
+[Run 37274004477](https://github.com/dakotamurphyucf/gpuio/actions/runs/37274004477)
+at `1180cbb6e834882f138c91c1ed83667d187d1748` is terminal success for both
+complete jobs, with no failed steps. This validates the streaming,
+physical-memory repair and explicit idle sources in that checkpoint. Subsequent
+native-entity audit, multiline IME repair and editor AX-selection changes require
+their own hosted result. Linux desktop and other release gates remain separate.
+
+
+## Native entity audit resolution — 2026-10-05
+
+[Run 37282672995](https://github.com/dakotamurphyucf/gpuio/actions/runs/37282672995)
+at `d38087867200dded7d491d3e44b7be389780c6c3` is terminal failure on both macOS and
+Linux. Each job has one failed step: Native entity audit sensitivity, where Cargo
+refuses locked resolution before running the tests. The succeeding macOS/Linux
+OCaml and Rust test step does not make the overall jobs successful; later checks
+were skipped by workflow conditions.
+
+The failure reproduced intermittently on the local Mac. `e782739` removes three
+unused patch entries from the standalone audit manifest and lockfile; the actual
+resolved packages, features and dependency edges remain identical. Eight local
+locked metadata checks and both sensitivity tests pass afterward. See the
+[repair evidence](native-entity-retention-och17.md#standalone-probe-lockfile-repair--2026-10-05).
+The rendering backend's platform patches remain intact. Fresh hosted checks are
+required for this repair and the subsequent packaging/file-drop additions.
+
+## Complete hosted run and fresh macOS packages — 2026-10-05
+
+[Run 37286788836](https://github.com/dakotamurphyucf/gpuio/actions/runs/37286788836)
+is terminal success: both complete foundation jobs and the new fresh macOS
+receiver pass. Branch head is `56885cf843082b04a5332e8f4a6d002eb143bfa9`; the actual
+tested merge is `689b3fca50af5d0faad6629718cdc174a901243e`. Their identical tree is
+`c342985ef76eb8712afa4d34e9279d627c795215`. This covers the repaired standalone
+entity-audit lock resolution and the native IME/AX/file-drop/package additions at
+that checkpoint. Later local theme/profile/Metal/appearance/focus changes require
+their own run.
+
+The [fresh-package evidence](package-runtime-och17.md#fresh-macos-receiver-qualification--2026-10-05)
+retains all three successful extracted-app reports, exact hashes, workflow setup,
+native screenshots and the producer/receiver logs. The receiver installs no
+project dependencies and performs no project build; its initial build directories
+are absent. Final notice/signing/Gatekeeper release acceptance remains separate.
+
+Both informational Linux graphical smokes failed: X11 reaches
+`native_highlight_view` then fails because `render_to_image` is unimplemented for
+that platform; Wayland reaches `native_controls` then receives an empty clipboard
+instead of `De`. These do not invalidate required build/unit/private-bus/consumer
+checks, which pass. They are not Linux desktop acceptance; retain them in OCH-47.
+
+## Expanded-suite job limit and remaining failures — 2026-10-08
+
+[Run 37758529147](https://github.com/dakotamurphyucf/gpuio/actions/runs/37758529147)
+at branch revision `61944bfc` is terminal cancelled. Linux Foundation passes.
+The macOS job runs from 09:42:47Z to 11:43:19Z and its authoritative check
+annotation reports that it exceeded the **two-hour maximum execution time**.
+Cancellation interrupts the qualification-input artifact upload after about
+100 MiB. The separate fresh macOS receiver then fails to download
+`macos-runtime-qualification-inputs`; this is not an extracted-app runtime failure.
+See the saved [job states](foundation-37758529147/jobs.json) and
+[check annotations](foundation-37758529147/annotations.json).
+
+Before cancellation, the macOS scrollbar-preference walkthrough fails waiting
+for `System preference applied: hide when idle.` Both the GPUI Metal hook and
+standalone presentation API calibration also fail. These remain real open
+validation failures. The initial Homebrew `gpatch` diagnostic did not prevent the
+setup step from completing; it is not the terminal job cause. Local full logs are
+retained in the per-ticket research workspace and remain available through the
+linked GitHub job while its logs are retained.
+
+The expanded macOS job allowance is increased from 120 to 180 minutes so the full
+suite and artifact handoff have time to finish. Linux remains at 90 minutes.
+Individual test timeouts, benchmark thresholds, required checks and failure
+conditions are unchanged. This changes the total CI execution allowance, not any
+performance acceptance budget, and does not turn the cancelled run into a pass.
+A new run must qualify the accumulated changes and all remaining failures.

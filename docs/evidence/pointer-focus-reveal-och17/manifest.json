@@ -1,0 +1,109 @@
+{
+  "base_revision": "b0e32ceef080cf60092bdcf1e90bea67e4f72c2c",
+  "scope": "macOS focus/Results repair. Independent uncommitted Icon work was present in local build; no Icon feature acceptance. See worktree-status and qualified-change patch.",
+  "platform": "ProductName:\t\tmacOS\nProductVersion:\t\t14.5\nBuildVersion:\t\t23F79",
+  "binary_sha256": "85ac5195003c14ee644faa692b8b4c0134577d25079ad0f7e6a3c9e7d2c81938",
+  "archive_sha256": "0c55536f2b79825b565bef09866f329987d9feed03c3de4c6a01b145b6b5a33a",
+  "files": [
+    {
+      "path": "images/held-down.png",
+      "bytes": 343054,
+      "sha256": "1ffacf103dc2bc74b72376bb9706d8a8d83d137fea56c5eab7298c37a339ba13"
+    },
+    {
+      "path": "images/results-dark.png",
+      "bytes": 355601,
+      "sha256": "cb5c3b1e6d7672783f60096a82b8be373f765421a736e920db7f230f315abaec"
+    },
+    {
+      "path": "images/results-light.png",
+      "bytes": 354783,
+      "sha256": "14b788e47b5368dabfb9ecb3c2b351433c320cdeab02ddfce652e372c2b5c6e7"
+    },
+    {
+      "path": "qualified-change.patch",
+      "bytes": 10880,
+      "sha256": "a55a9c7527616f89b66d2a559feb9d76c6dee0579937f443ce6434c4d923378f"
+    },
+    {
+      "path": "results-pointer-chat-build.log",
+      "bytes": 100172,
+      "sha256": "21b0ca17b5516e75ffbdc6bf26ab45be4711a101c8be0b22060f5b859d858da0"
+    },
+    {
+      "path": "results-pointer-checks.json",
+      "bytes": 1064,
+      "sha256": "b008aa1df62b0bbdefad0e002ecc2d01a4b0aec84683dfffe82f5490184015e5"
+    },
+    {
+      "path": "results-pointer-checks.py",
+      "bytes": 1092,
+      "sha256": "37a80290228811aa14c65a478b178b87a612edc179fe04923aa7136d113333fa"
+    },
+    {
+      "path": "results-pointer-clippy.log",
+      "bytes": 588275,
+      "sha256": "33ba9c92f01061b93858834be0fcc5d12805ea6b635ac5dbc492a2d2e7fc9c7e"
+    },
+    {
+      "path": "results-pointer-dune.log",
+      "bytes": 605632,
+      "sha256": "6c582e15f0c2173eca879afa1660a6113286fa91e604e86b56e5719d54f6a2e8"
+    },
+    {
+      "path": "results-pointer-final-checks.json",
+      "bytes": 879,
+      "sha256": "a39beef9bba5c6acfb3c8c492c73e62876dd247d07cb5ca2ccce50387cf531d2"
+    },
+    {
+      "path": "results-pointer-final-checks.py",
+      "bytes": 1007,
+      "sha256": "ab89af7f29cf1b849669e2a109a8a4e2a470a5cd9df3d05c73bf043cd5740bc7"
+    },
+    {
+      "path": "results-pointer-held-click.log",
+      "bytes": 534,
+      "sha256": "2a6049dab97eed41a874690631cc60773afeb0de5fd0f52233d66bc192edd950"
+    },
+    {
+      "path": "results-pointer-held-click.py",
+      "bytes": 1051,
+      "sha256": "42873870b31c48fbd74b5b52e3f7f6faa185497ed0212ff2c0c3916d6203ec7d"
+    },
+    {
+      "path": "results-pointer-native-flow.log",
+      "bytes": 2488,
+      "sha256": "43d03d7572f3173f2bc3534363410c9e1d5a08bbf8c2d747eb265a93160ab65f"
+    },
+    {
+      "path": "results-pointer-native-link.log",
+      "bytes": 589886,
+      "sha256": "fce2c8a4a714464a64d10ce89f18d788c8aaee561d93c981af022039105ca2d2"
+    },
+    {
+      "path": "results-pointer-native-table.log",
+      "bytes": 589291,
+      "sha256": "991dbefbdfeefaaeed660c792745d3bf6074b4100f4f7e38310e5e48e4699fa1"
+    },
+    {
+      "path": "results-pointer-native-unit.log",
+      "bytes": 702020,
+      "sha256": "447ff74140e13232c357063bb79107587da026a1bdf939a2e0525a7374a93e0c"
+    },
+    {
+      "path": "results-pointer-regression-before-third.log",
+      "bytes": 589326,
+      "sha256": "d03fcc961030eeab66d9c9a5ee025d57d1288e25a2ac1b8057630834db12d255"
+    },
+    {
+      "path": "results-pointer-regression-controls.log",
+      "bytes": 588590,
+      "sha256": "99ede3fe01244feff2fc265f545ccc9e6ab7a1e23e7e33d5e251911a8e2422e7"
+    },
+    {
+      "path": "worktree-status.txt",
+      "bytes": 1052,
+      "sha256": "322abd7b8d18b32c67eab12871c723c96698de6b6e0fdb5bc97168dcf9d69acd"
+    }
+  ]
+}

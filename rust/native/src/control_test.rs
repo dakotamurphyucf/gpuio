@@ -7,6 +7,8 @@ mod command_test;
 mod drag_drop_test;
 #[path = "extension_test.rs"]
 mod extension_test;
+#[path = "input_region_test.rs"]
+mod input_region_test;
 #[path = "menu_test.rs"]
 mod menu_test;
 #[path = "navigation_lifecycle_test.rs"]
@@ -434,6 +436,52 @@ async fn select_control(
         popup.bottom() <= trigger.top() || popup.top() >= trigger.bottom(),
         "popup avoids covering trigger when one side fits: {trigger:?} {popup:?}"
     );
+    let parent_style = handle
+        .update(cx, |view, _, _| {
+            view.session
+                .borrow()
+                .tree(view.id)
+                .unwrap()
+                .get(node(0))
+                .unwrap()
+                .style
+                .clone()
+        })
+        .unwrap();
+    let retained_select = handle
+        .update(cx, |view, _, _| view.selects[&node(6)].clone())
+        .unwrap();
+    let mut disabled_style = parent_style.to_vec();
+    disabled_style.push(Style::Fields(vec![Field::Disabled(true)]));
+    apply(cx, handle, vec![Op::SetStyle(node(0), disabled_style)]);
+    frame(cx, handle).await;
+    assert!(
+        !select_is_open(cx, handle),
+        "ancestor disable retires an open popup"
+    );
+    assert!(!focused(cx, handle, node(6)));
+    key(cx, handle, "space");
+    assert!(!select_is_open(cx, handle));
+    assert!(choices(transport).is_empty());
+    apply(
+        cx,
+        handle,
+        vec![Op::SetStyle(node(0), parent_style.to_vec())],
+    );
+    frame(cx, handle).await;
+    assert!(
+        !focused(cx, handle, node(6)),
+        "availability does not steal focus"
+    );
+    handle
+        .update(cx, |view, window, cx| {
+            assert!(Rc::ptr_eq(&retained_select, &view.selects[&node(6)]));
+            window.focus(&view.buttons[&node(6)].focus, cx);
+        })
+        .unwrap();
+    key(cx, handle, "space");
+    frame(cx, handle).await;
+    assert!(select_is_open(cx, handle));
     key(cx, handle, "down");
     assert!(choices(transport).is_empty(), "highlight is not selection");
     let appearance = ChoiceAppearance {
@@ -1308,10 +1356,20 @@ pub(super) fn accessible_role(
     accessible(cx, handle, label, false).map(|node| node.role)
 }
 #[cfg(target_os = "macos")]
+pub(super) fn accessible_button(
+    cx: &mut gpui::AsyncApp,
+    handle: WindowHandle<View>,
+    label: &str,
+    press: bool,
+) -> bool {
+    accessible_with_role(cx, handle, label, Some("AXButton"), press).is_some()
+}
+#[cfg(target_os = "macos")]
 #[derive(Clone, Copy)]
 enum AccessibilityRequest<'a> {
     Inspect,
     Press,
+    PressRejected,
     Focus,
     SetValue(&'a str),
     SetSelected(bool),
@@ -1384,6 +1442,14 @@ fn accessible_request(
                         let _: () = msg_send![object, setAccessibilityFocused: true];
                         let accepted: Bool = msg_send![object, accessibilityPerformPress];
                         assert!(accepted.as_bool());
+                    }
+                    AccessibilityRequest::PressRejected => {
+                        let _: () = msg_send![object, setAccessibilityFocused: true];
+                        let accepted: Bool = msg_send![object, accessibilityPerformPress];
+                        assert!(
+                            !accepted.as_bool(),
+                            "disabled accessibility press was accepted"
+                        );
                     }
                     AccessibilityRequest::Focus => {
                         let _: () = msg_send![object, setAccessibilityFocused: true];
@@ -1640,6 +1706,7 @@ enum Suite {
     Progress,
     Toast,
     Pointer,
+    InputRegion,
     DragDrop,
 }
 pub fn run() {
@@ -1673,6 +1740,9 @@ pub fn run_menus() {
 pub fn run_drag_drop() {
     run_suite(Suite::DragDrop);
 }
+pub fn run_input_region() {
+    run_suite(Suite::InputRegion);
+}
 pub fn run_pointer() {
     run_suite(Suite::Pointer);
 }
@@ -1703,6 +1773,17 @@ fn run_suite(suite: Suite) {
             .borrow_mut()
             .open(1, id, "GPUIO controls test", 400., 280.)
             .unwrap();
+        #[cfg(target_os = "macos")]
+        if suite == Suite::Menus {
+            // The full controls suite runs command isolation before menus. Match
+            // its retired secondary-window generation in the standalone fixture.
+            let retired = WindowId::from_parts(1, 1).unwrap();
+            session
+                .borrow_mut()
+                .open(2, retired, "Command isolation fixture", 400., 280.)
+                .unwrap();
+            session.borrow_mut().close(retired).unwrap();
+        }
         let mut operations = vec![Op::Create(node(0), Kind::Container, "".into(), None)];
         for (slot, label, control) in [
             (1, "Check", Control::Checkbox(CheckState::Unchecked, false)),
@@ -1783,6 +1864,7 @@ fn run_suite(suite: Suite) {
                 Suite::Progress => 60,
                 Suite::Toast => 61,
                 Suite::Pointer => 82,
+                Suite::InputRegion => 5,
                 Suite::DragDrop => 90,
                 Suite::Controls
                 | Suite::Tabs
@@ -1867,6 +1949,9 @@ fn run_suite(suite: Suite) {
                         Suite::Toast => toast_test::exercise(cx, handle, &transport).await,
                         Suite::DragDrop => drag_drop_test::exercise(cx, handle, &transport).await,
                         Suite::Pointer => pointer_test::exercise(cx, handle, &transport).await,
+                        Suite::InputRegion => {
+                            input_region_test::exercise(cx, handle, &transport).await
+                        }
                         Suite::Controls => unreachable!(),
                     }
                     if !matches!(suite, Suite::Extensions | Suite::Trees) {

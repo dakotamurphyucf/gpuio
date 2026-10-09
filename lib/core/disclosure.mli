@@ -1,6 +1,30 @@
 open Core
 module Id = Choice.Id
 
+module Motion : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** The default: change layout immediately. *)
+  val immediate : t
+
+  (** Native measured-height reveal with a critically damped spring. Initial
+      mounting is settled. Retain permits an inert outgoing visual; Unmount
+      removes descendants immediately and skips closing motion. Opening can
+      animate newly mounted children. No per-frame OCaml callbacks are used.
+
+      Reduced motion and hidden/inactive windows settle immediately. Motion is
+      for ordinary vertical flow. Parent-dependent heights, row/grid placement,
+      absolute positioning, or native interaction styles on the panel or its
+      immediate parent use immediate layout. The
+      border-box height animates; external margins/parent gaps do not. Use panel
+      padding and zero parent gap for continuous spacing. Settled open content
+      uses ordinary layout, including streaming and wrapping in the same frame. *)
+  val standard : t
+
+  (** The same lifecycle and layout rules, with validated custom parameters. *)
+  val spring : Animation.Spring.t -> t
+end
+
 module Mode : sig
   type t =
     | Single of { allow_empty : bool }
@@ -55,3 +79,11 @@ val with_mode : t -> Mode.t -> t
     number of configured items. No operation mounts/unmounts a Bonsai computation
     or implicitly cancels application tasks. *)
 val apply_request : t -> Request.t -> t
+
+module Expert : sig
+  val motion_config
+    :  Motion.t
+    -> expanded:bool
+    -> hidden:Content_policy.t
+    -> Gpuio_protocol.Reveal_wire.t option
+end

@@ -23,6 +23,13 @@ delivery record supersedes those states.
 
 ## Data contract
 
+Cartesian orientation now supports [reversed value directions](chart-directions.md)
+in addition to the original vertical/horizontal projections. This opt-in change
+preserves source and selection identity. [Categorical data and native point/band
+layout](categorical-charts.md) add explicit ordered category domains, missing
+observations and category-aware original-data access. Explicit native
+[stacking](stacked-charts.md) adds cumulative bars/areas with preserved raw values.
+
 `Gpuio.Chart_data` contains immutable values, with abstract positive IDs and
 validated constructors. Labels are data, never identity or callbacks. Datum IDs
 are scoped to a Cartesian series, or to the dataset for slices/candles/radar axes;
@@ -33,9 +40,10 @@ substitute for identity.
 | Family | Data and invariants |
 | --- | --- |
 | Line | One or more named series; strictly increasing numeric x; optional y marks an explicit gap |
-| Area | The same series contract, with zero baseline; negative values remain valid |
+| Area | The same source contract, default zero baseline; [whole-series data-unit baselines](area-baselines.md) can change presentation without rewriting source values. Negative values remain valid. |
 | Bar | Numeric x, required y, zero baseline; negative values remain valid |
 | Mixed Cartesian | Line/area/bar layers share numeric coordinates and unique series IDs |
+| Categorical Cartesian | Ordered category IDs/labels, aligned line/area/bar layers, explicit missing observations and native point/band spacing |
 | Pie | Unique labeled slices with nonnegative values; all-zero input is valid |
 | Radar | 3–64 unique named axes with positive maxima; each named series provides exactly one value in each axis's domain |
 | Candlestick | Increasing numeric x and unique IDs; finite OHLC with low <= open,close <= high; negative/zero-height candles are valid |
@@ -60,7 +68,7 @@ data-table adapters without an unchecked constructor for validated datasets.
 
 ## Binary data boundary
 
-`Chart_data.Expert.encode/decode` and Rust `decode_chart_data` share a version-1
+`Chart_data.Expert.encode/decode` and Rust `decode_chart_data` share an explicitly versioned
 standalone bin_prot envelope, capped at 16 MiB. The payload tags are Cartesian,
 pie, radar, candlestick and Sankey; Cartesian layer tags distinguish line/area/bar.
 Typed Core IDs convert only at this boundary. These are resource payloads, not
@@ -180,9 +188,11 @@ the pending selection/input work.
 | Pie, radar, Sankey | Exact bounded source data | No implicit aggregation |
 
 `max_buckets` is in [1,8192]. Effective bucket count is the smaller of this limit
-and the plot's rounded-up logical-pixel width. Buckets divide the numeric x domain,
-shared across Cartesian layers; they do not divide array indices or derive
-identity from labels. The pure reducer accepts finite widths in (0,32768].
+and the plot's rounded-up category-axis extent (height for horizontal charts).
+Numeric buckets divide the shared numeric x domain; categorical buckets use
+projected category positions, including padding. Neither derives identity from
+labels. Categorical Sum/Mean spans preserve missing observations in provenance
+and exclude them from arithmetic; Mean divides by present-value count. The pure reducer accepts finite widths in (0,32768].
 
 Line/area envelopes retain each bucket's first, minimum-y, maximum-y and last
 source point, deduplicated and ordered by source position. Every contiguous
@@ -256,22 +266,24 @@ No per-point synchronous OCaml callbacks belong in layout, paint or hit testing.
 
 `Gpuio.Chart_options` is a validated, source-independent value with grouped
 options for axes, Cartesian layers, pie/donut, radar, candlesticks and Sankey.
-Irrelevant family options are retained but have no effect. Its version-1 binary
-record has a bounded native reader (256 bytes), independent paired fixtures and
+Irrelevant family options are retained but have no effect. Its version-3 binary
+record (with categorical layout and stacking; versions 1 and 2 are rejected) has a bounded native reader (256 bytes), independent paired fixtures and
 validation after decoding. Color/theme, legends, tooltips and the accessible
 description belong to the mounted-view configuration.
 
 - Axes use linear numeric domains, 2–12 ticks and native Compact/Fixed/Scientific/
   Percent formatting with 0–6 decimal places. Percent changes labels only.
-  Empty domains use [0,1]; constant domains center their value. Source x extents
+  Categorical axes instead use the explicit domain labels and point/band positions.
+  Empty numeric domains use [0,1]; constant domains center their value. Source x extents
   survive aggregation; bar values use the selected exact/sum/mean policy. Bar and
   area domains include zero. Tiny domains deduplicate ticks after f64 rounding.
 - Cartesian options select Linear, Natural (uniform Catmull–Rom) or StepAfter,
-  dots, vertical/horizontal orientation and grouped bar width. Natural curves
+  dots, four value-axis directions, category layout and grouped bar width. Natural curves
   can overshoot and require the mounted plot's clip. Every curve reaches its last
   data point. Missing values split runs, and singleton runs have visible dots
-  even when ordinary dots are disabled. Mixed layers share both numeric domains;
-  bars are grouped by layer, not implicitly stacked.
+  even when ordinary dots are disabled. Mixed layers share category/value projections;
+  bars are grouped by default. Explicit [stacking](stacked-charts.md) accumulates
+  bars and areas independently, preserving raw values and matching boundaries.
 - Pie/donut uses a 0–0.95 hole fraction and 0–0.2 radians of padding, clamped per
   slice. Zero slices have no area; all-zero input has no wedges. Labels sit within
   the ring when enabled. Radar uses data-defined axis maxima, 1–12 grid levels,
@@ -689,3 +701,88 @@ CPU/RSS, frame geometry, update latency, bridge bytes and queue/retention charge
 `App.diagnostics.native_command_queue` snapshots accepted native command count,
 current serialized-size charge and lifetime peak under a short mailbox lock.
 It adds no command/wake and excludes executing work/output events.
+
+## Configurable inspection presentation
+
+The [inspection contract](chart-inspection.md) adds typed card, crosshair and
+marker controls through `Chart_style.create ~inspection`, preserving native
+preview and committed-selection ownership. [Local qualification](../evidence/chart-inspection-och41.md)
+includes actual pixels and root/installed OCaml gallery walkthroughs. The current
+style envelope is -2 after [rich Sankey node labels](chart-node-labels.md);
+options/data versions are 5/1 following the
+[Sankey ribbon-color addition](sankey-link-colors.md). Broader chart presentation
+options and whole-catalog/release acceptance remain separate.
+
+
+## Radar scale, radius and spacing — options schema 7
+
+See [radar presentation](radar-presentation.md) for the shared-data/shared-explicit
+maximum, fixed logical-pixel radius and label gap additions. Per-axis scaling and
+fitted radius remain defaults. Explicit maxima can extrapolate outside the grid;
+source IDs/values and original-data selection remain unchanged. Extreme projected
+coordinates return Render_limit before tessellation.
+
+## Ordinary Views as radar labels — chart-view schema -1
+
+`View.chart ~radar_labels` accepts a validated `Chart_radar_labels` collection
+of ordinary Views keyed by stable axis IDs. Native prepaint measures buttons,
+text and editors without an OCaml callback. Content retains normal styling and
+input semantics. Hide/show retains native children; removing an entry unmounts
+it. Original source values and selection are unchanged. See the
+[content contract](radar-label-content.md), [example walkthrough](../../examples/gallery/charts_page.md#ordinary-views-as-radar-labels)
+and [scoped local evidence](../evidence/radar-label-content-och41.md), including
+remaining interaction/lifecycle qualification. The explicit chart-view envelope
+is -1; options/style/data are 7/-2/1. Matching bridge revisions are required.
+
+
+## Pie fixed and per-slice radii — options schema 8
+
+The [pie radii contract](pie-radii.md) adds a global Fit/Pixels outer radius and
+at most 256 stable-ID overrides containing both inner and outer logical-pixel
+radii. The existing global donut-hole fraction stays unchanged. Overrides affect
+presentation and hit geometry while preserving source values, angular weights
+and selection identities. Unknown IDs are ignored until present; equal radii
+omit the wedge/caption without filtering original data.
+
+Options schema 8 explicitly rejects version 7 and earlier. The default frame is
+114 bytes; style/data/view versions remain -2/1/-1. Matching packages are required.
+This supersedes earlier sections' current-options version references; their
+original fixtures and evidence remain historical. Outside pie captions, leader
+styling and label spacing remain separate catalog work.
+
+
+## Retained inspection metadata — chart-view schema -2
+
+[Rich inspection content](chart-inspection-content.md) now has a bounded parent
+metadata list after the radar axis IDs. Chart-view -2 rejects the previous -1
+envelope; matching OCaml/native bridge packages are required. Options/style/data
+remain 9/-7/1. Native tree admission validates the combined radar/inspection
+wrapper count atomically and accounts for metadata capacity. This supersedes
+earlier sections' current-version references, without rewriting their evidence.
+
+This is transport/admission support. Public `View.chart` attachment, arbitrary
+content rendering, interactive lifetime handling and gallery qualification are
+still required at that checkpoint. The subsequent [initial renderer](../evidence/chart-inspection-renderer-och41.md)
+adds experimental `View.chart` attachment and native Card/Overlay content with
+ordinary-button/focus/retirement evidence. Broader child-widget and public-gallery
+qualification remains open. Existing applications default to an empty inspection list.
+
+## Data-owned bar intervals and backgrounds — data schema 3
+
+[Per-observation baselines](bar-baselines.md) and
+[dense backgrounds](dense-bar-backgrounds.md) are immutable source sidecars keyed
+by series/datum identity. Baselines are data-unit origins; original numeric or
+categorical values remain endpoints. Exact marks use both bounds. Sum and Mean
+require a common baseline within each bucket; Sum adds relative contributions
+and the baseline once, while Mean averages endpoints. Stacking requires a shared
+baseline at each populated position and preserves natural-order contributions.
+Incompatible baselines report Invalid_config rather than silently discarding an
+origin. Original-data browsing and native inspection retain source values.
+
+Baseline and brush counts are bounded independently at 100,000 entries, but both
+share the existing 16 MiB encoded-source and retained-memory limits with the
+original observations. Source publication owns their lifetime atomically.
+Schema 3 appends the baseline records after the background list; previous schemas
+are rejected. Current view/options/style/data versions are **-2/9/-9/3**. Matching
+packages are required. Earlier dated sections describe historical increments;
+their fixtures and evidence do not establish current-source release acceptance.

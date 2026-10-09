@@ -5,6 +5,11 @@ See the [M4 evidence ledger](../evidence/agent-workspace-m4.md) for validation a
 
 ## Application and window ownership
 
+Window-wide read-only selection helpers are documented in the
+[selection contract](window-selection.md). They inspect, clear or end registered
+text/document selection through the asynchronous window request lane, without
+reading editable inputs or the clipboard.
+
 `App.run` owns one native GPUI application and one OCaml UI domain. Each
 `App.Window.t` has a generation-checked native identity, its own Bonsai driver,
 and a child task scope. Applications may share immutable values or explicit
@@ -13,20 +18,69 @@ window when a native slot is reused.
 
 `App.open_window` retains its existing defaults; `open_window_config` accepts a
 validated `Gpuio.Window.Config`. Configuration selects title, initial logical
-bounds, focus, standard/hidden chrome, and user resizability. `focus=false`
+bounds, focus, standard/hidden/custom chrome, user resizability and optional
+`Window_frame` geometry. `focus=false`
 opens without application activation. Chrome is a platform preference; Linux
 compositors may determine decorations. Global positioning is not offered as a
 portable Wayland command.
 
+`Chrome.Custom` configures a transparent title bar and application-owned drag
+handling. `View.title_bar` composes normal content with native drag/double-click
+regions, using the observed backend and fullscreen state for its layout defaults.
+`View.with_window_region` additionally exposes explicit exclusions and resize
+edges. Rust handles these gestures without synchronous OCaml calls. See the
+[window-region contract](window-regions.md) for lifetime rules and the
+[client-frame contract](window-frame.md) for automatic tiling-aware layout.
+Physical platform acceptance is recorded separately.
+
 `App.Window.command` returns a correlated effect with either an observed
 snapshot or a typed error. Commands include title, content resize, activation,
-zoom, fullscreen toggle, native edited indicator, and observation. Up to64
+zoom, fullscreen toggle, minimization, native edited indicator, and observation. Up to 64
 requests are pending across an application. A delayed effect targets its exact
 window generation. An acknowledgement is not a promise that an asynchronous
 compositor transition has finished.
 
+`Snapshot.presentation` reports the actual decorations, tiled edges, native
+resizability policy and backend-supported controls. This can differ from the
+requested chrome and can change without a size change. `View.window_controls`
+uses that observation to compose supported client controls while avoiding
+duplicates on macOS/server-decorated windows. Native minimize/zoom/fullscreen
+commands recheck current support and return `Unsupported` when unavailable;
+an old observation cannot bypass the native policy. See
+[window presentation](window-presentation.md) for the complete contract.
+
+`App.Window.focused_input` queries the current eligible native text-input owner
+without copying its value. The opaque `Window.Input` observation reports its kind
+and can match an existing typed controller snapshot by exact window/node generation.
+It covers ordinary editors and native composite text fields, excluding controls
+such as buttons and sliders. Read-only inputs remain discoverable; hidden,
+disabled, removed and modal-blocked owners do not. See the
+[focused-input contract](window-input-query.md). The window-wide read-only
+selection helpers above are separate operations; focused-input lookup neither
+reads nor clears selection.
+
+`Minimize` asks GPUI to minimize the current native window. It does not close the
+window, cancel Eio tasks, unmount Bonsai or reset native editors. The returned
+snapshot has no minimized-state field; it is not proof that the OS animation has
+finished. Restore using the platform's window controls. This additive command is
+unpublished epoch-3 window-command tag8; existing tags remain unchanged. The
+Runtime gallery includes an explicit button. Physical minimization/restoration
+and scope/editor retention qualification remain required.
+
+Custom client frames wrap the retained host tree, with popup and overlay fitting
+inside the usable content bounds. The window family remains under OCH-41 review;
+see [the source review](../catalog/window-review.md). Hidden chrome alone does
+not implement dragging, double-click policy, traffic-light placement or native
+edge/corner resizing.
+
+`Snapshot.appearance` preserves the native Light/Vibrant_light/Dark/Vibrant_dark
+value. `Window.Appearance.is_dark` lets an application choose a two-palette theme
+in response, while explicit application themes can ignore native appearance
+changes. `App.Window.set_theme` changes application tokens, not OS decorations.
+See the [appearance contract](window-appearance.md).
+
 `Window.snapshot` caches the latest observation. `Window.on_change` delivers
-changes on the OCaml UI domain. Bounds and activation observations coalesce per
+changes on the OCaml UI domain. Bounds, activation and appearance observations coalesce per
 window in a separate bounded control lane; they do not consume user-input
 capacity. Snapshot width/height describe outer native bounds; content_width and
 content_height describe the drawable viewport. Resize requests content size.

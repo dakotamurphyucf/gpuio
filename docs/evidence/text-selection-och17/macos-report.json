@@ -1,0 +1,99 @@
+{
+  "platform": "macOS-14.5-arm64-arm-64bit-Mach-O",
+  "executable": "/Users/dakotamurphy/gpuio/scratch/agents/root-20261004-resumed/gallery-ax-selection-e4d35ae.exe",
+  "sha256": "db8a1f539b5c1000d74ac32ece6970e6e2278f2bb42c7db67002fe6a31593c5f",
+  "source_only": false,
+  "revision": "e4d35ae86c3985f520323e725b1c907b17d4a51b",
+  "dirty": false,
+  "observations": [
+    {
+      "case": "source-native-select-all",
+      "text": "open Core\n\nlet greeting name =\n  String.concat [ \"Hello, \"; name; \"!\" ]\n\nlet () = greeting \"世界\" |> print_endline\n",
+      "range_utf16": [
+        0,
+        113
+      ]
+    },
+    {
+      "case": "source-ax-unicode-selection",
+      "text": "世界",
+      "range_utf16": [
+        92,
+        2
+      ]
+    },
+    {
+      "case": "source-trailing-empty-line-caret",
+      "text": "",
+      "range_utf16": [
+        113,
+        0
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "🙂",
+      "range_utf16": [
+        8,
+        2
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "👨‍👩‍👧‍👦",
+      "range_utf16": [
+        18,
+        11
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "é",
+      "range_utf16": [
+        34,
+        2
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "日本語",
+      "range_utf16": [
+        37,
+        3
+      ]
+    },
+    {
+      "case": "textarea-ax-unicode-selection",
+      "text": "λ🙂\nFamily",
+      "range_utf16": [
+        7,
+        10
+      ]
+    },
+    {
+      "case": "textarea-native-select-all",
+      "text": "Prefix λ🙂\nFamily 👨‍👩‍👧‍👦 and é\n日本語\n",
+      "range_utf16": [
+        0,
+        41
+      ]
+    },
+    {
+      "case": "textarea-native-backward-selection",
+      "text": "\n",
+      "range_utf16": [
+        40,
+        1
+      ]
+    },
+    {
+      "case": "textarea-end-caret",
+      "text": "",
+      "range_utf16": [
+        41,
+        0
+      ]
+    }
+  ],
+  "clipboard_restored": true
+}

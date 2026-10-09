@@ -13,14 +13,20 @@ pub(super) struct Invoke {
     command: String,
     route: Route,
 }
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq)]
 struct Snapshot {
     window: WindowId,
     menu: NodeId,
     config: Arc<MenuConfig>,
+    disabled: bool,
     // Revision is intentionally omitted: unrelated tree commits must not replace
     // menus. Command/scope generations still guard the installed action payload.
     commands: Vec<(String, NodeId, Arc<CommandConfig>, bool)>,
+    icons: Vec<(
+        usize,
+        gpui::ImageId,
+        Option<gpuio_protocol::icon_transform::Transform>,
+    )>,
 }
 struct Installed {
     snapshot: Option<Snapshot>,
@@ -44,24 +50,45 @@ fn initialize(cx: &mut App) {
         _closed: closed,
     });
 }
-fn items(menu: &MenuDefinition, routes: &BTreeMap<String, (Invoke, bool)>) -> Vec<gpui::MenuItem> {
+fn items(
+    menu: &MenuDefinition,
+    routes: &BTreeMap<String, (Invoke, bool)>,
+    disabled: bool,
+    config: &MenuConfig,
+    path: &[usize],
+    icons: &BTreeMap<usize, gpui::MenuIcon>,
+) -> Vec<gpui::MenuItem> {
+    let disabled = disabled || menu.disabled;
+    let indices = config.row_content_indices(path).unwrap_or_default();
     menu.items
         .iter()
-        .filter_map(|item| {
-            Some(match item {
-                MenuItem::Separator => gpui::MenuItem::separator(),
-                MenuItem::Submenu(menu) => gpui::MenuItem::submenu(
-                    gpui::Menu::new(menu.label.clone())
-                        .items(items(menu, routes))
-                        .disabled(menu.disabled),
-                ),
-                MenuItem::Command(id) => {
-                    let (action, available) = routes.get(id)?;
-                    gpui::MenuItem::action(action.route.config.label.clone(), action.clone())
-                        .disabled(!available)
-                        .checked(action.route.config.checked == Some(true))
+        .enumerate()
+        .filter_map(|(index, item)| {
+            let icon = indices.get(index).and_then(|slot| icons.get(slot)).cloned();
+            Some(
+                match item {
+                    MenuItem::Separator => gpui::MenuItem::separator(),
+                    MenuItem::Label(_) => {
+                        unreachable!("platform menu labels rejected at admission")
+                    }
+                    MenuItem::Submenu(menu) => gpui::MenuItem::submenu(
+                        gpui::Menu::new(menu.label.clone())
+                            .items({
+                                let mut child_path = path.to_vec();
+                                child_path.push(index);
+                                items(menu, routes, disabled, config, &child_path, icons)
+                            })
+                            .disabled(menu.disabled || disabled),
+                    ),
+                    MenuItem::Command(id) => {
+                        let (action, available) = routes.get(id)?;
+                        gpui::MenuItem::action(action.route.config.label.clone(), action.clone())
+                            .disabled(disabled || !available)
+                            .checked(action.route.config.checked == Some(true))
+                    }
                 }
-            })
+                .icon(icon),
+            )
         })
         .collect()
 }
@@ -89,7 +116,7 @@ impl View {
         let origin = self
             .focus
             .borrow()
-            .focused_node(window)
+            .focused_node(window, cx)
             .or_else(|| {
                 self.editors
                     .iter()
@@ -110,7 +137,7 @@ impl View {
     ) {
         if action.window != self.id
             || !window.is_window_active()
-            || !self.focus.borrow().visible(action.menu)
+            || !self.focus.borrow().interactive(action.menu)
         {
             return;
         }
@@ -133,7 +160,7 @@ impl View {
             cx.stop_propagation();
         }
     }
-    pub(super) fn sync_platform_menus(&self, window: &Window, cx: &mut Context<Self>) {
+    pub(super) fn sync_platform_menus(&self, window: &mut Window, cx: &mut Context<Self>) {
         if !cfg!(target_os = "macos") || !window.is_window_active() {
             return;
         }
@@ -158,12 +185,14 @@ impl View {
             }
             return;
         };
+        let disabled = self.focus.borrow().disabled(id);
         let routes: BTreeMap<_, _> = config
             .command_ids()
             .into_iter()
             .filter_map(|command| {
                 let route = self.platform_route(tree, id, command, window, cx)?;
-                let available = self.command_available(&route.config, window, cx)
+                let available = !disabled
+                    && self.command_available(&route.config, window, cx)
                     && !self.focus.borrow().blocks_pointer(route.request().scope);
                 Some((
                     command.to_owned(),
@@ -179,10 +208,35 @@ impl View {
                 ))
             })
             .collect();
+        // Observe worker completion and scale changes, but convert/copy bitmap
+        // payloads only after snapshot comparison proves the native bar changed.
+        #[cfg(target_os = "macos")]
+        let ready_icons: Vec<_> = tree
+            .get(id)
+            .into_iter()
+            .flat_map(|node| node.children.iter())
+            .enumerate()
+            .filter_map(|(slot, node)| {
+                let icon = *tree.get(*node)?.children.first()?;
+                Some((
+                    slot,
+                    self.platform_menu_pixels(icon, window, cx)?,
+                    tree.get(icon)?.icon_transform,
+                ))
+            })
+            .collect();
         let snapshot = Snapshot {
             window: self.id,
             menu: id,
             config: config.clone(),
+            disabled,
+            #[cfg(target_os = "macos")]
+            icons: ready_icons
+                .iter()
+                .map(|(slot, image, transform)| (*slot, image.id, *transform))
+                .collect(),
+            #[cfg(not(target_os = "macos"))]
+            icons: Vec::new(),
             commands: routes
                 .iter()
                 .map(|(id, (action, enabled))| {
@@ -198,10 +252,24 @@ impl View {
         if cx.global::<Installed>().snapshot.as_ref() == Some(&snapshot) {
             return;
         }
-        cx.set_menus(config.menus.iter().map(|menu| {
+        #[cfg(target_os = "macos")]
+        let icons = {
+            let mut budget = super::menu::popup_icon::Budget::default();
+            ready_icons
+                .into_iter()
+                .filter_map(|(slot, image, transform)| {
+                    budget
+                        .template(&image, transform)
+                        .map(|image| (slot, image))
+                })
+                .collect()
+        };
+        #[cfg(not(target_os = "macos"))]
+        let icons = BTreeMap::new();
+        cx.set_menus(config.menus.iter().enumerate().map(|(index, menu)| {
             gpui::Menu::new(menu.label.clone())
-                .items(items(menu, &routes))
-                .disabled(menu.disabled)
+                .items(items(menu, &routes, disabled, &config, &[index], &icons))
+                .disabled(menu.disabled || disabled)
         }));
         cx.global_mut::<Installed>().snapshot = Some(snapshot);
     }

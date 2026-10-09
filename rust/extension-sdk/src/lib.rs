@@ -201,6 +201,7 @@ impl EventLease {
         EventSink {
             lease: Arc::downgrade(&self.0),
             generation,
+            retained: None,
         }
     }
 
@@ -219,6 +220,7 @@ impl EventLease {
         Ok(EventSink {
             lease: Arc::downgrade(&self.0),
             generation: next,
+            retained: None,
         })
     }
 
@@ -259,8 +261,15 @@ impl Drop for EventLease {
 pub struct EventSink {
     lease: Weak<LeaseInner>,
     generation: u64,
+    retained: Option<Arc<dyn Send + Sync>>,
 }
 impl EventSink {
+    /// Keep host-accounted storage alive with retained callbacks, independently
+    /// of the weak, revocable UI owner. This does not keep the event lease alive.
+    pub fn with_retained_resource(mut self, resource: Arc<dyn Send + Sync>) -> Self {
+        self.retained = Some(resource);
+        self
+    }
     pub fn check(&self) -> Result<(), Error> {
         self.check_input(false)
     }
@@ -436,6 +445,29 @@ mod tests {
         drop(lease);
         assert_eq!(current.emit(vec![]), Err(Error::Closed));
         assert_eq!(delivered.load(Ordering::Relaxed), 2);
+    }
+
+    #[test]
+    fn retained_resource_outlives_owner_but_cannot_deliver_after_close() {
+        struct Charge(Arc<AtomicUsize>);
+        impl Drop for Charge {
+            fn drop(&mut self) {
+                self.0.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+        let dropped = Arc::new(AtomicUsize::new(0));
+        let lease = EventLease::new(4, |_| Ok(())).unwrap();
+        let sink = lease
+            .sink()
+            .with_retained_resource(Arc::new(Charge(dropped.clone())));
+        let retained = sink.clone();
+        assert_eq!(sink.emit(vec![1]), Ok(()));
+        drop(lease);
+        assert_eq!(retained.emit(vec![1]), Err(Error::Closed));
+        drop(sink);
+        assert_eq!(dropped.load(Ordering::Relaxed), 0);
+        drop(retained);
+        assert_eq!(dropped.load(Ordering::Relaxed), 1);
     }
 
     #[test]

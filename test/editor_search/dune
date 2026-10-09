@@ -1,0 +1,14 @@
+(library
+ (name gpuio_editor_search_tests)
+ (libraries core gpuio gpuio.protocol eio_main)
+ (inline_tests
+  (deps
+   editor-search-snapshot.hex
+   editor-search-commands.hex
+   editor-search-operation.hex
+   editor-search-events.hex
+   editor-search-observation.hex))
+ (preprocess
+  (pps ppx_jane)))
+
+(copy_files ../fixtures/editor-search-*.hex)

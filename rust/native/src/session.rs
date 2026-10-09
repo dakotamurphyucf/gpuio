@@ -27,6 +27,7 @@ struct Window {
 
 #[derive(Default)]
 pub struct Session {
+    toast_identity: std::rc::Rc<()>,
     ready: bool,
     stopped: bool,
     slots: Vec<Slot>,
@@ -36,6 +37,29 @@ pub struct Session {
     canvases: crate::canvas_store::Store,
     charts: crate::chart_store::Store,
     motion: std::rc::Rc<std::cell::RefCell<crate::motion_host::Store>>,
+}
+
+/// A reason validated when a native dismissal begins. Private fields and consuming
+/// completion keep delayed delivery from reinterpreting later timeout metadata.
+/// The native lifecycle still owns the at-most-once dismissal decision.
+pub struct AcceptedToastDismissal {
+    session: std::rc::Rc<()>,
+    window: WindowId,
+    node: NodeId,
+    handler: HandlerId,
+    revision: i64,
+    reason: ToastDismissal,
+}
+impl AcceptedToastDismissal {
+    fn event(self) -> Event {
+        Event::ToastDismissed(
+            self.window,
+            self.node,
+            self.handler,
+            self.revision,
+            self.reason,
+        )
+    }
 }
 
 pub enum ChartDispatch {
@@ -157,8 +181,70 @@ impl Session {
             && input.is_valid()
             && input.schema_revision == config.schema_revision
             && input.query_generation == config.query_generation
+            && current
+                .table_behavior
+                .as_ref()
+                .is_none_or(|b| b.allows_request(&input.request))
             && config.allows_request(&input.request, |row| index.position(row).is_some()))
         .then_some(Event::TableInput(window, node, handler, revision, input))
+    }
+
+    pub fn table_columns_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        viewport: gpuio_protocol::table::ColumnViewport,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.table.as_ref()?;
+        (!state.overloaded
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && viewport.matches_schema(config))
+        .then_some(Event::TableColumnsObserved(
+            window, node, handler, revision, viewport,
+        ))
+    }
+
+    /// Ordered native list intent. Relative requests deliberately do not capture
+    /// a cursor snapshot: the application reduces them against its current model.
+    pub fn list_input(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: gpuio_protocol::HandlerId,
+        revision: i64,
+        generation: i64,
+        request: gpuio_protocol::list_input::Request,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let current = state.tree.get(node)?;
+        let config = current.list_input?;
+        if state.overloaded
+            || config.disabled
+            || config.generation != generation
+            || !request.is_valid()
+            || !state.tree.accepts_handler(node, handler)
+            || revision < 0
+            || revision > state.tree.revision()
+        {
+            return None;
+        }
+        if let Some(target) = request.target() {
+            let row = current.list_rows.iter().find(|row| row.id == target)?;
+            let item = state.tree.get(row.node)?;
+            if !matches!(item.accessibility.as_ref()?.role,
+                Some(gpuio_protocol::accessibility::Role::OptionItem(metadata)) if !metadata.disabled)
+            {
+                return None;
+            }
+        }
+        Some(Event::ListInput(
+            window, node, handler, revision, generation, request,
+        ))
     }
 
     pub fn tree_input(
@@ -576,6 +662,11 @@ impl Session {
             return Err(ErrorCode::Overloaded.into());
         }
         for operation in &tx.operations {
+            if let Op::SetDocumentProfile(_, config) = operation
+                && let Some(instance) = &config.instance
+            {
+                crate::document_profiles::bind(instance).map_err(|_| ErrorCode::InvalidTree)?;
+            }
             if let Op::SetExtension(_, config) = operation {
                 crate::extensions::validate(config).map_err(|_| ErrorCode::InvalidTree)?;
             }
@@ -635,12 +726,26 @@ impl Session {
             && revision >= 0
             && window.tree.get(node).is_some_and(|node| {
                 node.image.is_none()
+                    && node.carousel_track.is_none()
+                    && node.split_group.is_none()
+                    && !node
+                        .button_presentation
+                        .is_some_and(|config| config.policy.loading)
+                    && revision >= node.button_activation_revision
+                    && node.input_region.is_none()
+                    && node.highlight_scope.is_none()
+                    && node.command_binding.is_none()
                     && node.slider.is_none()
                     && node.number_input.is_none()
                     && node.otp_input.is_none()
                     && node.calendar.is_none()
                     && node.color_input.is_none()
                     && !node.control.is_some_and(Control::disabled)
+                    && !matches!(node.control, Some(Control::Radio(true, _, _)))
+                    && !node
+                        .link
+                        .as_ref()
+                        .is_some_and(|config| config.disabled || config.loading)
             })
             && window.tree.accepts_handler(node, handler))
         .then_some(Event::Press(id, node, handler, revision))
@@ -681,6 +786,31 @@ impl Session {
             && window.tree.accepts_handler(node, handler)
             && event.is_valid())
         .then_some(Event::ColorInputEvent(id, node, handler, revision, event))
+    }
+
+    pub fn calendar_viewport_event(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        observation: gpuio_protocol::calendar_viewport::Observation,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        let calendar = window.tree.get(node)?;
+        (!window.overloaded
+            && calendar.calendar.is_some()
+            && calendar.calendar_viewport_handler == Some(handler)
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && observation.is_valid())
+        .then_some(Event::CalendarViewportChanged(
+            id,
+            node,
+            handler,
+            revision,
+            observation,
+        ))
     }
 
     pub fn calendar_event(
@@ -739,6 +869,59 @@ impl Session {
         .then_some(Event::NumberInputEvent(id, node, handler, revision, event))
     }
 
+    /// Live transport fence. Geometry-specific proposal validation belongs to
+    /// the mounted presenter; layout observations remain allowed while disabled.
+    pub fn split_group_resized(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        config: &gpuio_protocol::split_group::Config,
+        snapshot: gpuio_protocol::split_group::Snapshot,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        let mounted = window.tree.get(node)?.split_group.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && mounted.config.as_ref() == config
+            && snapshot.valid_for(config))
+        .then_some(Event::SplitGroupResized(
+            id,
+            node,
+            handler,
+            revision,
+            config.reset_generation,
+            snapshot,
+        ))
+    }
+
+    pub fn request_carousel_track(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        request: gpuio_protocol::carousel_track::Request,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && window
+                .tree
+                .get(node)?
+                .carousel_track
+                .as_ref()?
+                .accepts_request(&request))
+        .then_some(Event::CarouselTrackRequested(
+            id, node, handler, revision, request,
+        ))
+    }
+
     pub fn request_carousel(
         &self,
         id: WindowId,
@@ -779,6 +962,80 @@ impl Session {
             && window.tree.accepts_handler(node, handler)
             && window.tree.get(node)?.rating.as_ref()?.can_apply(request))
         .then_some(Event::RatingRequested(id, node, handler, revision, request))
+    }
+
+    /// Validate a picker signal against the accepted owner and query-child lease.
+    /// Ordinary tree commits do not retire pending intents; handler/node replacement
+    /// does. The mounted adapter must additionally gate modal/focus/input eligibility
+    /// and supply the exact native editor snapshot captured with the interaction.
+    pub fn choice_picker_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::choice_picker::Event,
+    ) -> Option<Event> {
+        use gpuio_protocol::choice_picker::{
+            Collection, Event as PickerEvent, Request, Selection, Slot, Visibility,
+        };
+        let state = self.window(window).ok()?;
+        if state.overloaded
+            || revision < 0
+            || revision > state.tree.revision()
+            || !state.tree.accepts_handler(node, handler)
+            || !event.is_valid()
+        {
+            return None;
+        }
+        let owner = state.tree.get(node)?;
+        let presentation = owner.choice_picker.as_ref()?;
+        let config = &presentation.config;
+        let query_node = presentation
+            .slots
+            .iter()
+            .position(|slot| matches!(slot, Slot::Query))
+            .and_then(|index| owner.children.get(index))
+            .and_then(|id| state.tree.get(*id))
+            .and_then(|wrapper| wrapper.children.first())
+            .copied();
+        let valid_query = |query: Option<&gpuio_protocol::choice_picker::Query>| {
+            query.map(|query| query.node) == query_node
+        };
+        let allowed = match &event {
+            PickerEvent::SelectionRequested(request, query) => {
+                if config.disabled || !valid_query(query.as_ref()) {
+                    return None;
+                }
+                match request {
+                    Request::Clear => config.clearable,
+                    Request::Select(id) | Request::Toggle(id) => {
+                        let mode = matches!(
+                            (request, &config.selected),
+                            (Request::Select(_), Selection::Single(_))
+                                | (Request::Toggle(_), Selection::Multiple(_))
+                        );
+                        let enabled = |items: &[gpuio_protocol::choice_picker::Item]| {
+                            items.iter().any(|item| item.id == *id && !item.disabled)
+                        };
+                        mode && match &config.options {
+                            Collection::Flat(items) => enabled(items),
+                            Collection::Grouped(groups) => {
+                                groups.iter().any(|group| enabled(&group.items))
+                            }
+                        }
+                    }
+                }
+            }
+            PickerEvent::OpenRequested(..) => !config.disabled,
+            PickerEvent::Visibility(Visibility::Snapshot(open) | Visibility::Changed(open, _)) => {
+                !*open || !config.disabled
+            }
+            PickerEvent::QueryChanged(query) => valid_query(Some(query)),
+        };
+        allowed.then_some(Event::ChoicePickerEvent(
+            window, node, handler, revision, event,
+        ))
     }
 
     pub fn choose(
@@ -865,6 +1122,138 @@ impl Session {
         ))
     }
 
+    /// The presenter supplies provenance from its exact installed snapshot.
+    /// Keep old same-generation pictures interactive while preparation runs,
+    /// but retire source/config/handler identities immediately when replaced.
+    pub fn document_diff_event(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        source: gpuio_protocol::ResourceId,
+        event: gpuio_protocol::document_diff::Event,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let target = state.tree.get(node)?;
+        let config = target.document_diff.as_ref()?;
+        let snapshot = self.documents.acquire(source).ok()?.snapshot();
+        (!state.overloaded
+            && event.is_valid()
+            && event.observation.valid_for(config)
+            && target.document_diff_epoch == event.config_epoch
+            && target.document.as_ref()?.source == Some(source)
+            && snapshot.generation == event.source_generation
+            && event.source_revision >= snapshot.generation_first_revision
+            && event.source_revision <= snapshot.revision
+            && state.tree.accepts_handler(node, handler))
+        .then_some(Event::DocumentDiffEvent(
+            window,
+            node,
+            handler,
+            state.tree.revision(),
+            source,
+            event,
+        ))
+    }
+
+    pub fn document_preview_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        source: gpuio_protocol::ResourceId,
+        event: gpuio_protocol::document_preview::Event,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let target = state.tree.get(node)?;
+        let config = target.document_preview.as_ref()?;
+        let snapshot = self.documents.acquire(source).ok()?.snapshot();
+        (!state.overloaded
+            && event.is_valid()
+            && config.observe
+            && config.epoch == event.config_epoch
+            && !(config.max_lines.is_none()
+                && event.state == gpuio_protocol::document_preview::State::Rich(true))
+            && target.document.as_ref()?.source == Some(source)
+            && snapshot.generation == event.source_generation
+            && event.source_revision >= snapshot.generation_first_revision
+            && event.source_revision <= snapshot.revision
+            && state.tree.accepts_handler(node, handler))
+        .then_some(Event::DocumentPreviewObserved(
+            window,
+            node,
+            handler,
+            state.tree.revision(),
+            source,
+            event,
+        ))
+    }
+
+    pub fn command_binding_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        observation: gpuio_protocol::command_binding::Observation,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.command_binding.as_ref()?;
+        (!state.overloaded
+            && observation.valid_for(config)
+            && state.tree.accepts_handler(node, handler))
+        .then_some(Event::CommandBindingObserved(
+            window,
+            node,
+            handler,
+            state.tree.revision(),
+            observation,
+        ))
+    }
+
+    pub fn highlight_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        observation: gpuio_protocol::highlight::Observation,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.highlight_scope.as_ref()?;
+        (!state.overloaded
+            && observation.valid_for(config)
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision())
+        .then_some(Event::HighlightObserved(
+            window,
+            node,
+            handler,
+            revision,
+            observation,
+        ))
+    }
+
+    pub fn input_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        event: gpuio_protocol::input::Event,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?.input_region.as_ref()?;
+        (!state.overloaded
+            && !config.disabled
+            && event.is_valid()
+            && config.subscription(event.kind()).is_some()
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision())
+        .then_some(Event::InputObserved(window, node, handler, revision, event))
+    }
+
     pub fn pointer_event(
         &self,
         window: WindowId,
@@ -893,6 +1282,18 @@ impl Session {
         revision: i64,
         reason: ToastDismissal,
     ) -> Option<Event> {
+        self.accept_toast_dismissal(window, node, handler, revision, reason)
+            .map(AcceptedToastDismissal::event)
+    }
+
+    pub fn accept_toast_dismissal(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        reason: ToastDismissal,
+    ) -> Option<AcceptedToastDismissal> {
         let state = self.window(window).ok()?;
         let config = state.tree.get(node)?.toast.as_ref()?;
         (!state.overloaded
@@ -900,8 +1301,51 @@ impl Session {
             && revision >= 0
             && revision <= state.tree.revision()
             && config.allows(reason))
-        .then_some(Event::ToastDismissed(
-            window, node, handler, revision, reason,
+        .then_some(AcceptedToastDismissal {
+            session: self.toast_identity.clone(),
+            window,
+            node,
+            handler,
+            revision,
+            reason,
+        })
+    }
+
+    /// Recheck live identity/overload at the end of a native exit. A timeout
+    /// accepted before a persistent-config update remains a valid terminal event.
+    pub fn complete_toast_dismissal(&self, accepted: AcceptedToastDismissal) -> Option<Event> {
+        if !std::rc::Rc::ptr_eq(&self.toast_identity, &accepted.session) {
+            return None;
+        }
+        let state = self.window(accepted.window).ok()?;
+        let node = state.tree.get(accepted.node)?;
+        (!state.overloaded
+            && node.toast.is_some()
+            && state.tree.accepts_handler(accepted.node, accepted.handler)
+            && accepted.revision >= 0
+            && accepted.revision <= state.tree.revision())
+        .then(|| accepted.event())
+    }
+
+    pub fn palette_observed(
+        &self,
+        window: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        snapshot: gpuio_protocol::palette_state::Snapshot,
+    ) -> Option<Event> {
+        let state = self.window(window).ok()?;
+        let config = state.tree.get(node)?;
+        (!state.overloaded
+            && config.palette.is_some()
+            && config.palette_observed
+            && state.tree.accepts_handler(node, handler)
+            && revision >= 0
+            && revision <= state.tree.revision()
+            && snapshot.is_valid())
+        .then_some(Event::PaletteObserved(
+            window, node, handler, revision, snapshot,
         ))
     }
 
@@ -923,6 +1367,56 @@ impl Session {
         .then_some(Event::PaletteDismissed(
             window, node, handler, revision, reason,
         ))
+    }
+
+    pub fn hover_changed(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        hovered: bool,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        let owner = window.tree.get(node)?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && owner.hover_handler == Some(handler)
+            && (!hovered
+                || (!owner.control.is_some_and(Control::disabled)
+                    && !owner
+                        .button_presentation
+                        .is_some_and(|config| config.policy.loading)
+                    && !owner
+                        .link
+                        .as_ref()
+                        .is_some_and(|config| config.disabled || config.loading))))
+        .then_some(Event::HoverChanged(id, node, handler, revision, hovered))
+    }
+
+    pub fn menu_open_changed(
+        &self,
+        id: WindowId,
+        node: NodeId,
+        handler: HandlerId,
+        revision: i64,
+        open: bool,
+    ) -> Option<Event> {
+        let window = self.window(id).ok()?;
+        let menu = window.tree.get(node)?.menu.as_ref()?;
+        (!window.overloaded
+            && revision >= 0
+            && revision <= window.tree.revision()
+            && window.tree.accepts_handler(node, handler)
+            && matches!(
+                menu.presentation,
+                MenuPresentation::Button
+                    | MenuPresentation::Context
+                    | MenuPresentation::PlatformContext
+            )
+            && (!open || !menu.menus.first()?.disabled))
+            .then_some(Event::MenuOpenChanged(id, node, handler, revision, open))
     }
 
     pub fn tooltip_open_changed(
@@ -958,14 +1452,16 @@ impl Session {
             .find(|entry| entry.id == request.command)?;
         let valid_source = match request.source {
             CommandSource::Button(button) => {
-                window
+                window.tree.get(button).is_some_and(|node| {
+                    node.command_ref.as_deref() == Some(request.command)
+                        && !node
+                            .button_presentation
+                            .is_some_and(|config| config.policy.loading)
+                        && request.revision >= node.button_activation_revision
+                }) && window
                     .tree
-                    .get(button)
-                    .is_some_and(|node| node.command_ref.as_deref() == Some(request.command))
-                    && window
-                        .tree
-                        .command(button, request.command)
-                        .is_some_and(|(scope, _)| scope == request.scope)
+                    .command(button, request.command)
+                    .is_some_and(|(scope, _)| scope == request.scope)
             }
             CommandSource::Menu(menu) => {
                 window

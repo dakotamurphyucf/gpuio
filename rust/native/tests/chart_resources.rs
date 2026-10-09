@@ -21,7 +21,9 @@ fn create(session: &mut Session) -> ResourceId {
 }
 fn stage(session: &mut Session, id: ResourceId) {
     let data = Data {
-        version: 1,
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
         contents: Contents::Pie(vec![]),
     };
     let mut bytes = vec![];

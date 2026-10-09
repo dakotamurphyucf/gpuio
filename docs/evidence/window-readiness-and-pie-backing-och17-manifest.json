@@ -1,0 +1,50 @@
+{
+  "dune-full.log": {
+    "bytes": 705863,
+    "sha256": "a1ef78310b12ac2cae6d6c89c56c8ac063e31bcd37e588c02f3d0929e89505d5"
+  },
+  "native-chart-view.log": {
+    "bytes": 592997,
+    "sha256": "f02a595b99d6d18e6b59837c2ad78190ea9d68ef621b38a63251821763a6f5e4"
+  },
+  "native-clippy.log": {
+    "bytes": 588275,
+    "sha256": "120f708d44412b19f3f6441e8a4089e94ccf525abc551f18350106e9e9181104"
+  },
+  "ocaml-format.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "readiness-expects.log": {
+    "bytes": 100147,
+    "sha256": "361cd4799a6ee37735ecb5faf213c4aff3d1151fbf91976b124240f5f6d57987"
+  },
+  "rust-fmt-check.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "rust-format.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "signal-harness.log": {
+    "bytes": 3883,
+    "sha256": "166f6c06175f0a6736dc3da03191d57df2ca6ea7f330ea720bae41b1279f0f2d"
+  },
+  "signal-workload/application.log": {
+    "bytes": 35793,
+    "sha256": "25fcaf82f5571dbe7622dc709d7bd31c3b67e3cf853e95141155e2505ce7fba5"
+  },
+  "signal-workload/report.json": {
+    "bytes": 3718,
+    "sha256": "63b77d3672c01e5f7fec88ac1db0f6140efa3add169f440a2c9924ba1beba831"
+  },
+  "source-identity.json": {
+    "bytes": 608,
+    "sha256": "a3c2e258684bbd20dae48bd013ee133ecab4b21d6f132745b4b1bb78460a98fe"
+  },
+  "validation-commands.json": {
+    "bytes": 1238,
+    "sha256": "ccefd3aec86aeeb7cb77dc60b41cf21137b0bb521de2e1696b66d7b56436f472"
+  }
+}

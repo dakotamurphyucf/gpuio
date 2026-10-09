@@ -1,0 +1,42 @@
+{
+  "source_base": "4fe365b",
+  "platform": "macOS 14.5 arm64",
+  "archive_sha256": "8f074671a01e1b32b3cbb23e5e4f7f7882d8283efde36395e72932763b94af3b",
+  "files": [
+    {
+      "path": "chart-axes-clippy.log",
+      "bytes": 588275,
+      "sha256": "4ac191679e6b83ec6a740b897a4dfa0dcec148d4af1257d832aa2c2ab1fc3006"
+    },
+    {
+      "path": "chart-axes-format.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "chart-axes-gpu-before.log",
+      "bytes": 590190,
+      "sha256": "c2d8cc1e963e71ce8d91639441364d7504b6d594b8f43165cbdd43511917dbc5"
+    },
+    {
+      "path": "chart-axes-gpu-final.log",
+      "bytes": 612509,
+      "sha256": "3b4c96bd6e18424b04a1d6489e4cc29376e8f1ea766f6b0d6f7994a4b0c1bf55"
+    },
+    {
+      "path": "chart-axes-native-unit.log",
+      "bytes": 698176,
+      "sha256": "88557cd0b9157516c31836611f1805e09df6808ea52cd34042cf0ad438360f63"
+    },
+    {
+      "path": "chart-axes-native-view.log",
+      "bytes": 589757,
+      "sha256": "a91c7d6f2d091b10e7fa31d75b523aff90a00241af157cd66496cd48200f0248"
+    },
+    {
+      "path": "chart-axes-regression-before.log",
+      "bytes": 589147,
+      "sha256": "0585445ad30a157020c2a36b3f0daa9dbbdfb1807e3b8ff2a73e3a519e82a4d6"
+    }
+  ]
+}

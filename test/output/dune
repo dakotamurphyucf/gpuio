@@ -1,0 +1,5 @@
+(executable
+ (name probe)
+ (libraries core gpuio.eio eio_main)
+ (preprocess
+  (pps ppx_jane)))

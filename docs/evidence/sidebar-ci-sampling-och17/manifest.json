@@ -1,0 +1,30 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "f3dfc84f8758443ee5b4cdd14a6097a0e7692c7b93d00107c8b5039e5bbc4699",
+  "files": [
+    {
+      "path": "hosted-sidebar-step.log",
+      "sha256": "b9a07fa85e629e52fbbe5978a4ebf0a0b1d2b41eda0926ffa7d0fbd64c61eed3"
+    },
+    {
+      "path": "sidebar-driver.patch",
+      "sha256": "f4d11323ccad337d3dfc47822809dfb0f44d1e04187c6c65eeb71cd02aa5c208"
+    },
+    {
+      "path": "sidebar-build.log",
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+    },
+    {
+      "path": "sidebar-motion-left.log",
+      "sha256": "ff328e250a54a240e0358a211359dcbb8f89e1d794467b38248e341710e21240"
+    },
+    {
+      "path": "sidebar-motion-right.log",
+      "sha256": "504c4235e847d1cc529211cce054a0cfa39443f2e09e0cdf83b8defa925430c5"
+    },
+    {
+      "path": "sidebar-metadata.json",
+      "sha256": "fb98bf5f63f49e2ab7861762e4f31f2705bc29b29b31f17429e1dfbb5a771d1b"
+    }
+  ]
+}

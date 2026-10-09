@@ -1,0 +1,235 @@
+# Chart and plot source review
+
+Reviewed 2026-10-07 against the pinned GPUI Kit revision
+`84f57fdfcb4910623fb0bb7f795b077e249f9271`. Inputs are the manifest-pinned
+`component-chart-*` and `component-plot-*` snapshots, including nested scales,
+shapes, axes, labels, grid and tooltip helpers. Documentation snapshots do not
+change the compiled GPUI or extracted plot dependency pins.
+
+All seven named chart families have public GPUIO implementations. This does not
+mean every low-level plotting closure, scale or styling option is exposed.
+[`Chart_data`](../../lib/core/chart_data.mli),
+[`Chart_options`](../../lib/core/chart_options.mli),
+[`Chart_style`](../../lib/core/chart_style.mli) and
+[`Chart_sampling`](../../lib/core/chart_sampling.mli) define the actual boundary.
+The [accepted chart design](../design/charts.md) supplies native ownership,
+validation and resource bounds; OCH-41 must not infer parity solely from names.
+
+## Families and data semantics
+
+| Pinned family | Existing public behavior | Difference to retain in the ledger |
+| --- | --- | --- |
+| Line | Named ID-stable series, explicit gaps, Linear/Natural/Step_after curves, dots, axes/grid, legend, tooltip, native selection | Numeric series retain linear x spacing; explicit typed categorical series now support native point/band projection. Categorical series are aligned to their declared domain with explicit missing values. |
+| Area | Same typed series and curves; configurable scalar area baseline or explicitly stacked fill, negative values, alpha and mixed layers | The pinned low-level shape exposes an optional scalar `y0` baseline and a `y1` accessor; GPUIO now exposes a [validated data-unit baseline](../design/area-baselines.md), with [local native/GPU/root/installed evidence](../evidence/area-baselines-och41.md), rather than accepting raw screen coordinates. It does not provide arbitrary per-datum lower/upper accessors. [Stacking](../design/stacked-charts.md) uses native cumulative bounds and shared sampling/curves; [local qualification](../evidence/stacked-charts-och41.md) passes; wider catalog/release acceptance remains open. |
+| Bar | Grouped or explicitly stacked series, four Cartesian value directions, numeric or categorical x, negative values, width fraction, corner radius and two-color value-axis gradient | [Reversed directions](../design/chart-directions.md) now support positive bars growing from top/right as well as bottom/left; category order and existing axis gutters remain unchanged. Categorical bands now have native preparation and source-provenance support. Chart_appearance adds physical per-corner radii and bounded stable-ID solid/local/signed/domain/value gradients; its scope and qualification are recorded below. Shared slash/checker pattern brushes now have [local evidence](../evidence/native-pattern-brushes-och41.md); data-owned per-datum backgrounds now have [public gallery and installed-consumer evidence](../evidence/dense-background-gallery-och41.md); independent bar origins now have [local interval evidence](../evidence/bar-baselines-och41.md); custom axis placement is covered by Chart_axis below. |
+| Pie | Named ID-stable nonnegative slices, donut-hole fraction, padding, palette and original-value selection; global Fit/Pixels and ID-keyed inner/outer radii; Inside/Outside captions, spacing and ID-keyed text/leader colors | [Pie radii](../design/pie-radii.md) and [caption controls](../design/pie-labels.md) are bounded serialized presentation values, preserving source weights, names, legend and selection. Native workers measure outside captions and spread bounded rows; dense/tiny plots may omit captions, while literal oversized radii may enter their space. [Scoped font/GPU/root/installed qualification](../evidence/pie-labels-och41.md) records the tested behavior. Applications compute override values before submission, without synchronous layout callbacks. |
+| Radar | Named axes with individual positive maxima, multiple series, grid levels, dots, labels and alpha fill | [Radar projection](../design/radar-presentation.md) now exposes shared-data/explicit maxima, fixed radius and label gap, preserving per-axis defaults, with [paired/worker/root/installed evidence](../evidence/radar-projection-och41.md). Explicit maxima extrapolate; extreme geometry fails under the native coordinate budget. [Ordinary View labels](../design/radar-label-content.md) now support buttons, composed text and native inputs; [scoped evidence](../evidence/radar-label-content-och41.md) and outstanding lifecycle/interaction cases remain explicit. |
+| Candlestick | Increasing numeric x, validated OHLC, body width, axes/grid and exact/OHLC reduction | Native hollow rising/filled falling/equal-price marks preserve meaning without color alone. Source point-spacing/tick-margin behavior is not claimed identical. |
+| Sankey | Bounded acyclic graph, stable node/edge IDs, parallel edges and zero/isolated values, four alignments, relaxation, node width/padding, linear/sqrt weights | Stable per-node colors use the ordinal mapping. [Sankey presentation](../design/sankey-presentation.md) now exposes node corners, link opacity/minimum thickness and label gap; [local evidence](../evidence/sankey-presentation-och41.md) records its scope. [ID-keyed multiline labels](../design/chart-node-labels.md) now expose per-line font/color and explicit hiding, with [scoped local evidence](../evidence/chart-node-labels-och41.md). [Ribbon color policies](../design/sankey-link-colors.md) now expose Source/Target/Gradient with [local unit/GPU/root/installed evidence](../evidence/sankey-link-colors-och41.md). [Outside placement](../design/sankey-label-placement.md) now reserves measured side/above-middle margins through the public API, with [local native pixels/root/installed evidence](../evidence/sankey-label-gallery.md). Captions are single lines within each rich block and ellipsize under bounded margins; arbitrary dense-graph nonoverlap is not promised. Sqrt affects geometry while raw values remain available. |
+
+Applications may precompute serializable data/labels in OCaml before publication;
+they do not supply Rust accessors that call OCaml during layout/paint. Data IDs
+are distinct from labels and source positions. Missing y values are explicit
+gaps, not NaNs. Invalid domains are rejected rather than sorted, normalized or
+silently repaired. Default series/slice/node palette cycling remains order-based. The optional
+[ordinal mapping](../design/chart-ordinal-colors.md) now assigns stable colors to
+explicit namespaced IDs, with a cyclic range and explicit unknown-color policy.
+It covers series, pie slices, Sankey nodes/source ribbons and candle movement;
+bounded per-datum marker/bar colors now use Chart_appearance separately. Continuous path colors remain per series, not per fragment.
+[Local paired-codec, native/GPU and installed-gallery qualification](../evidence/chart-ordinal-colors-och41.md)
+passes without establishing whole-catalog or release acceptance.
+
+[Categorical data and layouts](../design/categorical-charts.md) now use explicit
+typed IDs, domain order and labels. Point/band spacing is native, and sampled marks
+retain original source ranges. Equal labels do not merge IDs. Missing observations
+remain in the original-data table. This is an aligned dataset interface, not an
+arbitrary sparse accessor API. [Evidence](../evidence/categorical-charts-och41.md)
+records scoped qualification and remaining limits.
+
+## Plot helpers and styling
+
+| Nested source surface | Owner / status |
+| --- | --- |
+| `Plot`, `IntoPlot`, `paint`, `tooltip_state` and `tooltip` | Native retained preparation, painter, hit index and tooltip own these operations. `View.chart` receives an application-scoped resource and validated options; it does not expose synchronous OCaml paint/tooltip closures. Custom native plots belong to the static extension SDK. |
+| `ScaleLinear`, `ScalePoint`, `ScaleBand`, `ScaleOrdinal` and sealed scale trait | Numeric linear domain handling is native in the existing chart preparation. Typed categorical datasets now have native Point/Band/Auto layout options. IDs are explicitly unique; the standard band formula differs from the source's 30-pixel cap/padding formula. Typed `Chart_style.Ordinal` now provides an explicit bounded domain/range, cyclic lookup and optional unknown color, resolved once in native preparation. Duplicate keys and empty ranges are rejected deliberately; generic plotting scales remain outside this API. |
+| `PlotAxis`, `AxisText`, `Grid`, label measurement/truncation | [`Chart_axis`/`Chart_grid`](../design/chart-axis-presentation.md) expose bounded explicit numeric/category/physical-fraction ticks, per-caption color/font/alignment, independent line/label visibility, normalized line positions and independent dashed grid positions/appearance. Existing Axes x/y/grid flags remain master gates. Applications may stride category IDs and preformat text; no OCaml formatter/layout callback crosses into native preparation. [Local codec, GPU/font and root/installed gallery evidence](../evidence/chart-axis-presentation-och41.md) includes default preservation, source/selection provenance and a repaired endpoint clipping regression. This is a declarative functional equivalent, not arbitrary Rust closures or identical pixel-space builders; current-source hosted/platform and broader chart requirements remain open. |
+| Arc, pie, line, area, bar and radial-line shapes | Prepared family geometry supplies the existing widgets. Chart_appearance supplies independent path fill/stroke/curve, marker fill/border/radius, and bar backgrounds/corners through bounded immutable values. Per-observation bar origins use the typed source baseline sidecar; arbitrary angle ranges and general pixel-space shape builders remain outside the chart API. Canvas offers separate retained drawing; it does not grant chart selection/data-table semantics automatically. |
+| `Stack` | Source computes cumulative lower/upper values, substituting zero for missing values. Typed opt-in Stacked now implements natural signed accumulation, bars after explicit aggregation and areas with matching cumulative curves. Raw source IDs/values remain intact. Numeric layers must align within each kind; own missing observations retain gaps. [Local native, GPU and installed-gallery qualification](../evidence/stacked-charts-och41.md) passes; no whole-catalog acceptance is implied. |
+| Sankey topology/layout and ribbon path helpers | Bounded native preparation owns graph validation/layout and retained geometry. [Dependency provenance](../../third_party/sources.json) and reconstruction records govern compiled source; raw catalog snapshots are evidence only. |
+| Tooltip state, title/rows, cross lines, dots and appearance | [`Chart_inspection`](../../lib/core/chart_inspection.mli) now supplies card visibility/title/values, bounded anchor/corner placement and appearance; crosshair axes, dashed/solid bands and color; independent marker size/fill/stroke/status. Hover/drag previews stay native and OCaml observes committed selection. [Scoped qualification](../evidence/chart-inspection-och41.md) covers actual pixels and public gallery behavior. [Cursor-following cards](../design/chart-cursor-inspection.md) now have [actual native pixels and root/installed gallery evidence](../evidence/chart-cursor-inspection-och41.md), preserving data-anchored guides and keyboard fallback. [Independent guide spans](../design/chart-guide-spans.md) now configure clipped pixel/fractional intervals; [local qualification](../evidence/chart-guide-spans-och41.md) covers paired codecs, GPU pixels, resize and root/installed gallery behavior. Typed inspected-target content now supports ordinary rich Views and structured rows; the detailed evidence and remaining scope appear below. |
+
+The [rich inspection contract](../design/chart-inspection-content.md) describes
+ordinary OCaml View content alongside a title/row convenience API. The current
+foundation supplies validated stable/publication-bound targets, paired metadata
+codecs and [schema -2 parent admission](../evidence/chart-inspection-parent-och41.md).
+The subsequent [experimental renderer](../evidence/chart-inspection-renderer-och41.md)
+adds `View.chart` attachment and native Card/Overlay children, with button pixels,
+native pointer/keyboard focus, stable-ID reorder and immediate stale-gesture
+retirement evidence. [Native editor and aggregate cases](../evidence/chart-inspection-editors-och41.md)
+now qualify Input/Textarea text-client composition/draft retirement and explicit
+publication-bound Sum/Mean/OHLC content. [Button AX and clipping cases](../evidence/chart-inspection-actions-och41.md)
+qualify actual AppKit activation, queued/retired-object rejection and nested
+focus retirement on native resize. [Command and popup checks](../evidence/chart-inspection-commands-och41.md)
+cover callback-button routes, stale gestures/AX objects and actual AppKit menu
+tracking retirement in Card/Overlay. [Two-window inspection isolation](../evidence/chart-inspection-isolation-och41.md)
+qualifies exact button routing, per-chart gates, shared-source retirement and
+independent teardown. The [structured-row helper](../evidence/chart-inspection-rows-och41.md)
+now composes rich keyed rows with callback/reconciliation evidence. The
+[public gallery](../evidence/chart-inspection-gallery-och41.md) passes root and fresh
+installed-consumer rows, keyboard entry, native editing/actions, theme/scale and
+Card/Overlay retention, hiding/removal and zero-resource cleanup. These scoped
+checks cover the Tooltip composition surface; physical IME/VoiceOver, every
+arbitrary child combination and broader catalog/release acceptance are not implied.
+
+[`Chart_appearance`](../../lib/core/chart_appearance.mli) now attaches to
+`Chart_style.create`: 128 series overrides and 1,024 unique series/datum pairs,
+with full theme resolution before native preparation. Sparse marker and bar
+highlights follow original IDs; radar uses axis IDs. Sampled bars either inherit
+series appearance or require effective agreement across defined source values.
+Stacked area curves must agree or report `Invalid_config`. Worker preparation
+owns resolution, gradient coordinates and hit bounds; paint never calls OCaml.
+[The design](../design/chart-mark-appearance.md) records independent alpha,
+physical corners, signed/value ramps, hit semantics and the -5 style schema.
+[Local native/GPU, full integration and root/fresh-installed gallery evidence](../evidence/chart-mark-appearance-och41.md)
+passes with original selection/data and zero-resource cleanup.
+[Shared native pattern brushes](../evidence/native-pattern-brushes-och41.md) now
+add slash/checker fills to ordinary Views and chart paths/bars, with local GPU,
+root/installed gallery, theme/direction and cleanup checks. Data-owned
+per-datum backgrounds and bar baselines are now implemented. The
+[dense-background implementation design](../design/dense-bar-backgrounds.md)
+records the implemented immutable source sidecar, appearance precedence, aggregate
+semantics and memory/codec contract. [Public gallery and installed-consumer
+qualification](../evidence/dense-background-gallery-och41.md) now passes local
+source update/reorder, explicit theme republishing, sparse precedence, patterns,
+aggregation, original-data browsing and cleanup checks.
+[Per-bar baselines](../design/bar-baselines.md) now have
+[local paired/native/GPU/root/installed evidence](../evidence/bar-baselines-och41.md).
+Original values remain endpoints, with compatible Sum/Mean/stacking and explicit
+failure for differing participating origins. Arbitrary pixel-bound fill callbacks
+remain a separate catalog difference; this does not complete the catalog row.
+[Local foundation evidence](../evidence/dense-background-foundation-och41.md)
+records paired codecs, 100k-source accounting and actual native GPU checks.
+[Scalar area baselines](../evidence/area-baselines-och41.md) now pass local
+qualification, including shared stacked offsets and retained source semantics.
+
+The callback and raw-geometry differences below remain explicit. This review
+does not create a new post-v1 deferral or establish whole plotting parity. Any
+extension must use bounded serialized values/native preparation and preserve
+accessibility/provenance, rather than introducing per-frame OCaml callbacks or
+weakening data validation.
+
+## Callback and geometry boundary
+
+Reviewed at `46b291d` against the unchanged pinned snapshots. The accepted
+[adapter contract](../design/component-catalog.md#adapter-contract) gives public
+families functional equivalents and maps helpers to their owning APIs; it
+explicitly prohibits synchronous OCaml rendering/delegate/formatter callbacks.
+That rule explains a runtime boundary, not an assertion that every callback's
+possible output is supported by the current declarative vocabulary.
+
+| Pinned operation | Current OCaml equivalent and exact difference |
+| --- | --- |
+| `BarChart::band`, `value`, `label`; low-level `Bar::cross`, `base`, `value` | Applications calculate typed category/point values, labels and optional per-observation origins before publication. Native preparation projects them, preserving IDs and original data. Arbitrary screen-space cross/base/value accessors are not public chart APIs. The chart-level source itself uses a zero baseline; independent source origins correspond to the lower-level Bar capability. |
+| `BarChart::fill`, `Bar::fill`: arbitrary datum-dependent `Background` | `Chart_data.with_bar_backgrounds` supplies up to 100k data-owned solid, two-stop gradient, slash or checker brushes. `Chart_appearance` adds bounded sparse/series overrides with explicit precedence. Applications may calculate a brush from arbitrary OCaml data before publication. Verbatim brush angles stay physical, matching the source fill's lack of automatic orientation adjustment. Theme resolution happens at publication/configuration time. |
+| `BarChart::fill_gradient`: automatic orientation and `chart_to_bar` helper | `Chart_appearance.Bar_fill.base_to_tip`, `domain` and `values` resolve native interval/domain coordinates, signed direction, stacking and clipping. These typed sRGB ramps support the source examples' local and chart-value gradients. The source and GPUIO need not share the same data domain or signed-gradient convention: GPUIO includes actual origins/stack bounds, and base-to-tip follows the actual signed interval. Custom arbitrary stop-producing callbacks are not serialized. |
+| `BarChart::fill`: closure receives live bar bounds, full chart bounds and alignment | **Not exposed as a general OCaml callback or general pixel-bound brush program.** Data-derived brushes and value-domain ramps cover their stated cases; a diagonal gradient anchored to the full chart rectangle, a width-threshold color rule, or an arbitrary frame-sampled colormap is not automatically equivalent. There is no general chart-frame observation/roundtrip substitute promising same-frame results. This unsupported surface remains visible in the catalog. |
+| `Plot::prepaint`, `paint`, `tooltip_state`, `tooltip` | Built-in native preparation, hit testing, inspection and retained ordinary View children own these phases. `Chart_inspection`, guide/marker presentation and rich content provide the documented chart behavior without application code running inside native paint. Arbitrary native plot implementations belong to a separately authored static extension. |
+| `Scale` trait, raw `Arc`/`Pie` angles and shape paint/path helpers | Chart options expose their family-specific projection, radii, captions, axes and styling. They do not export a general plotting algebra or arbitrary angular extent. Canvas provides retained drawing under its own semantics; the extension SDK provides trusted native rendering. Neither automatically supplies this chart's selection, original-data table or resource/provenance behavior. |
+
+The exact source inputs are [chart BarChart](sources/component-chart-bar_chart.rs.txt),
+[low-level Bar](sources/component-plot-shape-bar.rs.txt),
+[Plot](sources/component-plot-mod.rs.txt), [Scale](sources/component-plot-scale.rs.txt),
+[Pie](sources/component-plot-shape-pie.rs.txt) and
+[Arc](sources/component-plot-shape-arc.rs.txt), all hash-checked by the catalog
+manifest. Current public contracts are [Chart_data](../../lib/core/chart_data.mli),
+[Chart_appearance](../../lib/core/chart_appearance.mli) and
+[Background](../../lib/core/background.mli). The native
+[bar brush resolver](../../rust/native/src/chart_appearance.rs) explicitly
+distinguishes verbatim, base-to-tip, domain and value ramps.
+
+A static [extension package](../design/extensions.md) may implement its own plot
+using the pinned GPUI API, with a separately designed bounded OCaml interface.
+The current SDK does **not** let a package inject a new fill closure into the
+built-in Chart worker or borrow its private source store. Such integration would
+need a concrete library extension and its own lifetime, accessibility and
+performance validation. Ordinary users of the built-in examples need no Rust.
+
+Local paired/native/GPU and root/fresh-installed evidence for the supported
+appearance, backgrounds and baseline cases is linked above. This boundary review
+adds no runtime behavior and does not close unsupported functionality by calling
+it equivalent. Current-source hosted/Linux checks and the consolidated OCH-17
+accessibility, physical presentation, resource/performance and distribution/API
+gates remain required.
+
+[Axis visibility qualification](../evidence/chart-axis-visibility-och41.md) repairs
+categorical axes omitted by a numeric-domain guard and left boundary strokes
+disappearing at scale 1. Actual GPU tests now cover independent x/y flags and
+all four orientations at four test scales. This validates the existing axis
+controls; the newer custom-axis contract has separate qualification linked above.
+
+The [radar child-content design](../design/radar-label-content.md) specifies
+arbitrary OCaml View labels, native natural-size measurement, stable axis identity
+and focus/visibility retirement. The public API and retained native adapter are
+implemented; prepared radar captions preserve axis IDs separately from pie
+captions. [Local evidence](../evidence/radar-label-content-och41.md) covers unit/tree/codec,
+actual GPU layout and foreground input. Remaining qualification is listed there;
+this does not complete whole-catalog acceptance.
+
+[Resource/layout qualification](../evidence/radar-label-resources-och41.md) adds
+ordinary SVG icon pixels and lease cleanup, intrinsic/explicit sizing, inherited
+foreground/font-size changes and eight cardinal/diagonal anchors at test densities.
+It does not establish physical monitor transitions, VoiceOver or cross-window
+label interaction isolation.
+
+[Ordinary button isolation](../evidence/radar-label-isolation-och41.md) now has
+actual AppKit action evidence for two charts in each of two windows, including
+per-owner hiding, shared-source membership changes, unmount/close and exact
+window/node routing. Specialized widget and broader accessibility acceptance
+remain separate.
+
+[Rating and public-theme evidence](../evidence/radar-label-rating-theme-och41.md)
+also covers the specialized rating's AppKit increment and pointer gesture
+lifetimes, plus custom-label editor focus/draft and Bonsai counter retention
+across both application themes. No runtime repair was needed for these cases.
+
+## Interaction, accessibility and resource evidence
+
+[`Chart.Config`](../../lib/core/chart.mli) supports native pointer/drag selection,
+arrow/Home/End previews, Enter/Space commit, Escape cancellation/clear, disabled
+policy and an original-data companion. The native View data control/D key opens
+a paged keyboard-accessible table of every original value, including gaps,
+zero-area marks and values omitted by explicit sampling. Browsing is separate
+from chart selection. Numeric series identifiers supplement colors. None of this
+is a complete VoiceOver audit; plotted pixel positions and AX roles alone do not
+prove spoken navigation.
+
+The dataset registration outlives mounted views and is scoped to one application.
+Unmount releases view work/readers; releasing the registration retires its data.
+Ordinary publication retains the last prepared picture until replacement is
+ready; reset/source change clears it. Generation/revision guards protect updates,
+selection, workers and cancellation. Line envelopes, bar sum/mean and candle OHLC
+reduction are explicit; source IDs/ranges and raw data remain available. Geometry
+admission may reject a render rather than secretly changing sampling or bridging
+gaps to fit a quota. Preparation metrics are not RSS or frame latency.
+
+Evidence entry points:
+
+- [Chart evidence](../evidence/charts-och40.md): all seven native GPU families,
+  style/interaction, original-data access, worker/view/resource lifecycle and
+  bounded admission. Historical checkpoints remain scoped to their revisions.
+- [Streaming measurements](../evidence/chart-streaming-och40.md): public upload,
+  publication/preparation/render stages, exact versus sampled data and cleanup.
+  The 2026-10-04 follow-up already investigates the historical 63,050.99 ms outlier:
+  it did not recur in an 80-publication visible run; controlled minimization caused
+  a roughly three-second preparation/readiness delay. That demonstrates a timing
+  confound, **not** the cause of the old sample. Do not repeat this investigation
+  merely because an earlier checkpoint calls it pending.
+- `examples/charts`, `examples/chart_stream`, the Charts gallery and
+  [Signal Studio](../evidence/signal-studio-och29.md) provide public consumers.
+  New rendering features still need their own gallery and actual native evidence.
+
+`Ready` means preparation became observable through the native view, not physical
+presentation or render-independent worker completion. Current optimized
+performance qualification, resource consolidation, VoiceOver and release gates
+remain OCH-17. Linux build/unit/consumer results and deferred Linux desktop
+qualification (OCH-47) must remain separately identified.

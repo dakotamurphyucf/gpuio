@@ -1,0 +1,72 @@
+{
+  "run": "https://github.com/dakotamurphyucf/gpuio/actions/runs/37579057201",
+  "head_sha": "73b4e7134d6b8918094e40840c8a62b96da26b91",
+  "archive_sha256": "1d6839665a001220efefdc5d9c56ac951d44714915cdf96b30867c7017cda1d5",
+  "files": [
+    {
+      "path": "run.json",
+      "bytes": 67905,
+      "sha256": "4809f792abd7af3dc76cc6e78567a309ea35393983aa33e75fb62b7e106d5b7c"
+    },
+    {
+      "path": "failed-steps.log",
+      "bytes": 5760245,
+      "sha256": "3de337268ccf3fe1a2126907e7e4c69575c63ee5c16e0c7e1c6dd024e6aae861"
+    },
+    {
+      "path": "macos/macos-menu-popup-queue.log",
+      "bytes": 589894,
+      "sha256": "1c331de02f7c7ca7030ee0d5ba8c82d796ed38f367192e3862918f7fdb343147"
+    },
+    {
+      "path": "macos/macos-navigation-native.log",
+      "bytes": 590582,
+      "sha256": "e774b849b53da09f4ac0941001965d96d00151e33733af5f7af2f76d1502ff1b"
+    },
+    {
+      "path": "macos/macos-image-views-native.log",
+      "bytes": 592271,
+      "sha256": "ff4b2817e4dedb6ca5b64e7b971adf1921aeda2861738e3ec7240e7f7a4c0cbd"
+    },
+    {
+      "path": "macos/macos-agent-chat-results.log",
+      "bytes": 2488,
+      "sha256": "e9e4e2f0e3784bf3669515582433aa5f9d8974606fac85aa9b85785975cd771e"
+    },
+    {
+      "path": "macos/metal-presentation-hook/report.json",
+      "bytes": 76222,
+      "sha256": "d61af4dc8d991e8cb91f8da711011e59e0b367fbc4785002ec3d779e607bb51d"
+    },
+    {
+      "path": "macos/metal-presentation-calibration.json",
+      "bytes": 63567,
+      "sha256": "63fa9a3071e61ce6e02337c9fc4df9a64aa74363114afb55125d4a05dfe537b7"
+    },
+    {
+      "path": "macos/metal-presentation-display.json",
+      "bytes": 35,
+      "sha256": "0e2a2e10de1b28c2c98b9bf2faadb16610de1aad4b8308e92b54c13e74402c3c"
+    },
+    {
+      "path": "linux-gui-status.json",
+      "bytes": 103,
+      "sha256": "77647998edf755064398f4913bf6acdf6b1d61c393f238b38bdf6e6d474c2649"
+    },
+    {
+      "path": "gallery/report.json",
+      "bytes": 3156,
+      "sha256": "295d12ab0900a51fa58c15e95147cb180ba52fd72124bee59a2a79c94535a3f7"
+    },
+    {
+      "path": "agent-chat/report.json",
+      "bytes": 1534,
+      "sha256": "dd4ab32e583afef4752eaba65108af5bc79a0ff02d02db3e34921fa58725706e"
+    },
+    {
+      "path": "signal-studio/report.json",
+      "bytes": 1592,
+      "sha256": "4e2a430c0a4025b09f2c97539700148a2f53a10518bae01149b19aef75154c05"
+    }
+  ]
+}

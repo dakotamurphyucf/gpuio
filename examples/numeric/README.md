@@ -1,5 +1,16 @@
 # Native numeric controls
 
+Read the adjacent implementation walkthroughs before changing these demos:
+
+- [Sliders](main.md): [main.ml](main.ml), native preview/commit and guards.
+- [Numeric editors](number.md): [number.ml](number.ml), draft versus value.
+- [Segmented codes](otp.md): [otp.ml](otp.ml), one native editing session and events.
+
+[dune](dune) defines the three independent executables. Run commands below from
+the repository root using the isolated [toolchain](../../docs/development.md).
+The [platform policy](../../docs/platform-release-policy.md) distinguishes
+macOS-first release scope from Linux build and desktop qualification.
+
 Build with `GPUIO_JOBS=2 ./scripts/gpuio build examples/numeric/main.exe`, then
 run `_build/default/examples/numeric/main.exe`.
 
@@ -81,6 +92,6 @@ On macOS, `python3 scripts/test_otp_input.py` launches and closes its own exampl
 It exercises real accessibility values/actions and OS selection, deletion and
 history shortcuts, asynchronous completion/rejection feedback, secure masking,
 policy changes and remounting. It needs the same accessibility access as the
-other native test scripts. Local native visual/lifecycle/workload acceptance also
-passes; consolidated hosted gates and merge remain pending. See the
-[acceptance ledger](../../docs/evidence/numeric-inputs-och34.md).
+other native test scripts. See the dated
+[acceptance ledger](../../docs/evidence/numeric-inputs-och34.md) for recorded
+revisions and platform coverage; these walkthroughs do not add native acceptance.

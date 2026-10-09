@@ -1,0 +1,9 @@
+; Same OCaml workload, linked to the ordinary native backend without the profiler.
+
+(copy_files ../performance/main.ml)
+
+(executable
+ (name main)
+ (libraries core mtime gpuio gpuio.bonsai gpuio.eio gpuio_performance_probe)
+ (preprocess
+  (pps ppx_jane bonsai.ppx_bonsai)))

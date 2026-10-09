@@ -1,0 +1,8 @@
+{
+  "complete": false,
+  "platform": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "executable_sha256": "135e78b7b586bfd3ef967d723956e9660a2a4be60124cc45fee643b1233b587a",
+  "checks": [],
+  "error": "RuntimeError: 'Inspect highlighted code' did not become accessible after native document scrolling",
+  "child_reaped": true
+}

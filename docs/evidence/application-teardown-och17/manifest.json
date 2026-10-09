@@ -1,0 +1,56 @@
+{
+  "base_revision": "8da5c4523429f3ac031ca0a1913b3d4e82885c45",
+  "scope": "deterministic application-request teardown; not OS/GUI acceptance",
+  "files": [
+    {
+      "path": "app-teardown-before.log",
+      "bytes": 172,
+      "sha256": "50aae8ad83f2f9c65916308045fe9707c76d1acd67e8c8e51f319113720050e1"
+    },
+    {
+      "path": "app-teardown-before-002.log",
+      "bytes": 4530,
+      "sha256": "972d00e29a292bc2da5cfbc5e91b9ecab974a74b75d2f8cf04b17192773e03fc"
+    },
+    {
+      "path": "app-teardown-before-003.log",
+      "bytes": 918,
+      "sha256": "aaf3b43f6ee686ac03f9b41a3618f649fbed9f1c9078284bdeffc7eaa9bde09c"
+    },
+    {
+      "path": "app-teardown-after-001.log",
+      "bytes": 71,
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+    },
+    {
+      "path": "app-teardown-final-tests.log",
+      "bytes": 142,
+      "sha256": "d46b66f5cb1f0daa19168355573ffcad7af8165270fd30af4357c0224ba3f956"
+    },
+    {
+      "path": "app-teardown-full-tests.log",
+      "bytes": 142,
+      "sha256": "d46b66f5cb1f0daa19168355573ffcad7af8165270fd30af4357c0224ba3f956"
+    },
+    {
+      "path": "app-teardown-final-format.log",
+      "bytes": 71,
+      "sha256": "22123947a145f448a522ca123bf67954da146ea87a8612b67548a3c86b2b6866"
+    },
+    {
+      "path": "app-teardown-before.ml",
+      "bytes": 143606,
+      "sha256": "70c86a775f108ecebbed529ce2e2989b3036aa8d6810b8acfa2e10a1d4d44d8e"
+    },
+    {
+      "path": "app-teardown-final.ml",
+      "bytes": 146243,
+      "sha256": "f01887a49d66bf1dd90693d23f892656e03186471da1b00b7ca308e9e909f02d"
+    },
+    {
+      "path": "app-teardown-summary.json",
+      "bytes": 1328,
+      "sha256": "eeb442fe1fc15bd4f90b6ef2f3f774172c84b5b7c17646d42ba585d63bab4690"
+    }
+  ]
+}

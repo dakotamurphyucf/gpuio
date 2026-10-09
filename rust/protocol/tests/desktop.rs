@@ -38,6 +38,12 @@ fn requests_match_independent_ocaml_bytes() {
             b"\x00\x0bcom.example\x04Demo\x01\x05gpuio".to_vec(),
         ),
         (Request::Capabilities, vec![1]),
+        (Request::ScrollbarPreference, vec![7]),
+        (
+            Request::WriteClipboardText("λ\n".into()),
+            vec![8, 3, 0xce, 0xbb, 10],
+        ),
+        (Request::WriteClipboardText(String::new()), vec![8, 0]),
         (Request::TakeLinks, vec![2]),
         (Request::Activate(true), vec![3, 1]),
         (
@@ -74,7 +80,7 @@ fn invalid_requests_are_rejected_before_native_work() {
         b"\x06\x03APP".to_vec(),   // non-normalized scheme
         b"\x06\x01\xff".to_vec(),  // invalid UTF-8
         vec![6, 0xfe, 0xff, 0x7f], // oversized allocation claim
-        vec![7],                   // unknown command
+        vec![9],                   // unknown command
     ] {
         assert!(decode_desktop_request(&bytes).is_err());
     }
@@ -202,7 +208,46 @@ fn desktop_capability_uses_a_new_bit_and_round_trips_the_current_handshake() {
         v1::{CAP_DESKTOP, CAPABILITIES, Message, VERSION},
     };
     assert_eq!(CAPABILITIES & CAP_DESKTOP, 1_i64 << 41);
-    assert_eq!(CAPABILITIES, 17_592_186_044_415);
+    assert_eq!(CAPABILITIES, i64::MAX);
     let hello = Message::Hello(VERSION, CAPABILITIES);
     assert_eq!(decode(&encode(&hello)).unwrap(), hello);
+}
+
+#[test]
+fn scrollbar_snapshot_envelopes_match_independent_ocaml_bytes() {
+    use gpuio_protocol::{
+        decode,
+        v1::{Event, Message},
+    };
+    let request = Message::Desktop(7, Request::ScrollbarPreference);
+    assert_eq!(encode(&request), [19, 7, 7]);
+    assert_eq!(decode(&[19, 7, 7]).unwrap(), request);
+    for (preference, tag) in [
+        (ScrollbarPreference::AutoHide, 0),
+        (ScrollbarPreference::AlwaysVisible, 1),
+    ] {
+        assert_eq!(
+            encode(&vec![Event::DesktopResponse(
+                7,
+                Response::ScrollbarPreference(preference)
+            )]),
+            [1, 57, 7, 6, tag]
+        );
+    }
+}
+
+#[test]
+fn clipboard_text_is_bounded_and_validated_before_dispatch() {
+    let text = "x".repeat(MAX_CLIPBOARD_TEXT_BYTES);
+    let request = Request::WriteClipboardText(text);
+    assert!(request.is_valid());
+    assert_eq!(decode_desktop_request(&encode(&request)).unwrap(), request);
+    for text in ["a\0b".into(), "x".repeat(MAX_CLIPBOARD_TEXT_BYTES + 1)] {
+        let request = Request::WriteClipboardText(text);
+        assert!(!request.is_valid());
+        assert!(decode_desktop_request(&encode(&request)).is_err());
+    }
+    assert!(decode_desktop_request(&[8, 1, 255]).is_err());
+    // 256 KiB + 1 length, with no payload, cannot trigger an unbounded allocation.
+    assert!(decode_desktop_request(&[8, 0xfd, 1, 0, 4, 0]).is_err());
 }

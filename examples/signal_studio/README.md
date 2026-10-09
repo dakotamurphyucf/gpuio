@@ -5,6 +5,27 @@ charts and the independently packaged `gpuio_example_counter` component. It uses
 the public Core/Bonsai/Eio and extension SDK APIs. The agent-chat example is a
 separate application and is unchanged.
 
+## Reading the code
+
+| File | Responsibility |
+| --- | --- |
+| [entry-point walkthrough](main.md) | Entry point and package metadata modes. |
+| [application runtime walkthrough](application.md) | Eio/native resource ownership, model actions, desktop services and windows. |
+| [reactive component walkthrough](component.md) | The Bonsai boundary: observe a snapshot and call `Ui.view`. |
+| [layout walkthrough](ui.md) | Stateless GPUIO layout from `Snapshot.t` and `Actions.t`; no graph construction or I/O. |
+| [model walkthrough](model/workspace.md) | Pure workspace values and chart/canvas data. |
+| [document controller walkthrough](documents.md), [file helper/tests walkthrough](files/document_file.md) and [notification controller/tests walkthrough](notifications/run_alerts.md) | Scoped document and notification behavior. |
+| [diagnostic checks walkthrough](checks.md) | Optional self-test and resource-workload assertions, separate from the application. |
+
+The generated [OCaml backend bridge](backend/backend.md) and [Rust registration](backend/registration.md) explain static extension composition.
+
+`View` is GPUIO presentation, `Bonsai` is reactive wiring, and `Effect` represents
+a deferred action. The [UI-thread walkthrough](ui_thread.md) explains the explicit Eio-task-to-UI adapter used for
+native resource startup and integration checks; ordinary view construction does
+not need it. The [application-identity walkthrough](application_identity.md) shares one identity between runtime and
+packaging. Begin with the [counter](../getting_started/README.md) before studying
+this example's desktop and native-extension integration.
+
 ```sh
 GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/signal_studio/main.exe
 ./scripts/gpuio exec dune exec examples/signal_studio/main.exe
@@ -85,7 +106,10 @@ not replace physical input or pixel validation.
 The consumer check stages public libraries into a fresh prefix, copies this app
 and the separate component, and builds the locked composed backend. It never
 installs packages into or changes the current opam switch. Omit `--run` for the
-Linux build-only gate. Full Linux GUI validation remains tracked by OCH-17.
+Linux build-only gate. To run the full AppKit walkthrough against an already built
+consumer, pass `--executable /path/to/consumer/_build/default/main.exe` to
+`scripts/test_signal_studio.py`. Full Linux GUI validation is deferred to OCH-47;
+OCH-17 retains the macOS release gates.
 
 The desktop walkthrough creates and removes a disposable application bundle,
 checks actual Launch Services cold/warm delivery and same-process window reopen,

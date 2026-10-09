@@ -1,0 +1,14 @@
+AX_PRESS Send
+NATIVE_ACCEPTANCE_EDIT_MS 386
+AX_WAIT your newer draft was kept
+AX_WAIT · Complete
+AX_PRESS Demo controls
+AX_PRESS Simulate error
+AX_PRESS Review a patch
+AX_WAIT Simulated connection interrupted
+AX_PRESS Retry response
+AX_WAIT · Complete
+AX_PRESS Build a native app
+AX_PRESS Close tab
+AX_PRESS Build a native app
+AX_PRESS Attach text…

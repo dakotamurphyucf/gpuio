@@ -3,12 +3,19 @@ use crate::chart_view::Config;
 use std::io::Cursor;
 impl Decoder<'_> {
     pub(super) fn chart_view_config(&mut self) -> Result<Config, DecodeError> {
+        let version = self.int()?;
+        if version != -2 {
+            return Err(DecodeError::Malformed);
+        }
         let value = Config {
+            version,
             source: self.option(|d| d.resource())?,
             label: self.bounded_text(1024)?,
             options: self.chart_options()?,
             sampling: self.chart_sampling()?,
             style: self.chart_style()?,
+            radar_labels: self.list(64, |d| d.int())?,
+            inspection_content: self.chart_inspection_content()?,
             legend: self.boolean()?,
             disabled: self.boolean()?,
         };
@@ -20,7 +27,7 @@ impl Decoder<'_> {
     }
 }
 pub fn decode_chart_view_config(bytes: &[u8]) -> Result<Config, DecodeError> {
-    if bytes.len() > 2048 {
+    if bytes.len() > crate::chart_view::MAX_CONFIG_BYTES {
         return Err(DecodeError::LimitExceeded);
     }
     let mut d = Decoder(Cursor::new(bytes));

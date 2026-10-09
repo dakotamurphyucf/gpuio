@@ -7,6 +7,17 @@ use crate::{
 use gpui::{App, Bounds, EntityId, Hitbox, Pixels, Point, WeakEntity, Window};
 
 use super::TextViewState;
+use super::rendered_text::RenderedFragment;
+
+// Nonvirtual participants have no block restriction, even if they have a
+// logical text endpoint. In particular this must not mean "only block zero".
+const NO_BLOCK: u64 = u64::MAX;
+
+#[derive(Clone)]
+struct TextEndpointRun {
+    run: crate::TextSelectionRun,
+    fragment: Option<RenderedFragment>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct CachedBlockEndpoint {
@@ -43,7 +54,12 @@ impl VirtualBlockSelection {
             return;
         }
         let block_ix = (endpoint.entity_id() == Some(entity_id))
-            .then(|| endpoint.content_key().map(|key| key.value() as usize))
+            .then(|| {
+                endpoint
+                    .content_key()
+                    .filter(|key| key.value() != NO_BLOCK)
+                    .map(|key| key.value() as usize)
+            })
             .flatten();
         *cached = Some(CachedBlockEndpoint { endpoint, block_ix });
     }
@@ -73,6 +89,8 @@ impl VirtualBlockSelection {
 pub(super) struct TextViewSelectionAdapter {
     selection: TextSelectionHandle,
     text_bounds: Vec<Bounds<Pixels>>,
+    endpoint_runs: Vec<TextEndpointRun>,
+    object_runs: Vec<(Bounds<Pixels>, Option<RenderedFragment>)>,
     layout_revision: Option<usize>,
 }
 
@@ -88,20 +106,40 @@ impl TextViewSelectionAdapter {
             .subscribe(
                 move |event, cx| match event {
                     TextSelectionEvent::SelectionChanged(snapshot) => {
+                        let Some(view) = view_for_events.upgrade() else {
+                            return;
+                        };
                         let snapshot = *snapshot;
-                        let _ = view_for_events.update(cx, |state, cx| {
-                            state.preserve_inline_selection = false;
+                        view.update(cx, |state, cx| {
+                            if state.selection_adapter.selection.snapshot(cx) != snapshot {
+                                return;
+                            }
                             blocks_for_events
                                 .borrow_mut()
                                 .update(snapshot, selection_id);
+                            // Clear handlers synchronously reset the old owners.
+                            // Their queued None event must not retire a newer
+                            // local range or explicit caret installed afterward.
+                            if snapshot.is_none()
+                                && (state.selection_adapter.selection.has_local_selection(cx)
+                                    || state.requested_rendered_selection().is_some())
+                            {
+                                return;
+                            }
+                            state.retire_rendered_selection();
+                            state.preserve_inline_selection = false;
                             state.is_selecting =
                                 snapshot.is_some_and(|snapshot| snapshot.is_selecting());
+                            state.adopt_rendered_pointer_selection(snapshot);
                             cx.notify();
                         });
                     }
                     TextSelectionEvent::AutoScroll(delta) => {
+                        let Some(view) = view_for_events.upgrade() else {
+                            return;
+                        };
                         let delta = *delta;
-                        let _ = view_for_events.update(cx, |state, cx| {
+                        view.update(cx, |state, cx| {
                             if state.scrollable {
                                 state.set_auto_scroll(delta, cx);
                             } else if delta.is_none() {
@@ -120,7 +158,13 @@ impl TextViewSelectionAdapter {
         selection.clear_with(
             move |cx| {
                 blocks_for_clear.replace(VirtualBlockSelection::default());
-                let _ = view_for_clear.update(cx, |state, cx| {
+                // Window teardown can deliver this after the document retires.
+                // That is an ordinary no-op, not an error requiring a backtrace
+                // through the mixed OCaml/Rust application stack.
+                let Some(view) = view_for_clear.upgrade() else {
+                    return;
+                };
+                view.update(cx, |state, cx| {
                     state.reset_selection();
                     cx.notify();
                 });
@@ -136,9 +180,23 @@ impl TextViewSelectionAdapter {
                     return String::new();
                 };
                 let state = view.read(cx);
+                // A restyle can disable selection before the frame-end sweep
+                // removes this participant's previous registration.
+                if !state.is_selectable() {
+                    return String::new();
+                }
                 let last = state.parsed_content.document.blocks.len().saturating_sub(1);
                 let blocks = blocks_for_copy.borrow().block_range(selection_id, last);
-                state.selected_text_in(blocks)
+                let text = state.selected_text_in(blocks);
+                if state.effective_format() == super::SelectionFormat::Source {
+                    // Source selection owns its whitespace, including the exact
+                    // source returned by select-all. Never normalize those bytes.
+                    text
+                } else {
+                    // Normalize rendered paragraph separators locally, without
+                    // trimming neighboring participants in the window result.
+                    text.trim().to_string()
+                }
             },
             cx,
         );
@@ -147,9 +205,22 @@ impl TextViewSelectionAdapter {
         selection.resolve_content_key_with(
             move |point, cx| {
                 let view = view_for_content_key.upgrade()?;
-                view.read(cx)
-                    .block_ix_at(point.y)
-                    .map(|block| TextSelectionContentKey::new(block as u64))
+                let view = view.read(cx);
+                let block = view.block_ix_at(point.y);
+                let window_point = point + view.bounds().origin + view.scroll_offset();
+                let position =
+                    view.selection_adapter
+                        .endpoint_at(window_point)
+                        .filter(|position| {
+                            view.rendered_text()
+                                .is_some_and(|text| text.captured_position(*position).is_some())
+                        });
+                if block.is_none() && position.is_none() {
+                    return None;
+                }
+                let key =
+                    TextSelectionContentKey::new(block.map_or(NO_BLOCK, |block| block as u64));
+                Some(position.map_or(key, |position| key.with_position(position)))
             },
             cx,
         );
@@ -169,6 +240,8 @@ impl TextViewSelectionAdapter {
         Self {
             selection,
             text_bounds: Vec::new(),
+            endpoint_runs: Vec::new(),
+            object_runs: Vec::new(),
             layout_revision: None,
         }
     }
@@ -185,10 +258,178 @@ impl TextViewSelectionAdapter {
 
     pub(super) fn begin_frame(&mut self) {
         self.text_bounds.clear();
+        self.endpoint_runs.clear();
+        self.object_runs.clear();
     }
 
     pub(super) fn register_inline(&mut self, bounds: Vec<Bounds<Pixels>>) {
         self.text_bounds.extend(bounds);
+    }
+
+    pub(super) fn register_text_endpoint(
+        &mut self,
+        run: crate::TextSelectionRun,
+        fragment: Option<RenderedFragment>,
+    ) {
+        self.endpoint_runs.push(TextEndpointRun { run, fragment });
+    }
+
+    pub(super) fn register_object_endpoint(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        fragment: Option<RenderedFragment>,
+    ) {
+        self.object_runs.push((bounds, fragment));
+    }
+
+    pub(super) fn multi_click_selection(
+        &self,
+        text: &super::RenderedText,
+        point: Point<Pixels>,
+        kind: super::TextViewMultiClickKind,
+        line: Option<Bounds<Pixels>>,
+    ) -> Option<super::RenderedSelection> {
+        if kind == super::TextViewMultiClickKind::Line && line.is_none() {
+            return None;
+        }
+        let selection = if let Some(line) = line {
+            let mut ranges = Vec::new();
+            for run in &self.endpoint_runs {
+                if line.contains(&run.run.bounds().center()) {
+                    ranges.push(run.fragment.as_ref()?.selection(text)?);
+                }
+            }
+            for (bounds, fragment) in &self.object_runs {
+                if line.contains(&bounds.center()) {
+                    ranges.push(fragment.as_ref()?.selection(text)?);
+                }
+            }
+            // The gesture is forward. Logical extrema include distinct empty
+            // object edges without inventing Copy characters.
+            let start = ranges
+                .iter()
+                .map(|r| r.anchor())
+                .min_by_key(|p| p.order_key())?;
+            let end = ranges
+                .iter()
+                .map(|r| r.head())
+                .max_by_key(|p| p.order_key())?;
+            text.selection(start, end).ok()?
+        } else if let Some((_, fragment)) = self
+            .object_runs
+            .iter()
+            .find(|(bounds, _)| bounds.contains(&point))
+        {
+            fragment.as_ref()?.selection(text)?
+        } else {
+            let run = self
+                .endpoint_runs
+                .iter()
+                .find(|run| run.run.bounds().contains(&point))?;
+            let position = run
+                .fragment
+                .as_ref()?
+                .position(run.run.index_for_position(point)?)?;
+            let position = text.captured_position(position)?;
+            text.multi_click_range(&position, kind == super::TextViewMultiClickKind::Paragraph)?
+        };
+        (!selection.is_collapsed()).then_some(selection)
+    }
+
+    fn endpoint_at(&self, point: Point<Pixels>) -> Option<crate::TextSelectionContentPosition> {
+        // Atomic objects have two physical edges, even with zero copy bytes.
+        // Do not extrapolate across a paragraph gap or an unmapped object.
+        if let Some((bounds, fragment)) = self
+            .object_runs
+            .iter()
+            .find(|(bounds, _)| bounds.contains(&point))
+        {
+            return Some(fragment.as_ref()?.edge(point.x >= bounds.center().x));
+        }
+        let run = self
+            .endpoint_runs
+            .iter()
+            .find(|run| run.run.bounds().contains(&point))?;
+        let fragment = run.fragment.as_ref()?;
+        let byte = run.run.caret_for_position(point)?;
+        fragment.position(byte)
+    }
+
+    /// Only actual captured endpoints, never inferred from selected strings or
+    /// the minimum/maximum currently painted fragment ranges.
+    pub(super) fn captured_rendered_selection(
+        &self,
+        text: &super::RenderedText,
+        cx: &App,
+    ) -> Option<super::RenderedSelection> {
+        self.rendered_selection_from_snapshot(text, self.selection.snapshot(cx))
+    }
+
+    pub(super) fn rendered_selection_from_snapshot(
+        &self,
+        text: &super::RenderedText,
+        snapshot: Option<TextSelectionSnapshot>,
+    ) -> Option<super::RenderedSelection> {
+        use std::cmp::Ordering;
+        let snapshot = snapshot?;
+        let owns = |endpoint: TextSelectionEndpoint| {
+            endpoint.entity_id() == Some(self.selection.entity_id())
+        };
+        let position = |endpoint: TextSelectionEndpoint| {
+            text.captured_position(endpoint.content_key()?.position()?)
+        };
+        let (anchor, head) = match snapshot.coverage() {
+            TextSelectionCoverage::Bounded => {
+                if !owns(snapshot.anchor()) || !owns(snapshot.cursor()) {
+                    return None;
+                }
+                (position(snapshot.anchor())?, position(snapshot.cursor())?)
+            }
+            coverage => {
+                let backward = match snapshot.participant_ordering()? {
+                    Ordering::Less => false,
+                    Ordering::Greater => true,
+                    Ordering::Equal => return None,
+                };
+                let full = text.full_selection();
+                let start = full.anchor().clone();
+                let end = full.head().clone();
+                let (start, end) = match coverage {
+                    TextSelectionCoverage::Full => {
+                        if owns(snapshot.anchor()) || owns(snapshot.cursor()) {
+                            return None;
+                        }
+                        (start, end)
+                    }
+                    TextSelectionCoverage::FromStart | TextSelectionCoverage::ToEnd => {
+                        let endpoint = if owns(snapshot.anchor()) && !owns(snapshot.cursor()) {
+                            // In a forward gesture the anchor selects to the end;
+                            // in a backward gesture it selects from the beginning.
+                            if (coverage == TextSelectionCoverage::FromStart) != backward {
+                                return None;
+                            }
+                            snapshot.anchor()
+                        } else if owns(snapshot.cursor()) && !owns(snapshot.anchor()) {
+                            if (coverage == TextSelectionCoverage::ToEnd) != backward {
+                                return None;
+                            }
+                            snapshot.cursor()
+                        } else {
+                            return None;
+                        };
+                        let endpoint = position(endpoint)?;
+                        if coverage == TextSelectionCoverage::FromStart {
+                            (start, endpoint)
+                        } else {
+                            (endpoint, end)
+                        }
+                    }
+                    TextSelectionCoverage::Bounded => unreachable!(),
+                };
+                if backward { (end, start) } else { (start, end) }
+            }
+        };
+        text.selection(&anchor, &head).ok()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -197,15 +438,13 @@ impl TextViewSelectionAdapter {
         hitbox: Hitbox,
         bounds: Bounds<Pixels>,
         scroll_offset: Point<Pixels>,
-        document_order: u64,
         self_scroll: bool,
         window: &mut Window,
         cx: &mut App,
     ) {
-        self.selection.register(
+        self.selection.register_in_paint_order(
             TextSelectionRegistration::new(hitbox, bounds)
                 .with_scroll_offset(scroll_offset)
-                .with_document_order(document_order)
                 .with_text_bounds(self.text_bounds.clone())
                 .with_self_scroll(self_scroll),
             window,
@@ -220,6 +459,19 @@ impl TextViewSelectionAdapter {
 
     pub(super) fn set_local_selection(&self, active: bool, cx: &mut App) {
         self.selection.set_local_selection(active, cx);
+    }
+
+    pub(super) fn handle(&self) -> TextSelectionHandle {
+        self.selection.clone()
+    }
+
+    pub(super) fn rebind_content_positions(
+        &self,
+        compatible: bool,
+        map: impl Fn(crate::TextSelectionContentPosition) -> Option<crate::TextSelectionContentPosition>,
+        cx: &mut App,
+    ) -> bool {
+        self.selection.rebind_content_positions(compatible, map, cx)
     }
 
     pub(super) fn is_part_of_window_selection(&self, cx: &App) -> bool {

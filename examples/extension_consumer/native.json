@@ -1,5 +1,16 @@
 {
   "library": "gpuio_counter_backend",
   "gpuio": "../..",
-  "components": [{"path": "../extension_package/rust", "factory": "factory"}]
+  "components": [
+    {
+      "path": "../extension_package/rust",
+      "factory": "factory"
+    }
+  ],
+  "document_profiles": [
+    {
+      "path": "../document_profile_package/rust",
+      "factory": "factory"
+    }
+  ]
 }

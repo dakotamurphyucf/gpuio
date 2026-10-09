@@ -21,6 +21,60 @@ module Tree_item = struct
   ;;
 end
 
+module Option_item = struct
+  type t =
+    { index : int
+    ; count : int option
+    ; selected : bool
+    ; disabled : bool
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t =
+    t.index >= 0
+    && t.index < 1_000_000
+    && Option.for_all t.count ~f:(fun count -> count > t.index && count <= 1_000_000)
+  ;;
+end
+
+module Orientation = struct
+  type t =
+    | Horizontal
+    | Vertical
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Table_info = struct
+  type t =
+    { rows : int option
+    ; columns : int option
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t =
+    Option.for_all t.rows ~f:(fun rows -> rows >= 0 && rows <= 1_000_000)
+    && Option.for_all t.columns ~f:(fun columns -> columns >= 0 && columns <= 1024)
+  ;;
+end
+
+module Table_cell = struct
+  type t =
+    { row : int
+    ; column : int
+    ; column_span : int
+    }
+  [@@deriving bin_io, equal, sexp_of]
+
+  let valid t =
+    t.row >= 0
+    && t.row < 1_000_000
+    && t.column >= 0
+    && t.column < 1024
+    && t.column_span > 0
+    && t.column_span <= 1024 - t.column
+  ;;
+end
+
 module Role = struct
   type t =
     | Group
@@ -37,11 +91,28 @@ module Role = struct
     | Navigation
     | Tree of bool
     | Tree_item of Tree_item.t
+    | Toolbar of Orientation.t
+    | Radio_group of Orientation.t
+    | Log
+    | List_box of bool
+    | Option_item of Option_item.t
+    | Table of Table_info.t
+    | Row_group
+    | Table_row of int
+    | Table_cell of Table_cell.t
+    | Column_header of Table_cell.t
+    | Row_header of Table_cell.t
+    | Caption
   [@@deriving bin_io, equal, sexp_of]
 
   let valid = function
     | Heading level -> level >= 1 && level <= 6
     | Tree_item item -> Tree_item.valid item
+    | Option_item item -> Option_item.valid item
+    | Table info -> Table_info.valid info
+    | Table_row index -> index >= 0 && index < 1_000_000
+    | Table_cell cell | Column_header cell | Row_header cell -> Table_cell.valid cell
+    | Row_group | Caption -> true
     | Group
     | Label
     | Link
@@ -53,7 +124,11 @@ module Role = struct
     | Alert
     | Image
     | Navigation
-    | Tree _ -> true
+    | Tree _
+    | Toolbar _
+    | Radio_group _
+    | Log
+    | List_box _ -> true
   ;;
 end
 

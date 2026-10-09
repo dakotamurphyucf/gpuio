@@ -1,0 +1,3 @@
+(executable
+ (name main)
+ (libraries core gpuio_lifecycle_workload gpuio_resource_audit_backend))

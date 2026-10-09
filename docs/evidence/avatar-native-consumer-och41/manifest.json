@@ -1,0 +1,10 @@
+{
+  "archive": "local-validation.tar.gz",
+  "sha256": "864cd1d1ffa5c1503c7d2c24266c7e9f506f76324725f867b57da46f1f134cb3",
+  "application_revision": "47924139e52c691182cfe6c9593501186f83fd30",
+  "driver_changes": "gallery-installed-palette-001/driver.patch",
+  "native_image_views_sha256": "8bcb97febd37ed647dc95400ed7422ee024ce5ec06006187e68c38a9d2140997",
+  "installed_gallery_sha256": "b978ed554931821f88572e1fe283d2a03123ef636667d669208b369be187a115",
+  "platform": "macOS 14.5 arm64; M1 Max; built-in display",
+  "scope": "Native avatar/image GPU and fresh installed public avatar/Rating gallery; no VoiceOver or Linux GUI"
+}

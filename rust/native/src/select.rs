@@ -34,6 +34,8 @@ pub(super) struct Render<'a> {
     pub focus: FocusHandle,
     pub route: Option<Route>,
     pub pointer: bool,
+    pub menu: bool,
+    pub decoration: Option<super::choice_popup::Decoration>,
     pub selected_style: Option<gpui::StyleRefinement>,
 }
 
@@ -51,6 +53,8 @@ pub(super) fn element<T: 'static>(
         focus,
         route,
         pointer,
+        menu,
+        decoration,
         selected_style,
     } = render;
     let owner = cx.entity_id();
@@ -59,7 +63,7 @@ pub(super) fn element<T: 'static>(
         config,
         &appearance,
         focus.is_focused(window),
-        window.viewport_size(),
+        crate::window_frame::content_bounds(window).size,
     );
     let open = popup_state.borrow().open;
     let value = config
@@ -68,17 +72,20 @@ pub(super) fn element<T: 'static>(
         .and_then(|id| config.items.iter().find(|item| &item.id == id))
         .map(|item| item.label.clone());
     let trigger = popup_state.borrow().trigger.clone();
-    base = base
-        .aria_expanded(open)
-        .aria_value(value.clone().unwrap_or_default())
-        .child(
+    base = base.aria_expanded(open);
+    if menu {
+        base = base.role(gpui::Role::Button).justify_center();
+    } else {
+        base = base.aria_value(value.clone().unwrap_or_default()).child(
             div()
                 .flex_1()
                 .overflow_hidden()
                 .child(gpui::SharedString::from(
                     value.unwrap_or_else(|| config.label.clone()),
                 )),
-        )
+        );
+    }
+    base = base
         .child(
             canvas(
                 |_, _, _| (),
@@ -233,12 +240,15 @@ pub(super) fn element<T: 'static>(
                     choose: Rc::new(move |id, _, _| route.select(id)),
                     owner,
                     pointer,
+                    menu,
+                    decoration,
                     selected_style,
                 },
                 window,
             );
             base = base.child(
                 deferred(super::popup::Surface {
+                    geometry: None,
                     placement: Placement::default(),
                     trigger: popup_state.borrow().trigger.clone(),
                     content: popup.into_any_element(),

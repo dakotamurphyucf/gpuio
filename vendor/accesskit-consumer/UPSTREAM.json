@@ -1,0 +1,27 @@
+{
+  "crate": "accesskit_consumer",
+  "version": "0.38.0",
+  "revision": "c88605b96d04431f9c3c792464a0f2f253480e94",
+  "source": "https://crates.io/api/v1/crates/accesskit_consumer/0.38.0/download",
+  "crate_sha256": "5d10a236f96f87d70732e44520046785431ef01d5bcd6b041317bfadd2f88245",
+  "original_files_sha256": {
+    "CHANGELOG.md": "0ffc9d467103c82daf85b8e106aea98cebf4ee6a9ab4a836fea987c2e6dea1c5",
+    "Cargo.toml": "f75c77dc052103040d9ff95469fe50f94cd327b147fec851a8cb709c8a379774",
+    "Cargo.toml.orig": "4b531b28c87e4e0b463da36f5163318163a240611ca92c5f8d96aa74f6ce8646",
+    "README.md": "28c871133e9adeb24b4140a520614cee08713c35e2e2688f4a2fed7d4e62b472",
+    "src/filters.rs": "7ed1578cac719bfaf02c96aa3fd9adc070b487eef9126d8da2b5bc611b66c6f4",
+    "src/iterators.rs": "241345c892b481f075826cebc9ce9a0d68ee3b88bfa49668ed99388e61031f38",
+    "src/lib.rs": "11bf579ec7ff5251ff8646b2008d327db47fad4cfd586c7745076c5710e0fc7c",
+    "src/node.rs": "99e7ebd71e596c68b822eaab9443f93d533092f7953d79e859149ae5260ad841",
+    "src/text.rs": "aec62207031f24728fd8621159ba4b93f98dfa287a6e6ee36d5f370857ac9ae3",
+    "src/tree.rs": "11bd99118f37469144807416d4430893de938b1533f36d067c04e36235367f9a"
+  },
+  "patches": [
+    "text-scopes.patch"
+  ],
+  "license_files_sha256": {
+    "LICENSE-APACHE": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+    "LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "LICENSE.chromium": "845022e0c1db1abb41a6ba4cd3c4b674ec290f3359d9d3c78ae558d4c0ed9308"
+  }
+}

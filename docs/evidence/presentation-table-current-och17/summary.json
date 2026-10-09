@@ -1,0 +1,657 @@
+{
+  "revision": "de452dea3f73453716e801513f2ac645e449487f",
+  "executable_source_revision": "2562490ffee13059a6ca99ddc7108556f2a3972a",
+  "executable_sha256": "85619583aef0ebcc0b1644d004082c0cb4ea8624945c6579dbb38c41e080f557",
+  "plan": "One warm-up followed by exactly three full 100k-row/64-column table trials using code from 2562490f (subsequent commits only change docs); unchanged budgets; retain every outcome; stop remaining trials only on child execution failure",
+  "running": null,
+  "trials": [
+    {
+      "name": "warmup",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "c79857e891c3a851fe7fc50ebd8feb273bd4b4c4ad8c7f126c1c016784bc2288",
+      "revision": "de452dea3f73453716e801513f2ac645e449487f",
+      "dirty": false,
+      "executable_sha256": "85619583aef0ebcc0b1644d004082c0cb4ea8624945c6579dbb38c41e080f557",
+      "budget_failures": null,
+      "peak_rss_bytes": 273039360,
+      "wall_seconds": 19.132155749946833,
+      "coverage": {
+        "forward": 1030,
+        "backward": 1030,
+        "materialized": 1030,
+        "columns": 64,
+        "peak_active_rows": 26,
+        "peak_active_cells": 1664,
+        "peak_loaded_rows": 512,
+        "page_loads": 17,
+        "page_evictions": 13,
+        "loaded_rows": 512
+      },
+      "history": {
+        "elapsed_ns": 8853107542,
+        "histograms": {
+          "draw": {
+            "count": 397,
+            "p95": 15228927,
+            "p99": 15605759
+          },
+          "dirty_to_submission": {
+            "count": 397,
+            "p95": 17711103,
+            "p99": 19152895
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "inputs_per_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 397,
+            "admitted": 397,
+            "saturated": 0,
+            "presented": 395,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 2,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 2,
+            "first_presentation_ns": 47581712
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 395,
+              "p95": 17465343,
+              "p99": 22724607
+            },
+            "input_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 9,
+          "all_sampled_active_visible": true
+        }
+      },
+      "idle": {
+        "elapsed_ns": 2008523417,
+        "histograms": {
+          "draw": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "dirty_to_submission": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "inputs_per_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 0,
+            "admitted": 0,
+            "saturated": 0,
+            "presented": 0,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 0,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 0,
+            "first_presentation_ns": null
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "input_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 2,
+          "all_sampled_active_visible": true
+        }
+      }
+    },
+    {
+      "name": "001",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "587a438d362783e57fff6ec79dcd8eb4d2ea4fd287458726a1d9b2de2d215d1a",
+      "revision": "de452dea3f73453716e801513f2ac645e449487f",
+      "dirty": false,
+      "executable_sha256": "85619583aef0ebcc0b1644d004082c0cb4ea8624945c6579dbb38c41e080f557",
+      "budget_failures": [],
+      "peak_rss_bytes": 513425408,
+      "wall_seconds": 784.3586909575388,
+      "coverage": {
+        "forward": 100000,
+        "backward": 100000,
+        "materialized": 100000,
+        "columns": 64,
+        "peak_active_rows": 26,
+        "peak_active_cells": 1664,
+        "peak_loaded_rows": 512,
+        "page_loads": 1564,
+        "page_evictions": 1560,
+        "loaded_rows": 512
+      },
+      "history": {
+        "elapsed_ns": 716640784333,
+        "histograms": {
+          "draw": {
+            "count": 26370,
+            "p95": 15425535,
+            "p99": 16179199
+          },
+          "dirty_to_submission": {
+            "count": 26370,
+            "p95": 17645567,
+            "p99": 20365311
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "inputs_per_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 26370,
+            "admitted": 26370,
+            "saturated": 0,
+            "presented": 26369,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 1,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 22274,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 1,
+            "first_presentation_ns": 32489713
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 26369,
+              "p95": 17055743,
+              "p99": 19660799
+            },
+            "input_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 717,
+          "all_sampled_active_visible": true
+        }
+      },
+      "idle": {
+        "elapsed_ns": 60010036000,
+        "histograms": {
+          "draw": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "dirty_to_submission": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "inputs_per_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 0,
+            "admitted": 0,
+            "saturated": 0,
+            "presented": 0,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 0,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 0,
+            "first_presentation_ns": null
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "input_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 60,
+          "all_sampled_active_visible": true
+        }
+      }
+    },
+    {
+      "name": "002",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "4d02e5131d32395feca8cc7bd1fc127f7a20e52f3c07f74770ae9c1c4c039f64",
+      "revision": "de452dea3f73453716e801513f2ac645e449487f",
+      "dirty": false,
+      "executable_sha256": "85619583aef0ebcc0b1644d004082c0cb4ea8624945c6579dbb38c41e080f557",
+      "budget_failures": [],
+      "peak_rss_bytes": 496992256,
+      "wall_seconds": 794.9348130421713,
+      "coverage": {
+        "forward": 100000,
+        "backward": 100000,
+        "materialized": 100000,
+        "columns": 64,
+        "peak_active_rows": 26,
+        "peak_active_cells": 1664,
+        "peak_loaded_rows": 512,
+        "page_loads": 1564,
+        "page_evictions": 1560,
+        "loaded_rows": 512
+      },
+      "history": {
+        "elapsed_ns": 727319558375,
+        "histograms": {
+          "draw": {
+            "count": 26341,
+            "p95": 15818751,
+            "p99": 16703487
+          },
+          "dirty_to_submission": {
+            "count": 26341,
+            "p95": 18202623,
+            "p99": 20332543
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "inputs_per_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 26341,
+            "admitted": 26341,
+            "saturated": 0,
+            "presented": 26340,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 1,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 22245,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 1,
+            "first_presentation_ns": 32699546
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 26340,
+              "p95": 17104895,
+              "p99": 20545535
+            },
+            "input_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 728,
+          "all_sampled_active_visible": true
+        }
+      },
+      "idle": {
+        "elapsed_ns": 60009552459,
+        "histograms": {
+          "draw": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "dirty_to_submission": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "inputs_per_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 0,
+            "admitted": 0,
+            "saturated": 0,
+            "presented": 0,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 0,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 0,
+            "first_presentation_ns": null
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "input_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 60,
+          "all_sampled_active_visible": true
+        }
+      }
+    },
+    {
+      "name": "003",
+      "driver_exit": 0,
+      "complete": true,
+      "error": null,
+      "child_returncode": 0,
+      "report_sha256": "14c89da0093f61cd978700ca3317f6cd0ef06926a5bd321a4f7b3e4a02871507",
+      "revision": "de452dea3f73453716e801513f2ac645e449487f",
+      "dirty": false,
+      "executable_sha256": "85619583aef0ebcc0b1644d004082c0cb4ea8624945c6579dbb38c41e080f557",
+      "budget_failures": [],
+      "peak_rss_bytes": 494256128,
+      "wall_seconds": 790.3070293329656,
+      "coverage": {
+        "forward": 100000,
+        "backward": 100000,
+        "materialized": 100000,
+        "columns": 64,
+        "peak_active_rows": 26,
+        "peak_active_cells": 1664,
+        "peak_loaded_rows": 512,
+        "page_loads": 1564,
+        "page_evictions": 1560,
+        "loaded_rows": 512
+      },
+      "history": {
+        "elapsed_ns": 722635625541,
+        "histograms": {
+          "draw": {
+            "count": 26228,
+            "p95": 15810559,
+            "p99": 16646143
+          },
+          "dirty_to_submission": {
+            "count": 26228,
+            "p95": 18268159,
+            "p99": 20234239
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "inputs_per_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 26228,
+            "admitted": 26228,
+            "saturated": 0,
+            "presented": 26227,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 1,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 22132,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 1,
+            "first_presentation_ns": 31671087
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 26227,
+              "p95": 17055743,
+              "p99": 20283391
+            },
+            "input_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 723,
+          "all_sampled_active_visible": true
+        }
+      },
+      "idle": {
+        "elapsed_ns": 60009269917,
+        "histograms": {
+          "draw": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "dirty_to_submission": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "animation_submission_interval": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "input_to_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          },
+          "inputs_per_frame": {
+            "count": 0,
+            "p95": null,
+            "p99": null
+          }
+        },
+        "presentation": {
+          "counts": {
+            "attempted": 0,
+            "admitted": 0,
+            "saturated": 0,
+            "presented": 0,
+            "not_submitted": 0,
+            "missing": 0,
+            "zero": 0,
+            "invalid_clock": 0,
+            "duplicate_callbacks": 0,
+            "trace_truncated": 0,
+            "histogram_overflow": 0
+          },
+          "startup_transition": {
+            "skipped_frames": 0,
+            "first_presentation_ns": null
+          },
+          "histograms": {
+            "submission_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "input_to_presentation": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            },
+            "scheduled_presentation_interval": {
+              "count": 0,
+              "p95": null,
+              "p99": null
+            }
+          },
+          "observations": 60,
+          "all_sampled_active_visible": true
+        }
+      }
+    }
+  ]
+}

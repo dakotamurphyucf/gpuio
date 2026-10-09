@@ -17,8 +17,8 @@ use crate::{
     async_util::{Receiver, Sender, unbounded},
     input::{self, SelectAll},
     text::{
-        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, MarkdownExtensions,
-        TableActionsFn, TextViewStyle,
+        CodeBlockActionsFn, CodeBlockHighlighterFn, LinkClickHandlerFn, LinkFocusGuardFn,
+        MarkdownExtensions, TableActionsFn, TextViewStyle,
         document::ParsedDocument,
         format,
         node::{self, NodeContext},
@@ -72,6 +72,49 @@ pub enum SelectionFormat {
     Source,
 }
 
+/// Native adapter request for one view and interaction epoch. The OS adapter
+/// must also check current window visibility, modality and action eligibility.
+#[derive(Clone, Debug)]
+pub struct RenderedSelectionRequest {
+    epoch: Arc<()>,
+    selection: super::RenderedSelection,
+}
+
+// Whole-document Copy is a declared representation, distinct from selection
+// coordinates for custom Text glyphs. Preserve it when freezing All on append.
+struct PreparedWholeCopy {
+    source: String,
+    plain: Option<String>,
+}
+
+#[derive(Clone)]
+enum RetainedRenderedSelection {
+    Request(super::RenderedSelection),
+    Pointer(super::RenderedSelection),
+    MultiClick(super::RenderedSelection),
+    SelectAll(super::RenderedSelection),
+}
+
+impl RetainedRenderedSelection {
+    fn selection(&self) -> &super::RenderedSelection {
+        match self {
+            Self::Request(selection)
+            | Self::Pointer(selection)
+            | Self::MultiClick(selection)
+            | Self::SelectAll(selection) => selection,
+        }
+    }
+
+    fn rebind(self, selection: super::RenderedSelection) -> Self {
+        match self {
+            Self::Request(_) => Self::Request(selection),
+            Self::Pointer(_) => Self::Pointer(selection),
+            Self::MultiClick(_) => Self::MultiClick(selection),
+            Self::SelectAll(_) => Self::SelectAll(selection),
+        }
+    }
+}
+
 /// One text element's laid-out vertical extent, reported by `Inline` during
 /// prepaint so `TextView` can snap its `max_lines` clip to a whole-line
 /// boundary.
@@ -99,11 +142,15 @@ pub struct TextViewState {
     pub(super) line_spans: Arc<Mutex<Vec<LineSpan>>>,
     /// Whether the last painted frame clipped content due to `max_lines`.
     pub(super) clamped: bool,
+    /// Painted link sources under the current preview clip. Only consulted
+    /// with `max_lines`; virtualized documents retain logical navigation.
+    pub(super) preview_links: std::collections::BTreeSet<usize>,
     pub(super) text_view_style: TextViewStyle,
     pub(super) code_block_actions: Option<std::sync::Arc<CodeBlockActionsFn>>,
     pub(super) code_block_highlighter: Option<std::sync::Arc<CodeBlockHighlighterFn>>,
     pub(super) table_actions: Option<std::sync::Arc<TableActionsFn>>,
     pub(super) link_click_handler: Option<std::sync::Arc<LinkClickHandlerFn>>,
+    pub(super) link_focus_guard: Option<Arc<LinkFocusGuardFn>>,
     pub(super) markdown_extensions: Arc<MarkdownExtensions>,
 
     pub(super) is_selecting: bool,
@@ -111,12 +158,25 @@ pub struct TextViewState {
     pub(super) preserve_inline_selection: bool,
     multi_click_selection: Option<TextViewMultiClickSelection>,
     selected_text_override: Option<String>,
-    prepared_source_selection: Option<String>,
+    prepared_whole_copy: Option<PreparedWholeCopy>,
     select_all: bool,
+    selection_epoch: Arc<()>,
+    painted_selection_epoch: Option<Arc<()>>,
+    pub(super) selection_reveal: Option<super::RenderedTextPosition>,
+    pub(super) selection_reveal_claimed: bool,
+    rendered_selection: Option<RetainedRenderedSelection>,
     pub(super) auto_scroll: AutoScroll,
     pub(super) selection_adapter: TextViewSelectionAdapter,
+    pub(super) semantic_attachments: super::semantic_attachments::Frame,
 
     pub(super) parsed_content: ParsedContent,
+    pub(super) text_backgrounds: Option<std::rc::Rc<super::TextBackgrounds>>,
+    pub(super) control_navigation: super::control_navigation::Navigation,
+    pub(super) tab_exit_handler: Option<std::rc::Rc<super::text_view::TabExitHandlerFn>>,
+    pub(super) link_navigation: super::link_navigation::Navigation,
+    pub(super) link_reveal: Option<usize>,
+    pub(super) link_reveal_claimed: bool,
+    pub(super) link_active_owner: Option<gpui::GlobalElementId>,
     /// Content format (markdown / html), used for bounded synchronous parsing
     /// of small full-replace updates.
     format: TextViewFormat,
@@ -132,6 +192,410 @@ pub struct TextViewState {
 }
 
 impl TextViewState {
+    /// Install immutable decoration layers for this exact prepared AST. A stale
+    /// source clears the old owner and returns false. This does not reparse or
+    /// invalidate list measurements, selection or scrolling.
+    pub fn set_text_backgrounds(
+        &mut self,
+        layers: Option<std::rc::Rc<super::TextBackgrounds>>,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let valid = layers.as_ref().is_none_or(|layers| {
+            self.parsed_content
+                .displayed_text
+                .as_ref()
+                .is_some_and(|source| Arc::ptr_eq(source, &layers.source))
+        });
+        let layers = valid.then_some(layers).flatten();
+        let same = match (&self.text_backgrounds, &layers) {
+            (Some(a), Some(b)) => std::rc::Rc::ptr_eq(a, b),
+            (None, None) => true,
+            _ => false,
+        };
+        if !same {
+            self.text_backgrounds = layers;
+            cx.notify();
+        }
+        valid
+    }
+    /// The immutable fragments of the installed bounded preparation. Ordinary
+    /// asynchronous Markdown/HTML updates do not advertise this contract.
+    pub fn displayed_text(&self) -> Option<Arc<super::DisplayedText>> {
+        self.parsed_content.displayed_text.clone()
+    }
+
+    /// Installed bounded rendered-text projection. Unbounded parser updates do
+    /// not advertise this contract. Selection/AX publication is separate.
+    pub fn rendered_text(&self) -> Option<Arc<super::RenderedText>> {
+        self.parsed_content.rendered_text.clone()
+    }
+
+    /// Real block subtrees from the last completed prepaint for this window and
+    /// exact installed preparation. Offscreen blocks have no attachment. This
+    /// read-only mapping does not authorize actions or supply character geometry.
+    pub fn rendered_semantic_attachments(
+        &self,
+        window: &Window,
+    ) -> Vec<super::RenderedSemanticAttachment> {
+        self.rendered_text().map_or_else(Vec::new, |projection| {
+            self.semantic_attachments
+                .snapshot(window.window_handle().window_id(), &projection)
+        })
+    }
+
+    /// Read-only conversion against this window's last completed native subtree
+    /// and exact preparation. This is not visibility or action authorization.
+    pub fn rendered_accessible_position(
+        &self,
+        window: &Window,
+        position: gpui::accesskit::TextPosition,
+    ) -> Option<super::RenderedTextPosition> {
+        self.semantic_attachments.position(
+            window.window_handle().window_id(),
+            &self.rendered_text()?,
+            position,
+        )
+    }
+
+    /// Returns a published text-run position when the current prepared point is
+    /// realized. Missing/offscreen runs have no invented native position.
+    pub fn rendered_accessible_text_position(
+        &self,
+        window: &Window,
+        position: &super::RenderedTextPosition,
+    ) -> Option<gpui::accesskit::TextPosition> {
+        self.semantic_attachments.text_position(
+            window.window_handle().window_id(),
+            &self.rendered_text()?,
+            position,
+        )
+    }
+
+    pub(super) fn rendered_text_revision(&self) -> Option<crate::TextSelectionContentRevision> {
+        self.parsed_content
+            .rendered_text
+            .as_deref()
+            .map(super::RenderedText::revision)
+    }
+
+    pub(super) fn accepts_selection_frame(
+        &self,
+        revision: Option<crate::TextSelectionContentRevision>,
+    ) -> bool {
+        self.selectable && self.rendered_text_revision() == revision
+    }
+
+    /// Prepare an adapter request without changing native state. Positions must
+    /// belong to the installed bounded text, including for equal-text views.
+    pub fn prepare_rendered_selection(
+        &self,
+        anchor: &super::RenderedTextPosition,
+        head: &super::RenderedTextPosition,
+    ) -> Result<RenderedSelectionRequest, super::RenderedSelectionError> {
+        use super::RenderedSelectionError as Error;
+        if !self.selectable {
+            return Err(Error::NotSelectable);
+        }
+        let text = self.rendered_text().ok_or(Error::NoPreparedText)?;
+        Ok(RenderedSelectionRequest {
+            epoch: self.selection_epoch.clone(),
+            selection: text.selection(anchor, head)?,
+        })
+    }
+
+    /// Validate an accessible range against the last painted frame and current
+    /// native interaction state. This neither applies it nor changes focus.
+    /// A dispatcher must revalidate immediately before mutation; this request
+    /// does not grant lasting visibility or host focus authorization.
+    pub fn prepare_accessible_selection(
+        &self,
+        selection: &gpui::accesskit::TextSelection,
+        window: &Window,
+        cx: &App,
+    ) -> Option<RenderedSelectionRequest> {
+        if !self
+            .painted_selection_epoch
+            .as_ref()
+            .is_some_and(|epoch| Arc::ptr_eq(epoch, &self.selection_epoch))
+            || self
+                .link_focus_guard
+                .as_ref()
+                .is_some_and(|guard| !guard(cx))
+        {
+            return None;
+        }
+        let projection = self.rendered_text()?;
+        let range = self
+            .semantic_attachments
+            .selection(window, &projection, selection)?;
+        self.prepare_rendered_selection(range.anchor(), range.head())
+            .ok()
+    }
+
+    pub(super) fn publish_accessible_selection(&mut self, window: &mut Window, cx: &App) {
+        self.painted_selection_epoch = None;
+        let Some(projection) = self.rendered_text() else {
+            return;
+        };
+        let selection = self
+            .rendered_selection()
+            .or_else(|| self.captured_rendered_pointer_selection(cx));
+        if self
+            .semantic_attachments
+            .publish_selection(window, &projection, selection.as_ref())
+        {
+            // Strong ownership matters: retiring an unshared epoch deliberately
+            // avoids allocation. This stamp must force retirement even when no
+            // native request has been prepared yet.
+            self.painted_selection_epoch = Some(self.selection_epoch.clone());
+        }
+    }
+
+    pub(super) fn apply_accessible_selection(
+        &mut self,
+        selection: &gpui::accesskit::TextSelection,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(request) = self.prepare_accessible_selection(selection, window, cx) else {
+            return false;
+        };
+        let head = request.selection.head().clone();
+        let downstream = request.selection.is_backward() || request.selection.is_collapsed();
+        if self.apply_rendered_selection(request, cx).is_err() {
+            return false;
+        }
+        let head = self
+            .rendered_text()
+            .and_then(|text| text.reveal_position(&head))
+            .unwrap_or(head);
+        self.selection_reveal = Some(head.clone());
+        if self.scrollable
+            && let Some(text) = self.rendered_text()
+        {
+            // Realize the logical owner first. Prepaint then reveals its actual
+            // caret, including blocks taller than the viewport.
+            let block = (0..self.parsed_content.document.blocks.len())
+                .rev()
+                .find(|block| {
+                    text.semantic_block(*block)
+                        .and_then(|owner| text.semantic_selection(owner))
+                        .is_some_and(|range| {
+                            range.anchor().order_key() < head.order_key()
+                                || (downstream && range.anchor().order_key() == head.order_key())
+                        })
+                });
+            if let Some(block) = block {
+                self.list_state.scroll_to_reveal_item(block);
+            }
+        }
+        self.control_navigation.cancel();
+        self.link_navigation.active = None;
+        self.link_reveal = None;
+        self.focus_handle.focus(window, cx);
+        true
+    }
+
+    pub(super) fn reveal_selection_object<T>(
+        &mut self,
+        owner: &Arc<Mutex<T>>,
+        bounds: Bounds<Pixels>,
+        window: &mut Window,
+    ) {
+        if self.selection_reveal_claimed {
+            return;
+        }
+        let Some(target) = self.selection_reveal.as_ref() else {
+            return;
+        };
+        let Some(fragment) = self
+            .rendered_text()
+            .and_then(|text| text.object_fragment(owner))
+        else {
+            return;
+        };
+        let position = target.content_position();
+        let end = position == fragment.edge(true);
+        if !end && position != fragment.edge(false) {
+            return;
+        }
+        let extent = gpui::size(
+            bounds.size.width.min(px(2.)),
+            bounds.size.height.min(px(2.)),
+        );
+        let origin = if end {
+            gpui::point(
+                bounds.right() - extent.width,
+                bounds.bottom() - extent.height,
+            )
+        } else {
+            bounds.origin
+        };
+        window.request_autoscroll(Bounds::new(origin, extent));
+        self.selection_reveal_claimed = true;
+    }
+
+    /// Apply a previously prepared native request atomically. No focus/reveal
+    /// or OS authorization is implied by this low-level adapter operation.
+    pub fn apply_rendered_selection(
+        &mut self,
+        request: RenderedSelectionRequest,
+        cx: &mut Context<Self>,
+    ) -> Result<(), super::RenderedSelectionError> {
+        use super::RenderedSelectionError as Error;
+        if !self.selectable {
+            return Err(Error::NotSelectable);
+        }
+        if !Arc::ptr_eq(&self.selection_epoch, &request.epoch) {
+            return Err(Error::StaleRequest);
+        }
+        let text = self.rendered_text().ok_or(Error::NoPreparedText)?;
+        text.apply_selection(&request.selection)?;
+        self.retire_rendered_selection();
+        self.multi_click_selection = None;
+        self.selected_text_override = None;
+        self.prepared_whole_copy = None;
+        self.select_all = text.covers_all(&request.selection);
+        self.preserve_inline_selection = true;
+        self.is_selecting = false;
+        self.auto_scroll.stop();
+        self.selection_adapter
+            .set_local_selection(!request.selection.is_collapsed(), cx);
+        self.rendered_selection = Some(RetainedRenderedSelection::Request(request.selection));
+        cx.notify();
+        Ok(())
+    }
+
+    /// Directed range from the native request path only. Pointer/multi-click
+    /// snapshots must be captured separately from their actual layout endpoints;
+    /// local fragment bounds cannot recover their direction.
+    pub fn requested_rendered_selection(&self) -> Option<&super::RenderedSelection> {
+        match &self.rendered_selection {
+            Some(RetainedRenderedSelection::Request(selection)) => Some(selection),
+            Some(
+                RetainedRenderedSelection::Pointer(_)
+                | RetainedRenderedSelection::MultiClick(_)
+                | RetainedRenderedSelection::SelectAll(_),
+            )
+            | None => None,
+        }
+    }
+
+    /// The logical range shared by native requests or mapped pointer selection
+    /// and Copy/paint. Genuine Select All covers the whole installed text.
+    /// Cross-participant ranges use window document order; mapped multi-click
+    /// gestures also share this range. Unmapped selections are not represented
+    /// here; absence must not be interpreted as no native selection.
+    pub fn rendered_selection(&self) -> Option<super::RenderedSelection> {
+        if !self.selectable {
+            return None;
+        }
+        let text = self.rendered_text()?;
+        if let Some(selection) = &self.rendered_selection {
+            text.selected_text(selection.selection())?;
+            return Some(selection.selection().clone());
+        }
+        if self.select_all {
+            return Some(text.full_selection());
+        }
+        None
+    }
+
+    pub(super) fn adopt_rendered_pointer_selection(
+        &mut self,
+        snapshot: Option<crate::TextSelectionSnapshot>,
+    ) {
+        if !self.selectable || self.multi_click_selection.is_some() {
+            return;
+        }
+        let Some(text) = self.rendered_text() else {
+            return;
+        };
+        let Some(selection) = self
+            .selection_adapter
+            .rendered_selection_from_snapshot(&text, snapshot)
+        else {
+            return;
+        };
+        if text.apply_selection(&selection).is_err() {
+            return;
+        }
+        // The window controller still owns the gesture and auto-scroll. Do not
+        // turn a drag into participant-local selection or end it as an AX-style
+        // request would. Only its native text projection changes here.
+        self.select_all = false;
+        self.selected_text_override = None;
+        self.prepared_whole_copy = None;
+        self.preserve_inline_selection = true;
+        self.rendered_selection = Some(RetainedRenderedSelection::Pointer(selection));
+    }
+
+    /// Captured pointer range in the installed preparation, including the local
+    /// portion of a cross-participant selection in window document order.
+    /// A mapped pointer range is shared with native paint/Copy; a raw capture
+    /// can still be returned when a custom owner prevented adoption. This is
+    /// not a complete multi-click or AX selection accessor.
+    pub fn captured_rendered_pointer_selection(
+        &self,
+        cx: &App,
+    ) -> Option<super::RenderedSelection> {
+        if matches!(
+            self.rendered_selection,
+            Some(RetainedRenderedSelection::Pointer(_))
+        ) {
+            return self.rendered_selection();
+        }
+        if !self.selectable
+            || self.select_all
+            || self.multi_click_selection.is_some()
+            || self.rendered_selection.is_some()
+            || self.preserve_inline_selection
+        {
+            return None;
+        }
+        let text = self.rendered_text()?;
+        self.selection_adapter
+            .captured_rendered_selection(&text, cx)
+    }
+
+    pub(super) fn retire_rendered_selection(&mut self) {
+        self.selection_reveal = None;
+        // Ordinary pointer motion has no queued adapter request. Avoid an
+        // allocation there while still invalidating every outstanding stamp.
+        if Arc::strong_count(&self.selection_epoch) > 1 {
+            self.selection_epoch = Arc::new(());
+        }
+        self.rendered_selection = None;
+    }
+
+    fn rebind_window_selection(
+        &self,
+        old: Option<&super::RenderedText>,
+        compatible: bool,
+        cx: &mut App,
+    ) -> bool {
+        let new = self.rendered_text();
+        // Legacy unbounded TextViews do not install logical endpoint revisions.
+        if old.is_none() && new.is_none() {
+            return true;
+        }
+        self.selection_adapter.rebind_content_positions(
+            compatible,
+            |position| {
+                let old = old?;
+                let position = old.captured_position(position)?;
+                let collapsed = old.selection(&position, &position).ok()?;
+                Some(
+                    new.as_ref()?
+                        .rebind_append_selection(old, &collapsed)?
+                        .anchor()
+                        .content_position(),
+                )
+            },
+            cx,
+        )
+    }
+
     /// Install a single-use snapshot from an externally bounded worker. No
     /// parser work or source queue is started by this operation. The caller
     /// rejects stale document generations/revisions before calling it.
@@ -142,9 +606,36 @@ impl TextViewState {
         unchanged_prefix: Option<usize>,
         cx: &mut Context<Self>,
     ) {
+        let previous_selection = self.rendered_selection.clone().or_else(|| {
+            self.select_all
+                .then(|| {
+                    self.rendered_selection()
+                        .map(RetainedRenderedSelection::SelectAll)
+                })
+                .flatten()
+        });
+        let previous_text = self.rendered_text();
+        self.retire_rendered_selection();
+        // HTML lacks trustworthy source spans. Never transfer an old selection
+        // across a replacement or a format change.
+        let unchanged_prefix =
+            if self.format == prepared.format && prepared.format == TextViewFormat::Markdown {
+                unchanged_prefix
+            } else {
+                None
+            };
+        self.format = prepared.format;
         let all = self.select_all;
         let selected_plain = all.then(|| self.parsed_content.document.text());
         let selected_source = all.then(|| self.parsed_content.document.source.to_string());
+        let differing_plain = selected_plain
+            .as_ref()
+            .filter(|plain| {
+                previous_text
+                    .as_ref()
+                    .is_some_and(|text| text.text() != plain.as_str())
+            })
+            .cloned();
         let mut preserve = unchanged_prefix.is_some();
         let append_only = prepared
             .content
@@ -172,7 +663,10 @@ impl TextViewState {
         } else if all {
             self.select_all = false;
             self.selected_text_override = selected_plain;
-            self.prepared_source_selection = selected_source;
+            self.prepared_whole_copy = selected_source.map(|source| PreparedWholeCopy {
+                source,
+                plain: differing_plain,
+            });
         }
         self.revision = self
             .revision
@@ -184,6 +678,35 @@ impl TextViewState {
         self.text = prepared.content.document.source.to_string();
         self.markdown_extensions = prepared.content.node_cx.markdown_extensions.clone();
         self.parsed_content = prepared.content;
+        if !self.rebind_window_selection(previous_text.as_deref(), preserve, cx) {
+            preserve = false;
+            self.reset_selection_and_adapter(cx);
+        }
+        if preserve
+            && let (Some(selection), Some(old), Some(new)) =
+                (previous_selection, previous_text, self.rendered_text())
+            && let Some(range) = new.rebind_append_selection(&old, selection.selection())
+            && new.apply_selection(&range).is_ok()
+        {
+            if !matches!(&selection, RetainedRenderedSelection::Pointer(_)) {
+                self.selection_adapter
+                    .set_local_selection(!range.is_collapsed() || self.has_frozen_whole_copy(), cx);
+            }
+            // Appending within the last block can move its terminal
+            // separator out of the rebound logical range. Preserve the
+            // exact old Copy result even when the old projection matched
+            // it; only the new selected range can prove equivalence.
+            if all
+                && let Some(plain) = self.selected_text_override.take()
+                && new.selected_text(&range) != Some(plain.as_str())
+                && let Some(copy) = &mut self.prepared_whole_copy
+            {
+                copy.plain = Some(plain);
+            }
+            self.rendered_selection = Some(selection.rebind(range));
+        }
+        self.text_backgrounds = None;
+        self.refresh_links(unchanged_prefix);
         self.parsed_error = None;
         self.preserve_inline_selection = preserve;
         self.compatible_layout_update = preserve;
@@ -228,6 +751,8 @@ impl TextViewState {
                             match parsed_update.result {
                                 Ok(content) => {
                                     state.parsed_content = content;
+                                    state.text_backgrounds = None;
+                                    state.refresh_links(None);
                                     state.parsed_error = None;
                                     state.compatible_layout_update =
                                         parsed_update.selection_compatible;
@@ -260,14 +785,20 @@ impl TextViewState {
             bounds: Bounds::default(),
             multi_click_selection: None,
             selected_text_override: None,
-            prepared_source_selection: None,
+            prepared_whole_copy: None,
             select_all: false,
+            selection_epoch: Arc::new(()),
+            painted_selection_epoch: None,
+            selection_reveal: None,
+            selection_reveal_claimed: false,
+            rendered_selection: None,
             selectable: false,
             selection_format: SelectionFormat::default(),
             scrollable: false,
             max_lines: None,
             line_spans: Arc::default(),
             clamped: false,
+            preview_links: Default::default(),
             // Measure all blocks (not just visible ones) so the scrollbar
             // thumb size stays stable. Without this, off-screen blocks count
             // as zero height until scrolled into view, which makes the
@@ -278,12 +809,21 @@ impl TextViewState {
             code_block_highlighter: None,
             table_actions: None,
             link_click_handler: None,
+            link_focus_guard: None,
             markdown_extensions: Arc::default(),
             is_selecting: false,
             preserve_inline_selection: false,
             auto_scroll: AutoScroll::default(),
             selection_adapter,
+            semantic_attachments: Default::default(),
             parsed_content: Default::default(),
+            text_backgrounds: None,
+            control_navigation: Default::default(),
+            tab_exit_handler: None,
+            link_navigation: Default::default(),
+            link_reveal: None,
+            link_reveal_claimed: false,
+            link_active_owner: None,
             format,
             parsed_error: None,
             text: text.to_string(),
@@ -301,6 +841,124 @@ impl TextViewState {
         this
     }
 
+    fn refresh_links(&mut self, unchanged_prefix: Option<usize>) {
+        self.control_navigation.invalidate();
+        self.preview_links.clear();
+        self.link_navigation.refresh(
+            &self.parsed_content.document,
+            &self.parsed_content.node_cx,
+            unchanged_prefix,
+        );
+        self.link_reveal = None;
+    }
+
+    pub(super) fn link_is_visible(&self, source: usize) -> bool {
+        self.max_lines.is_none() || self.preview_links.contains(&source)
+    }
+
+    pub(super) fn focus_link(
+        &mut self,
+        link: &node::LinkMark,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(source) = link.source_start else {
+            return;
+        };
+        if !self.link_is_visible(source) {
+            return;
+        }
+        let Ok(index) = self
+            .link_navigation
+            .links
+            .binary_search_by_key(&source, |entry| entry.source_start)
+        else {
+            return;
+        };
+        let target = &self.link_navigation.links[index];
+        if target.url != link.url
+            || self
+                .link_focus_guard
+                .as_ref()
+                .is_some_and(|guard| !guard(cx))
+        {
+            return;
+        }
+        self.link_navigation.active = Some(source);
+        self.link_reveal = Some(source);
+        if self.scrollable {
+            self.list_state.scroll_to_reveal_item(target.block);
+        }
+        self.focus_handle.focus(window, cx);
+        cx.notify();
+    }
+
+    pub(super) fn on_link_key(
+        &mut self,
+        event: &gpui::KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.selection_reveal = None;
+        if event.keystroke.key != "tab" {
+            self.control_navigation.cancel();
+        }
+        let modifiers = event.keystroke.modifiers;
+        if modifiers.control || modifiers.alt || modifiers.platform || modifiers.function {
+            return;
+        }
+        if event.keystroke.key == "tab" && self.control_navigation.is_pending() {
+            if self.tab_controls(modifiers.shift, window, cx) {
+                cx.stop_propagation();
+            }
+            return;
+        }
+        if !self.focus_handle.is_focused(window) {
+            if event.keystroke.key == "tab" && self.tab_controls(modifiers.shift, window, cx) {
+                cx.stop_propagation();
+            }
+            return;
+        }
+        if event.keystroke.key == "tab" {
+            self.link_reveal = None;
+            let mut link_found = false;
+            while let Some(link) = self.link_navigation.step(modifiers.shift) {
+                if self.max_lines.is_some() && !self.preview_links.contains(&link.source_start) {
+                    continue;
+                }
+                self.link_reveal = Some(link.source_start);
+                if self.scrollable {
+                    self.list_state.scroll_to_reveal_item(link.block);
+                }
+                link_found = true;
+                cx.stop_propagation();
+                break;
+            }
+            if !link_found && !modifiers.shift && self.tab_controls(false, window, cx) {
+                cx.stop_propagation();
+            }
+            cx.notify();
+        } else if event.keystroke.key == "enter" && !modifiers.shift {
+            if let Some(link) = self.link_navigation.selected()
+                && self.link_is_visible(link.source_start)
+            {
+                super::text_view::handle_link_click(
+                    &self.link_click_handler,
+                    link.url.clone(),
+                    gpui::ClickEvent::Keyboard(gpui::KeyboardClickEvent::default()),
+                    window,
+                    cx,
+                );
+                cx.stop_propagation();
+            }
+        } else if event.keystroke.key == "escape" && self.link_navigation.active.is_some() {
+            self.link_navigation.active = None;
+            self.link_reveal = None;
+            cx.notify();
+            cx.stop_propagation();
+        }
+    }
+
     /// Get the text content.
     pub(crate) fn source(&self) -> SharedString {
         self.parsed_content.document.source.clone()
@@ -314,7 +972,13 @@ impl TextViewState {
 
     /// Set whether the text is selectable, default false.
     pub fn set_selectable(&mut self, selectable: bool, cx: &mut Context<Self>) {
+        if self.selectable == selectable {
+            return;
+        }
         self.selectable = selectable;
+        if !selectable {
+            self.reset_selection_and_adapter(cx);
+        }
         cx.notify();
     }
 
@@ -376,7 +1040,12 @@ impl TextViewState {
         self.increment_update(new_text, true, cx);
     }
 
-    pub(crate) fn set_markdown_extensions(
+    /// Replace prepared renderer resources. For bounded externally prepared
+    /// documents with unchanged parser configuration, this rebuilds only the
+    /// text projections, not the AST. Parser changes use the normal
+    /// content-update path and require a new bounded preparation for decoration.
+    /// Callers must invalidate their enclosing query source after this operation.
+    pub fn set_markdown_extensions(
         &mut self,
         markdown_extensions: Arc<MarkdownExtensions>,
         cx: &mut Context<Self>,
@@ -392,12 +1061,75 @@ impl TextViewState {
         if parser_configuration_changed && self.format == TextViewFormat::Markdown {
             let text = self.text.clone();
             self.increment_update(&text, false, cx);
+        } else if self.parsed_content.bounded {
+            let previous_selection = self.rendered_selection.clone();
+            let previous_text = self.rendered_text();
+            self.retire_rendered_selection();
+            self.text_backgrounds = None;
+            self.parsed_content.displayed_text = super::DisplayedText::prepare(
+                &self.parsed_content.document,
+                &self.markdown_extensions,
+            )
+            .ok();
+            self.parsed_content.rendered_text = self
+                .parsed_content
+                .displayed_text
+                .as_ref()
+                .and_then(|displayed| {
+                    super::RenderedText::prepare(
+                        &self.parsed_content.document,
+                        displayed,
+                        &self.parsed_content.node_cx,
+                    )
+                    .ok()
+                });
+            if let Some(selection) = previous_selection {
+                // Renderer resources can change declared glyphs without a new
+                // AST. Keep only ranges that still map to the current native
+                // owners; never apply an old copy offset to different glyphs.
+                let rebound =
+                    previous_text
+                        .as_ref()
+                        .zip(self.rendered_text())
+                        .and_then(|(old, new)| {
+                            if old.text() != new.text() {
+                                return None;
+                            }
+                            let range = new.rebind_append_selection(old, selection.selection())?;
+                            new.apply_selection(&range).ok()?;
+                            Some(selection.rebind(range))
+                        });
+                if rebound.is_none() {
+                    self.reset_selection_and_adapter(cx);
+                }
+                self.rendered_selection = rebound;
+            }
+            let compatible = previous_text
+                .as_ref()
+                .zip(self.rendered_text())
+                .is_some_and(|(old, new)| old.text() == new.text());
+            if !self.rebind_window_selection(previous_text.as_deref(), compatible, cx) {
+                self.reset_selection_and_adapter(cx);
+            }
+            self.invalidate_inline_layout(cx);
         }
     }
 
-    /// Return the selected text, in the view's [`SelectionFormat`].
+    fn has_frozen_whole_copy(&self) -> bool {
+        self.prepared_whole_copy.as_ref().is_some_and(|copy| {
+            !copy.source.is_empty() || copy.plain.as_ref().is_some_and(|plain| !plain.is_empty())
+        })
+    }
+
+    /// Whether a local range or whole-document Copy scope is selected. An
+    /// explicit custom representation can be nonempty with no displayed glyphs.
     pub fn has_local_selection(&self) -> bool {
         self.select_all
+            || self.has_frozen_whole_copy()
+            || self
+                .rendered_selection
+                .as_ref()
+                .is_some_and(|selection| !selection.selection().is_collapsed())
             || self.selected_text_override.is_some()
             || self
                 .parsed_content
@@ -420,7 +1152,7 @@ impl TextViewState {
     /// step, and html5ever records no source offsets to fall back on (it
     /// reports only line numbers), so there is no original text to copy from
     /// either.
-    fn effective_format(&self) -> SelectionFormat {
+    pub(super) fn effective_format(&self) -> SelectionFormat {
         match self.format {
             TextViewFormat::Markdown => self.selection_format,
             TextViewFormat::Html => SelectionFormat::Plain,
@@ -435,10 +1167,13 @@ impl TextViewState {
     /// [`ParsedDocument::selected_text`](crate::text::document::ParsedDocument).
     pub(super) fn selected_text_in(&self, blocks: Option<RangeInclusive<usize>>) -> String {
         let format = self.effective_format();
-        if format == SelectionFormat::Source
-            && let Some(source) = &self.prepared_source_selection
-        {
-            return source.clone();
+        if let Some(copy) = &self.prepared_whole_copy {
+            if format == SelectionFormat::Source {
+                return copy.source.clone();
+            }
+            if let Some(plain) = &copy.plain {
+                return plain.clone();
+            }
         }
 
         if self.select_all {
@@ -447,6 +1182,14 @@ impl TextViewState {
             }
 
             return self.parsed_content.document.text();
+        }
+
+        if format == SelectionFormat::Plain
+            && let (Some(selection), Some(text)) =
+                (&self.rendered_selection, &self.parsed_content.rendered_text)
+            && let Some(selected) = text.selected_text(selection.selection())
+        {
+            return selected.to_string();
         }
 
         // A multi-click stores the plain text it selected, which is a shortcut
@@ -481,6 +1224,18 @@ impl TextViewState {
         let count = self.list_state.item_count();
         if count > 0 {
             self.list_state.remeasure_items(0..count);
+        }
+    }
+
+    /// Internal style changes can resize virtual rows without changing inherited
+    /// typography. Preserve logical selections while retiring cached geometry.
+    pub(super) fn set_view_style(&mut self, style: TextViewStyle) {
+        if self.text_view_style != style {
+            self.selection_revision = self.selection_revision.wrapping_add(1);
+            self.preserve_inline_selection = true;
+            self.compatible_layout_update = true;
+            self.invalidate_measured_heights();
+            self.text_view_style = style;
         }
     }
 
@@ -523,6 +1278,8 @@ impl TextViewState {
             match parse_content(self.format, ParsedContent::default(), &update_options) {
                 Ok(content) => {
                     self.parsed_content = content;
+                    self.text_backgrounds = None;
+                    self.refresh_links(None);
                     self.parsed_error = None;
                     self.invalidate_measured_heights();
                     if !self.is_selecting {
@@ -599,6 +1356,11 @@ impl TextViewState {
     /// independent of the window-level selection.
     pub(super) fn has_view_selection(&self) -> bool {
         self.select_all
+            || self.has_frozen_whole_copy()
+            || self
+                .rendered_selection
+                .as_ref()
+                .is_some_and(|selection| !selection.selection().is_collapsed())
             || self.multi_click_selection.is_some()
             || self.selected_text_override.is_some()
     }
@@ -608,10 +1370,11 @@ impl TextViewState {
     }
 
     pub(super) fn reset_selection(&mut self) {
+        self.retire_rendered_selection();
         self.preserve_inline_selection = false;
         self.multi_click_selection = None;
         self.selected_text_override = None;
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         self.select_all = false;
         self.is_selecting = false;
         self.auto_scroll.stop();
@@ -642,9 +1405,10 @@ impl TextViewState {
 
     /// Select all rendered text in this view.
     pub fn select_all(&mut self, cx: &mut Context<Self>) {
+        self.retire_rendered_selection();
         self.multi_click_selection = None;
         self.selected_text_override = None;
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         self.select_all = true;
         self.is_selecting = false;
         self.auto_scroll.stop();
@@ -659,6 +1423,10 @@ impl TextViewState {
         selected_text: String,
         cx: &mut App,
     ) {
+        if self.adopt_rendered_multi_click(pos, kind, None, cx) {
+            return;
+        }
+        self.retire_rendered_selection();
         self.preserve_inline_selection = false;
         let scroll_offset = self.scroll_offset();
         let pos = pos - self.bounds.origin - scroll_offset;
@@ -668,7 +1436,7 @@ impl TextViewState {
             line_bounds: None,
         });
         self.selected_text_override = Some(selected_text);
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         self.select_all = false;
         self.is_selecting = false;
         self.auto_scroll.stop();
@@ -676,6 +1444,14 @@ impl TextViewState {
     }
 
     pub(crate) fn set_multi_click_line(&mut self, bounds: Bounds<Pixels>, cx: &mut App) {
+        if self.adopt_rendered_multi_click(
+            bounds.center(),
+            TextViewMultiClickKind::Line,
+            Some(bounds),
+            cx,
+        ) {
+            return;
+        }
         self.set_multi_click_selection(
             bounds.center(),
             TextViewMultiClickKind::Line,
@@ -683,11 +1459,47 @@ impl TextViewState {
             cx,
         );
         self.selected_text_override = None;
-        self.prepared_source_selection = None;
+        self.prepared_whole_copy = None;
         let offset = self.bounds.origin + self.scroll_offset();
         if let Some(selection) = self.multi_click_selection.as_mut() {
             selection.line_bounds = Some(Bounds::new(bounds.origin - offset, bounds.size));
         }
+    }
+
+    pub(super) fn adopt_rendered_multi_click(
+        &mut self,
+        point: Point<Pixels>,
+        kind: TextViewMultiClickKind,
+        line: Option<Bounds<Pixels>>,
+        cx: &mut App,
+    ) -> bool {
+        if !self.selectable {
+            return false;
+        }
+        let Some(text) = self.rendered_text() else {
+            return false;
+        };
+        let Some(selection) = self
+            .selection_adapter
+            .multi_click_selection(&text, point, kind, line)
+        else {
+            return false;
+        };
+        if text.apply_selection(&selection).is_err() {
+            return false;
+        }
+        self.retire_rendered_selection();
+        self.multi_click_selection = None;
+        self.selected_text_override = None;
+        self.prepared_whole_copy = None;
+        self.select_all = false;
+        self.preserve_inline_selection = true;
+        self.is_selecting = false;
+        self.auto_scroll.stop();
+        self.selection_adapter
+            .set_local_selection(!selection.is_collapsed(), cx);
+        self.rendered_selection = Some(RetainedRenderedSelection::MultiClick(selection));
+        true
     }
 
     pub(super) fn set_auto_scroll(&mut self, delta: Option<Pixels>, cx: &mut Context<Self>) {
@@ -787,7 +1599,12 @@ impl Render for TextViewState {
         self.layout_text_style = Some(typography);
         let state = cx.entity();
         let document = self.parsed_content.document.clone();
+        self.control_navigation.prepare(&document, cx);
         let mut node_cx = self.parsed_content.node_cx.clone();
+        node_cx.displayed_text = self.parsed_content.displayed_text.clone();
+        node_cx.semantic_attachments = self
+            .rendered_text()
+            .map(|projection| (projection, self.semantic_attachments.clone()));
 
         node_cx.code_block_actions = self.code_block_actions.clone();
         node_cx.code_block_highlighter = self.code_block_highlighter.clone();
@@ -803,6 +1620,7 @@ impl Render for TextViewState {
             .when(self.max_lines.is_none(), |this| this.h_full())
             .map(|this| match &mut self.parsed_error {
                 None => this.child(document.render_root(
+                    self.control_navigation.scopes.clone(),
                     if self.scrollable {
                         Some(self.list_state.clone())
                     } else {
@@ -826,6 +1644,7 @@ impl Render for TextViewState {
                     has_selection_snapshot,
                     is_selecting,
                     compatible_layout_update,
+                    has_logical_range,
                 ) = {
                     let state = state.read(cx);
                     (
@@ -834,6 +1653,7 @@ impl Render for TextViewState {
                         state.selection_adapter.has_selection_snapshot(cx),
                         state.is_selecting,
                         state.compatible_layout_update,
+                        state.rendered_selection().is_some(),
                     )
                 };
                 let mut revision_changed = false;
@@ -845,6 +1665,7 @@ impl Render for TextViewState {
                     state.compatible_layout_update = false;
                 });
                 if !is_selecting
+                    && !has_logical_range
                     && ((size_changed && selection_involves_view && !compatible_layout_update)
                         || (revision_changed && has_selection_snapshot))
                 {
@@ -858,16 +1679,23 @@ impl Render for TextViewState {
 pub(crate) struct ParsedContent {
     pub(crate) document: ParsedDocument,
     pub(crate) node_cx: node::NodeContext,
+    displayed_text: Option<Arc<super::DisplayedText>>,
+    rendered_text: Option<Arc<super::RenderedText>>,
+    bounded: bool,
 }
 
-/// A single-use full Markdown parse prepared outside the native UI thread.
+/// A single-use full Markdown or HTML parse prepared outside the native UI thread.
 /// This deliberately does not implement Clone: parsed inline nodes contain
 /// mutable selection/layout state and must not be shared between mounted views.
-pub struct PreparedMarkdown {
+pub struct PreparedText {
     content: ParsedContent,
+    format: TextViewFormat,
 }
 
-impl PreparedMarkdown {
+/// Backward-compatible name for externally prepared Markdown.
+pub type PreparedMarkdown = PreparedText;
+
+impl PreparedText {
     /// Admission bounds: 64 KiB source, 16 KiB per line, 4096 AST nodes, depth32
     /// and 256 top-level blocks. Call from a bounded background scheduler.
     /// Failure means the caller should offer its source/large-document view.
@@ -877,9 +1705,68 @@ impl PreparedMarkdown {
             ..NodeContext::default()
         };
         let document = format::markdown::parse_bounded(source, &mut node_cx)?;
+        Self::finish(document, node_cx, TextViewFormat::Markdown)
+    }
+
+    /// Bounded reader HTML. The required adapter replaces *every* image with a
+    /// caller-owned custom node before layout; no builtin URL loader survives.
+    pub fn parse_html(
+        source: &str,
+        extensions: MarkdownExtensions,
+        image: impl FnMut(&super::HtmlImage) -> super::MarkdownNode,
+    ) -> Result<Self, SharedString> {
+        let mut node_cx = NodeContext {
+            markdown_extensions: Arc::new(extensions),
+            ..NodeContext::default()
+        };
+        let document = format::html::parse_bounded(source, &mut node_cx, image)?;
+        Self::finish(document, node_cx, TextViewFormat::Html)
+    }
+
+    fn finish(
+        document: ParsedDocument,
+        node_cx: NodeContext,
+        format: TextViewFormat,
+    ) -> Result<Self, SharedString> {
+        let displayed_text = Some(super::DisplayedText::prepare(
+            &document,
+            &node_cx.markdown_extensions,
+        )?);
+        let rendered_text = Some(super::RenderedText::prepare(
+            &document,
+            displayed_text.as_ref().expect("prepared above"),
+            &node_cx,
+        )?);
         Ok(Self {
-            content: ParsedContent { document, node_cx },
+            format,
+            content: ParsedContent {
+                document,
+                node_cx,
+                displayed_text,
+                rendered_text,
+                bounded: true,
+            },
         })
+    }
+
+    /// Available before any layout/paint, including all virtualized blocks.
+    pub fn displayed_text(&self) -> Arc<super::DisplayedText> {
+        self.content
+            .displayed_text
+            .as_ref()
+            .expect("bounded preparation")
+            .clone()
+    }
+
+    /// Immutable logical selection text and native-owner provenance, prepared
+    /// with the AST. Declared block glyphs can differ from whole-document Copy.
+    /// This is not the search/decoration projection or an AX tree.
+    pub fn rendered_text(&self) -> Arc<super::RenderedText> {
+        self.content
+            .rendered_text
+            .as_ref()
+            .expect("bounded preparation")
+            .clone()
     }
 
     pub fn source(&self) -> SharedString {
@@ -1026,6 +1913,11 @@ fn parse_content(
     mut content: ParsedContent,
     options: &UpdateOptions,
 ) -> Result<ParsedContent, SharedString> {
+    // A later ordinary parse cannot reuse identities from an installed bounded
+    // snapshot. It has no admission contract for this extra representation.
+    content.displayed_text = None;
+    content.rendered_text = None;
+    content.bounded = false;
     let mut node_cx = NodeContext {
         markdown_extensions: options.markdown_extensions.clone(),
         ..NodeContext::default()

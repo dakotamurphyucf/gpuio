@@ -1,0 +1,31 @@
+{
+  "revision": "b90fb769926a8467b8d673dbc1aa56417c343b7b",
+  "files": [
+    {
+      "path": "verify-archive.py",
+      "bytes": 2389,
+      "sha256": "47c361a042c8f1ccef75ae6e6e1eac68866527fb511cbe2396748339d871b326"
+    },
+    {
+      "path": "assembled-source.json",
+      "bytes": 5026,
+      "sha256": "38bcef34871e45284f91b8e4eac1b774188e1a1e73270707e6fd45d73fc263c8"
+    },
+    {
+      "path": "audit.py",
+      "bytes": 3112,
+      "sha256": "f0327cb5f3f135f2844ec721aee3092dfa82c1cf562aefe3e3aa40623fc9d2b5"
+    },
+    {
+      "path": "inventory.json",
+      "bytes": 2761730,
+      "sha256": "2fb00ea6a48b9f8f7d57c113bbf80add197c99656038f7035750a75d56f0239b"
+    },
+    {
+      "path": "assembled-scan-summary.json",
+      "bytes": 1747,
+      "sha256": "9b72bde688086e475a23a6b5ab1ea34fe9a7db0d5070b3771fa927031b8aaa91"
+    }
+  ],
+  "archive_sha256": "a1b3bfb0205ccfe9ac0908b7990bdb79b451de956c03ef7f8f10474ac4809a34"
+}

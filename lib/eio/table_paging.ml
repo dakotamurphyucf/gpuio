@@ -128,13 +128,23 @@ let rec work t worker =
   Scope.Expert.enqueue t.scope (fun () ->
     if not t.closed
     then (
-      Option.iter result ~f:(function
-        | Error error -> ignore (P.fail t.state request error : P.Completion.t)
-        | Ok { Page.rows; next } ->
-          ignore (P.complete t.state request ~rows ~next : P.Completion.t Or_error.t));
+      let changed =
+        match result with
+        | None -> false
+        | Some result ->
+          let completion =
+            match result with
+            | Error error -> P.fail t.state request error
+            | Ok { Page.rows; next } ->
+              (match P.complete t.state request ~rows ~next with
+               | Ok completion -> completion
+               | Error _ -> P.Completion.Applied)
+          in
+          P.Completion.equal completion Applied
+      in
       worker.request <- None;
-      pump t;
-      notify t));
+      let admission_failed = pump t in
+      if changed || admission_failed then notify t));
   work t worker
 
 and allocate_worker t =
@@ -158,7 +168,7 @@ and allocate_worker t =
               ignore (P.fail t.state request error : P.Completion.t));
             t.workers
             <- List.filter t.workers ~f:(fun current -> not (phys_equal current worker));
-            pump t;
+            ignore (pump t : bool);
             notify t)))
   in
   worker.task <- Some task;
@@ -166,26 +176,34 @@ and allocate_worker t =
   worker
 
 and pump t =
-  if (not t.closed) && Scope.is_active t.scope
-  then (
+  if t.closed || not (Scope.is_active t.scope)
+  then false
+  else (
     synchronize t;
     let idle = List.find t.workers ~f:(fun worker -> Option.is_none worker.request) in
-    if Option.is_some idle || List.length t.workers < 2
-    then (
+    if Option.is_none idle && List.length t.workers >= 2
+    then false
+    else (
       match take_queued t with
-      | None -> ()
+      | None -> false
       | Some request ->
         let worker =
           match idle with
           | Some worker -> Ok worker
           | None -> allocate_worker t
         in
-        (match worker with
-         | Error error -> ignore (P.fail t.state request error : P.Completion.t)
-         | Ok worker ->
-           worker.request <- Some request;
-           Eio.Stream.add worker.inbox request);
-        pump t))
+        let failed =
+          match worker with
+          | Error error ->
+            ignore (P.fail t.state request error : P.Completion.t);
+            true
+          | Ok worker ->
+            worker.request <- Some request;
+            Eio.Stream.add worker.inbox request;
+            false
+        in
+        let another_failed = pump t in
+        failed || another_failed))
 ;;
 
 let create
@@ -232,7 +250,7 @@ let start t direction ~retry =
   let%map.Or_error request = (if retry then P.retry else P.request) t.state direction in
   Option.iter request ~f:(fun request ->
     set_queued t direction (Some request);
-    pump t;
+    ignore (pump t : bool);
     notify t)
 ;;
 
@@ -244,7 +262,7 @@ let cancel t direction =
   if not t.closed
   then (
     cancel_direction t direction;
-    pump t;
+    ignore (pump t : bool);
     notify t)
 ;;
 
@@ -253,7 +271,7 @@ let reset t ~query data ~before ~after =
   let%map.Or_error () = P.reset t.state ~query data ~before ~after in
   t.before <- None;
   t.after <- None;
-  pump t;
+  ignore (pump t : bool);
   notify t
 ;;
 

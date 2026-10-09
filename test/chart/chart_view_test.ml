@@ -17,7 +17,8 @@ let hex bytes =
 
 let style =
   Gpuio.Chart_style.Expert.of_wire
-    { palette = [ 1L; 2L ]
+    { version = -9L
+    ; palette = [ 1L; 2L ]
     ; axis_color = 3L
     ; grid_color = 4L
     ; label_color = 5L
@@ -27,8 +28,71 @@ let style =
     ; point_radius = 3.
     ; bar_radius = 4.
     ; area_opacity = 0.5
+    ; node_labels = []
+    ; pie_labels = []
+    ; pie_label_line_color = None
+    ; x_axis =
+        Gpuio.Chart_axis.Expert.to_wire
+          Gpuio.Chart_axis.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
+    ; y_axis =
+        Gpuio.Chart_axis.Expert.to_wire
+          Gpuio.Chart_axis.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
+    ; grid =
+        Gpuio.Chart_grid.Expert.to_wire
+          Gpuio.Chart_grid.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
+    ; inspection =
+        Gpuio.Chart_inspection.Expert.to_wire
+          Gpuio.Chart_inspection.default
+          ~theme:Gpuio.Theme.default
+        |> Or_error.ok_exn
+    ; appearance = Gpuio_protocol.Chart_appearance_wire.empty
+    ; ordinal = None
     }
   |> ok
+;;
+
+let%expect_test "radar content collection has bounded unique identity and paired metadata"
+  =
+  let module L = Gpuio.Chart_radar_labels in
+  let entry n = L.Entry.create ~axis:(Gpuio.Chart_data.Datum_id.of_int64 n |> ok) () in
+  let labels = L.create [ entry 7L; entry 9L ] |> ok in
+  assert (List.equal Int64.equal (L.Expert.axes labels) [ 7L; 9L ]);
+  assert (List.is_empty (L.Expert.axes L.empty));
+  assert (Result.is_error (L.create [ entry 7L; entry 7L ]));
+  assert (
+    Result.is_error (L.create (List.init 65 ~f:(fun n -> entry (Int64.of_int (n + 1))))));
+  assert (
+    Result.is_ok (L.create (List.init 64 ~f:(fun n -> entry (Int64.of_int (n + 1))))));
+  let config = Chart.Config.create ~data:handle ~label:"Chart 🦀" ~style () |> ok in
+  let wire =
+    Chart.Expert.with_radar_labels config labels
+    |> Chart.Expert.to_wire ~owner:(Some owner)
+  in
+  assert (W.Config.valid wire);
+  Eio_main.run (fun env ->
+    let expected =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-view-v2-rich-labels.hex")
+      |> String.strip
+    in
+    let bytes =
+      Bin_prot.Utils.bin_dump W.Config.bin_writer_t wire |> Bigstring.to_string
+    in
+    assert (String.equal (hex bytes) expected));
+  List.iter
+    [ []; [ Int64.max_value ]; List.init 64 ~f:(fun n -> Int64.of_int (n + 1)) ]
+    ~f:(fun radar_labels -> assert (W.Config.valid { wire with radar_labels }));
+  List.iter
+    [ [ 0L ]; [ -1L ]; [ 7L; 7L ]; List.init 65 ~f:(fun n -> Int64.of_int (n + 1)) ]
+    ~f:(fun radar_labels -> assert (not (W.Config.valid { wire with radar_labels })));
+  assert (not (W.Config.valid { wire with version = 0L }));
+  print_endline "64 unique positive targets; unknown axes allowed; versioned paired bytes";
+  [%expect {| 64 unique positive targets; unknown axes allowed; versioned paired bytes |}]
 ;;
 
 let%expect_test "chart view owner and append-only envelopes match independent fixtures" =
@@ -49,7 +113,8 @@ let%expect_test "chart view owner and append-only envelopes match independent fi
   let bytes = Bin_prot.Utils.bin_dump W.Config.bin_writer_t wire |> Bigstring.to_string in
   Eio_main.run (fun env ->
     let expected =
-      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-v1-view.hex") |> String.strip
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-view-v2-labels.hex")
+      |> String.strip
     in
     assert (String.equal (hex bytes) expected));
   let window = Gpuio_protocol.Window_id.create ~slot:0L ~generation:1L |> ok in
@@ -140,4 +205,84 @@ let%expect_test "chart configuration and observations reject invalid boundaries"
     ~f:(fun m -> assert (not (valid 1L 1L (Ready m))));
   print_endline "labels, epochs and bounded preparation counts validated";
   [%expect {| labels, epochs and bounded preparation counts validated |}]
+;;
+
+let%expect_test "inspection metadata shares a versioned parent with radar slots" =
+  let module Content = Gpuio.Chart_inspection_content in
+  let module Labels = Gpuio.Chart_radar_labels in
+  let datum id = Gpuio.Chart_data.Datum_id.of_int64 id |> ok in
+  let labels =
+    Labels.create
+      [ Labels.Entry.create ~axis:(datum 7L) (); Labels.Entry.create ~axis:(datum 9L) () ]
+    |> ok
+  in
+  let other =
+    Resource.Expert.handle
+      ~owner
+      (Gpuio_protocol.Resource_id.create ~slot:8L ~generation:2L |> ok)
+  in
+  let selection =
+    Gpuio.Chart_selection.candlestick
+      ~span:
+        (Gpuio.Chart_selection.Span.create
+           ~start_index:0
+           ~length:1
+           ~first:(datum 9L)
+           ~last:(datum 9L)
+         |> ok)
+      ~aggregated:true
+    |> ok
+  in
+  let unrelated =
+    Content.Target.of_selection
+      selection
+      ~data:other
+      ~data_revision:11L
+      ~data_generation:2L
+    |> ok
+  in
+  let content =
+    Content.create
+      [ Content.Entry.create
+          ~target:(Content.Target.slice (datum 9L))
+          ~container:Overlay
+          ()
+      ; Content.Entry.create ~target:unrelated ()
+      ]
+    |> ok
+  in
+  let wire =
+    Chart.Config.create ~data:handle ~label:"Chart 🦀" ~style ()
+    |> ok
+    |> fun config ->
+    Chart.Expert.with_radar_labels config labels
+    |> fun config ->
+    Chart.Expert.with_inspection_content config content
+    |> Chart.Expert.to_wire ~owner:(Some owner)
+  in
+  assert (W.Config.valid wire);
+  assert (Option.is_none (List.nth_exn wire.inspection_content 1).target);
+  Eio_main.run (fun env ->
+    let expected =
+      Eio.Path.load Eio.Path.(Eio.Stdenv.cwd env / "chart-view-v2-inspection.hex")
+      |> String.strip
+    in
+    let bytes =
+      Bin_prot.Utils.bin_dump W.Config.bin_writer_t wire |> Bigstring.to_string
+    in
+    assert (String.equal (hex bytes) expected));
+  assert (not (W.Config.valid { wire with version = -1L }));
+  let entry = List.hd_exn wire.inspection_content in
+  assert (not (W.Config.valid { wire with inspection_content = [ entry; entry ] }));
+  let hidden = List.nth_exn wire.inspection_content 1 in
+  assert (
+    W.Config.valid { wire with inspection_content = List.init 128 ~f:(fun _ -> hidden) });
+  assert (
+    not
+      (W.Config.valid
+         { wire with inspection_content = List.init 129 ~f:(fun _ -> hidden) }));
+  print_endline
+    "version -2; radar precedes bounded inspection slots; foreign content stays hidden";
+  [%expect
+    {| version -2; radar precedes bounded inspection slots; foreign content stays hidden |}]
 ;;

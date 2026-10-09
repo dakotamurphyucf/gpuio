@@ -21,6 +21,41 @@ module Tree_item = struct
   ;;
 end
 
+module Option_item = struct
+  type t = W.Option_item.t [@@deriving equal, sexp_of]
+
+  let create ~index ?count ?(selected = false) ?(disabled = false) () =
+    let item = { W.Option_item.index; count; selected; disabled } in
+    if W.Option_item.valid item
+    then Ok item
+    else Or_error.error_string "invalid list option index or count"
+  ;;
+end
+
+module Orientation = W.Orientation
+
+module Table_info = struct
+  type t = W.Table_info.t [@@deriving equal, sexp_of]
+
+  let create ?rows ?columns () =
+    let t = { W.Table_info.rows; columns } in
+    if W.Table_info.valid t
+    then Ok t
+    else Or_error.error_string "invalid table row/column count"
+  ;;
+end
+
+module Table_cell = struct
+  type t = W.Table_cell.t [@@deriving equal, sexp_of]
+
+  let create ~row ~column ?(column_span = 1) () =
+    let t = { W.Table_cell.row; column; column_span } in
+    if W.Table_cell.valid t
+    then Ok t
+    else Or_error.error_string "invalid table cell index or column span"
+  ;;
+end
+
 module Role = W.Role
 module Current = W.Current
 module Live = W.Live
@@ -51,7 +86,7 @@ let create ?role ?label ?description ?live ?current () =
       live
       ~default:
         (match role with
-         | Some Role.Status -> Live.Polite
+         | Some (Role.Status | Log) -> Live.Polite
          | Some Alert -> Assertive
          | None
          | Some
@@ -66,7 +101,18 @@ let create ?role ?label ?description ?live ?current () =
              | Heading _
              | Navigation
              | Tree _
-             | Tree_item _ ) -> Off)
+             | Tree_item _
+             | List_box _
+             | Option_item _
+             | Table _
+             | Row_group
+             | Table_row _
+             | Table_cell _
+             | Column_header _
+             | Row_header _
+             | Caption
+             | Toolbar _
+             | Radio_group _ ) -> Off)
   in
   let config = { W.Config.role; label; description; live; field = None; current } in
   if W.Config.valid config

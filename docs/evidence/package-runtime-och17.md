@@ -1,0 +1,207 @@
+# Extracted macOS application runtime — OCH-17 / OCH-41
+
+## Independent receiver scheduling — 2026-10-06 UTC
+
+Repeated hosted presentation failures have suppressed the fresh receiver even
+when the application executables built successfully. Foundation now stages
+qualification archives after a successful macOS Build regardless of later test
+results, and uploads only after successful staging. Unless cancelled, the fresh
+receiver attempts its own admission after both foundation jobs finish. Missing
+archives fail download; incomplete, wrong-revision/run or changed archives fail
+verification before any application starts. Both foundation jobs and both Metal
+probes retain their existing failure behavior; receiver success cannot override
+them. These internal ad-hoc archives remain unsuitable for release distribution.
+
+Local validation at base `2e9cd54` plus the archived workflow/documentation patch:
+
+- Actionlint 1.7.12 accepts `.github/workflows/foundation.yml`.
+- `python3 scripts/test_package_transfer.py`: five tests pass, covering exact
+  source/application membership, metadata/archive tampering, cross-run reuse,
+  staging failure and failed final verification revoking completion.
+- `python3 scripts/test_package_runtime_inputs.py`: three tests pass, covering
+  incomplete/tampered inputs, unsafe archive entries and isolation environment.
+- `git diff --check` passes.
+
+[Exact patch and logs](package-runtime-och17/independent-receiver/validation.tar.gz)
+have a [verified four-file manifest](package-runtime-och17/independent-receiver/manifest.json).
+These checks validate syntax and existing artifact-admission behavior; hosted
+execution of the new job scheduling is still required. Run 37400903839 at
+`2e9cd54` predates this change and must not be cited as scheduling qualification.
+
+## Earlier local runtime qualification
+
+All three reference apps pass real desktop walkthroughs from extracted ad-hoc
+signed archives with development-directory access denied. This closes the local
+runtime dependency-isolation check; it does not establish fresh-machine,
+Gatekeeper, Developer ID, notarization or final release acceptance.
+
+The reusable harness and gallery styling repair are in `3a8a44e`. The gallery's
+final archive was packaged on that clean checkout after rebuilding its changed
+OCaml example. Chat and Signal binaries were built from the `d380878` application
+sources; their package reports correctly record a dirty checkout because the new
+test harness was then in progress. Packaging revision fields are observations of
+the checkout, not build attestations. Exact input, signed executable and archive
+hashes are retained in the package reports below. No vendor or runtime library
+source changed in this follow-up.
+
+## What was enforced and tested
+
+Hardware: Apple M1 Max, macOS 14.5 arm64, built-in Retina desktop. The parent test
+process verifies archive paths/hashes and extracts into a fresh temporary directory.
+The app runs there with the repository, both common Homebrew prefixes, `.cargo`,
+`.rustup` and `.opam` denied for reads/writes. All six paths exist on this machine;
+negative metadata probes return permission errors. The repository deny rule also
+covers its `_build`, `target`, vendored sources and isolated `.opam-root`.
+The original HOME is retained, and development loader overrides are absent.
+
+Each run validates extracted executable and notice hashes, Info.plist identity,
+the ad-hoc seal, isolated metadata export, ordinary application exit and verified
+restoration of the original pasteboard. Only one GUI workload runs at a time.
+
+| Application | Native behavior exercised | Raw evidence |
+| --- | --- | --- |
+| Component Studio | SVG/raster decoding, fit/theme/scale controls, decode error/recovery, keyboard/button actions, image scope cleanup; source/multiline Unicode selection ranges, copy and read-only protection | [Runtime](package-runtime-och17/gallery-runtime.json), [package](package-runtime-och17/gallery-package.json), [log](package-runtime-och17/gallery.log) |
+| Agent Workspace | Search, send and retained draft edits, error/retry, tabs, independent windows, native file picker plus Eio attachment read, theme/command palette, close denial/confirmation and App.run return | [Runtime](package-runtime-och17/chat-runtime.json), [package](package-runtime-och17/chat-package.json), [log](package-runtime-och17/chat.log) |
+| Signal Studio | Extension keyboard/actions/disabled/hidden behavior, canvas selection/keyboard/drag/pan/zoom, chart selection, inspector, streaming, compact/wide state preservation, reset/remount and close | [Runtime](package-runtime-och17/signal-runtime.json), [package](package-runtime-och17/signal-package.json), [log](package-runtime-och17/signal.log) |
+
+The first Signal run exposed a harness assumption: its unbundled-binary test
+expected notifications to be unavailable, but a real `.app` has a native identity.
+The app correctly reported the existing OS authorization. Bundled mode now checks
+the UI for the observed authorization state; the original unbundled expectation
+remains unchanged. The final run reports `Authorized` and leaves run-completion
+alerts disabled. It neither requests permission nor qualifies notification delivery.
+
+## Gallery visual repair
+
+Screenshot inspection found two invisible Copy labels: the example explicitly
+set its accent foreground while retaining the ordinary button's accent fill.
+The example now supplies its surface background too. Both labels are readable
+in the final dark and light screenshots. This is a scoped example styling repair,
+not a universal contrast certification.
+
+[Before](package-runtime-och17/gallery-copy-before.png),
+[dark after](package-runtime-och17/gallery-copy-dark.png),
+[light after](package-runtime-och17/gallery-copy-light.png).
+The [Signal Studio wide screenshot](package-runtime-och17/signal-wide.png) was
+also inspected and shows its actual canvas, chart and native extension rendering.
+
+## Reproduction and boundaries
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/agent_chat/main.exe examples/gallery/main.exe examples/signal_studio/main.exe
+python3 scripts/package_macos_reference.py --app gallery --notices REVIEWED_NOTICES --output scratch/gallery-package --sign ad-hoc
+python3 scripts/test_macos_package_runtime.py --package scratch/gallery-package --output scratch/gallery-runtime
+python3 scripts/test_package_runtime_inputs.py
+python3 scripts/test_package_macos_reference.py
+```
+
+Repeat assembly/runtime commands for `agent_chat` and `signal_studio` with fresh
+directories. Three portable runtime-admission tests pass, including tampered and
+incomplete archives, path escape/alias/symlink/device rejection, safe profile
+quoting and removal of loader overrides. All eight existing packaging tests,
+Python syntax checks, gallery build and formatting pass. The portable checks are
+in both CI jobs; the new desktop command has only local evidence at this checkpoint.
+
+The local bundles deliberately contain an incomplete, explicitly test-only notice
+set (project license plus a qualification-only marker). They must not be published
+as reviewed distribution artifacts. This work does not complete notice review.
+A fresh locked native inventory still has 513 packages, 868 copied files with all
+hashes independently verified, and 26 missing-text rows. Existing provenance and
+classifications remain in [the notice evidence](rust-notice-gaps-och17.md).
+
+Local logs, archives and detailed failed-run evidence are under the implementing
+agent's ignored scratch directory using `isolated-{gallery,chat,signal}-*` and
+`native-release-notices-current-001`. They are not runtime dependencies. The
+denied-directory test still permits ordinary system/user resources elsewhere;
+it is not a fresh OS installation or a complete filesystem trace. Full packaged
+IME/OS integration, clean-machine/transfer/signing checks, final notice review,
+API/release publication and other milestone gates remain open. VoiceOver work
+remains on the owner's explicit hold.
+
+
+## Fresh-runner transfer preparation — 2026-10-05
+
+Source `31668dddcf7ed3e319e29fe04fe6c1c50819b4e6` adds a separate Foundation
+macOS receiver job. It receives the three ad-hoc archives from the successful
+build, verifies revision/run/attempt and all metadata/archive hashes, then runs
+the existing extracted-app walkthroughs without project dependency installation,
+cache restoration or a project build. The platform image supplies the parent
+harness's tools. See [the transfer contract](../distribution.md#fresh-hosted-runner).
+
+Local validation on macOS 14.5 arm64 passes:
+
+- All three application targets build from the clean source checkpoint.
+- Actual staging and separate verification of all three archives succeed.
+  [The local manifest](package-runtime-och17/local-transfer-31668dd.json) records
+  exact hashes; null CI IDs correctly identify this as a local run.
+- Five portable tests cover the exact revision/application set, metadata/archive
+  tampering, cross-run reuse and incomplete reports after assembly or final
+  verification failure.
+- Actionlint 1.7.12 and `git diff --check` pass.
+
+Commands (the directories are ignored local outputs):
+
+```sh
+GPUIO_JOBS=2 ./scripts/gpuio exec dune build examples/agent_chat/main.exe examples/gallery/main.exe examples/signal_studio/main.exe
+python3 scripts/test_package_transfer.py
+python3 scripts/ci_macos_package_transfer.py stage --directory scratch/agents/root-20261004-resumed/package-transfer-001 --revision 31668dddcf7ed3e319e29fe04fe6c1c50819b4e6
+python3 scripts/ci_macos_package_transfer.py verify --directory scratch/agents/root-20261004-resumed/package-transfer-001 --revision 31668dddcf7ed3e319e29fe04fe6c1c50819b4e6
+```
+
+No fresh hosted execution is claimed yet. The live hosted run at `d380878`
+predates this job. No GUI walkthrough was repeated for the transfer-only change;
+the earlier runtime evidence above remains scoped to its stated artifacts.
+The new archives contain incomplete internal test notices and are not reviewed
+release artifacts. VoiceOver remains on hold and was not touched by this work.
+
+## Fresh macOS receiver qualification — 2026-10-05
+
+[Run 37286788836](https://github.com/dakotamurphyucf/gpuio/actions/runs/37286788836)
+passes the full macOS and Linux foundation jobs and the separate **macOS extracted
+apps (fresh runner)** job. The receiver runs macOS 15.7.9 arm64. Its checkout has
+no `_build`, `target` or `.opam-root`; those assertions, transfer verification and
+all three extracted-app walkthroughs passed. No project build, dependency install
+or dependency-cache restore occurred in that job.
+
+The source is GitHub's synthetic PR merge
+`689b3fca50af5d0faad6629718cdc174a901243e`, whose tree
+`c342985ef76eb8712afa4d34e9279d627c795215` is identical to branch head
+`56885cf843082b04a5332e8f4a6d002eb143bfa9`. Both Git objects were checked through
+GitHub's API. Package reports correctly name the merge checkout, not the later
+local work. The build job supplies source provenance; executable hashes alone
+are not independent build attestations. See
+[provenance and job steps](package-runtime-och17/fresh-37286788836/provenance.json),
+[producer/receiver log](package-runtime-och17/fresh-37286788836/producer-receiver.log),
+and [verified transfer hashes](package-runtime-och17/fresh-37286788836/transfer-verification.json).
+
+| Application | Fresh receiver result |
+| --- | --- |
+| [Component Studio](package-runtime-och17/fresh-37286788836/gallery-runtime.json) | Embedded assets, native actions, source/multiline Unicode selection and copy, ordinary shutdown |
+| [Agent Workspace](package-runtime-och17/fresh-37286788836/agent-chat-runtime.json) | Search/send, draft retention, error/retry, tabs/windows, native picker and Eio attachment, theme and close policy |
+| [Signal Studio](package-runtime-och17/fresh-37286788836/signal-studio-runtime.json) | Native extension, canvas, charts, inspector, streaming, responsive state, remount and ordinary close |
+
+All reports are complete, match the transferred archive/executable identities,
+and verify clipboard restoration. Each owned application returned zero and was
+reaped by the harness. Existing checkout/Homebrew/Cargo/Rustup paths were denied
+with negative probes; the receiver's `.opam` path was absent and still covered by
+the sandbox profile. HOME was preserved and loader overrides excluded. Signal
+reported `Not_determined` notification authorization with alerts disabled; the
+run neither requested authorization nor claims notification delivery.
+
+The [gallery Light](package-runtime-och17/fresh-37286788836/gallery-light.png) and
+[Signal wide](package-runtime-och17/fresh-37286788836/signal-wide.png) captures were
+visually inspected. They show decoded bundled artwork, readable copy actions,
+canvas/chart content and the independent native extension. The
+[raw artifact archive](package-runtime-och17/fresh-37286788836/raw-artifacts.tar.gz)
+preserves all receiver reports, screenshots, logs, sandbox profiles and display/
+notification setup output.
+
+The reusable runtime reports conservatively label their own scope as existing-Mac
+isolation; they do not infer machine freshness. The separate job's recorded setup
+and absent project build directories establish the additional fresh-runner scope.
+This is a standard hosted image with platform/developer tools, not a blank OS
+installation. Artifacts remain internal ad-hoc test packages with incomplete
+notices: final notices, optimized release artifacts, signing/notarization,
+quarantine/Gatekeeper transfer and other release requirements remain open.
+No VoiceOver operation occurred. Linux required checks passed, but informational
+X11/Wayland graphical smoke failed and remains explicitly deferred to OCH-47.

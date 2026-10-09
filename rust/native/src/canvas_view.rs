@@ -21,6 +21,12 @@ mod accessibility;
 #[path = "canvas_input.rs"]
 mod input;
 
+// Opt-in diagnostics contain identities/epochs only, never scene text or assets.
+fn trace_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("GPUIO_TRACE_CANVAS").is_ok_and(|value| value == "1"))
+}
+
 pub(super) struct State {
     input: input::Input,
     node: NodeId,
@@ -65,7 +71,15 @@ impl State {
             return;
         };
         for observation in observations {
-            if !transport.input(Event::CanvasEvent(
+            let kind = match &observation {
+                Observation::SelectionChanged(_) => "selection",
+                Observation::Activated(_) => "activation",
+                Observation::Moved(..) => "move",
+                Observation::ViewportChanged(_) => "viewport",
+                Observation::CommandCompleted(_) => "command",
+                Observation::Failed(_) => "failure",
+            };
+            let queued = transport.input(Event::CanvasEvent(
                 self.window,
                 self.node,
                 handler,
@@ -74,7 +88,14 @@ impl State {
                 revision,
                 generation,
                 observation,
-            )) {
+            ));
+            if trace_enabled() {
+                eprintln!(
+                    "GPUIO_CANVAS_EVENT_QUEUE: kind={kind} node={:?} tree_revision={} revision={revision} generation={generation} queued={queued}",
+                    self.node, self.revision
+                );
+            }
+            if !queued {
                 // Paint holds an immutable retained-tree borrow. Defer any
                 // overload mutation until that borrow has ended.
                 let session = self.session.clone();
@@ -509,6 +530,8 @@ impl View {
             .size_full(),
         );
         crate::semantics::State {
+            identity: None,
+            busy: false,
             hidden: false,
             metadata: None,
             element,

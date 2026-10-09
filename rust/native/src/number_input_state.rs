@@ -16,6 +16,9 @@ use gpuio_protocol::{
 };
 use std::sync::Arc;
 
+#[path = "number_input_requests.rs"]
+pub mod requests;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
     InvalidObservation,
@@ -37,6 +40,7 @@ pub struct State {
     snapshot: Snapshot,
     editor_revision: i64,
     fault: Option<Fault>,
+    step_requests: requests::Pending,
 }
 
 /// Initial value normalization and text for the native editor's one-time seed.
@@ -94,6 +98,9 @@ fn editor_error(value: EditorError) -> Error {
         EditorError::NativeFailure => Error::NativeFailure,
         EditorError::InvalidText => Error::InvalidText,
         EditorError::FocusBlocked => Error::FocusBlocked,
+        EditorError::SearchUnavailable | EditorError::StaleSearch | EditorError::NotEditable => {
+            Error::NativeFailure
+        }
     }
 }
 
@@ -136,6 +143,21 @@ impl State {
         initial: Value,
         editor: &EditorSnapshot,
     ) -> Result<Self, Error> {
+        let model = Self::with_initial_draft(config, initial, editor)?;
+        if !model.snapshot.is_settled() {
+            return Err(Error::NativeFailure);
+        }
+        Ok(model)
+    }
+
+    /// Explicit draft recovery on creation. The draft can be incomplete/invalid;
+    /// the committed value is normalized independently. This is not a restored
+    /// IME session or undo history, and cannot contain active composition.
+    pub fn with_initial_draft(
+        config: Arc<Config>,
+        initial: Value,
+        editor: &EditorSnapshot,
+    ) -> Result<Self, Error> {
         if !config.is_valid() {
             return Err(Error::InvalidConfig);
         }
@@ -154,7 +176,7 @@ impl State {
             composition: editor.composition.as_ref().map(selection),
             focused: editor.focused,
         };
-        if !snapshot.is_valid() || !snapshot.is_settled() {
+        if !snapshot.is_valid() || snapshot.composition.is_some() {
             return Err(Error::NativeFailure);
         }
         Ok(Self {
@@ -162,6 +184,7 @@ impl State {
             snapshot,
             editor_revision: editor.revision,
             fault: None,
+            step_requests: requests::Pending::default(),
         })
     }
     pub fn config(&self) -> &Config {
@@ -171,6 +194,7 @@ impl State {
         &self.snapshot
     }
     fn fault<T>(&mut self, fault: Fault) -> Result<T, Fault> {
+        self.cancel_step_request();
         self.fault = Some(fault);
         Err(fault)
     }
@@ -206,6 +230,9 @@ impl State {
         if !next.is_valid() {
             return self.fault(Fault::InvalidObservation);
         }
+        if editor.revision != self.editor_revision || next != self.snapshot {
+            self.cancel_step_request();
+        }
         if next == self.snapshot {
             self.editor_revision = editor.revision;
             return Ok(None);
@@ -233,6 +260,7 @@ impl State {
             Ok(())
         } else {
             self.reserve().map(|revision| {
+                self.cancel_step_request();
                 self.snapshot.revision = revision;
                 self.snapshot.domain = config.domain;
                 self.snapshot.committed = self
@@ -349,6 +377,7 @@ impl State {
             })
         };
         match command {
+            Command::ResolveStep { .. } => Err(Error::InvalidConfig), // resolved before preparation
             Command::ReadSnapshot => Ok(Preparation::Read),
             Command::Focus if self.config.disabled => Err(Error::FocusBlocked),
             Command::Focus => Ok(ordinary(EditorCommand::Focus)),
@@ -440,7 +469,15 @@ impl State {
         source: Source,
         edit: impl FnOnce(&EditorCommand) -> Result<EditorSnapshot, EditorError>,
     ) -> Result<Outcome, Fault> {
-        let mut events: Vec<_> = self.observe(editor)?.into_iter().collect();
+        if let Command::ResolveStep {
+            request_id,
+            revision,
+            value,
+        } = command
+        {
+            return self.resolve_application_step(editor, *request_id, *revision, *value, edit);
+        }
+        let events: Vec<_> = self.observe(editor)?.into_iter().collect();
         let preparation = match self.prepare(command, source) {
             Ok(preparation) => preparation,
             Err(error) => {
@@ -450,6 +487,17 @@ impl State {
                 });
             }
         };
+        if !matches!(preparation, Preparation::Read) {
+            self.cancel_step_request();
+        }
+        self.apply_preparation(events, preparation, edit)
+    }
+    fn apply_preparation(
+        &mut self,
+        mut events: Vec<Event>,
+        preparation: Preparation,
+        edit: impl FnOnce(&EditorCommand) -> Result<EditorSnapshot, EditorError>,
+    ) -> Result<Outcome, Fault> {
         if matches!(preparation, Preparation::Read) {
             return Ok(Outcome {
                 events,
@@ -556,7 +604,13 @@ fn edit_matches(command: &EditorCommand, previous: &Snapshot, next: &Snapshot) -
                 && next.focused
         }
         EditorCommand::Undo | EditorCommand::Redo => next.composition.is_none(),
-        EditorCommand::Submit | EditorCommand::ReadSnapshot => false, // never prepared
+        EditorCommand::Submit
+        | EditorCommand::ReadSnapshot
+        | EditorCommand::ReadContentHintStatus
+        | EditorCommand::ReadViewport
+        | EditorCommand::ScrollViewport(_)
+        | EditorCommand::Search(_)
+        | EditorCommand::ReadRangeBounds(..) => false, // never prepared
     }
 }
 

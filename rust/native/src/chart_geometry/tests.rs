@@ -4,7 +4,9 @@ fn options() -> options::Options {
 }
 fn dataset(contents: data::Contents) -> data::Data {
     data::Data {
-        version: 1,
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
         contents,
     }
 }
@@ -34,6 +36,158 @@ fn series(id: i64, ys: &[Option<f64>]) -> data::Series {
             })
             .collect(),
     }
+}
+
+#[test]
+fn reversed_axes_mirror_signed_mixed_geometry_without_changing_provenance() {
+    let data = dataset(data::Contents::Cartesian(vec![
+        data::Layer::Line(series(1, &[Some(-2.), None, Some(6.), Some(1.)])),
+        data::Layer::Area(series(2, &[Some(1.), Some(3.), Some(2.), Some(-1.)])),
+        data::Layer::Bar(series(3, &[Some(-1.), Some(2.), Some(4.), Some(0.)])),
+    ]));
+    for (normal, reversed) in [
+        (
+            options::Orientation::Vertical,
+            options::Orientation::VerticalReversed,
+        ),
+        (
+            options::Orientation::Horizontal,
+            options::Orientation::HorizontalReversed,
+        ),
+    ] {
+        for curve in [
+            options::Curve::Linear,
+            options::Curve::Natural,
+            options::Curve::StepAfter,
+        ] {
+            let make = |orientation| {
+                let mut o = options();
+                o.cartesian.orientation = orientation;
+                o.cartesian.curve = curve;
+                prepare(
+                    &data,
+                    Policy::default(),
+                    &o,
+                    800.,
+                    400.,
+                    &AtomicBool::new(false),
+                )
+                .unwrap()
+            };
+            let a = make(normal);
+            let b = make(reversed);
+            let mirror = |p: Point| {
+                if normal.is_horizontal() {
+                    Point::new(800. - p.x, p.y)
+                } else {
+                    Point::new(p.x, 400. - p.y)
+                }
+            };
+            let equal = |a: Point, b: Point| {
+                assert!(
+                    (a.x - b.x).abs() < 1e-9 && (a.y - b.y).abs() < 1e-9,
+                    "{a:?} != {b:?}"
+                );
+            };
+            assert_eq!(a.x_domain, b.x_domain);
+            assert_eq!(a.y_domain, b.y_domain);
+            assert_eq!(a.marks.len(), b.marks.len());
+            for (a, b) in a.marks.iter().zip(&b.marks) {
+                assert_eq!(a.source, b.source);
+                assert_eq!(a.layer, b.layer);
+                match (a.shape, b.shape) {
+                    (
+                        Shape::Dot {
+                            center: a,
+                            visible: av,
+                        },
+                        Shape::Dot {
+                            center: b,
+                            visible: bv,
+                        },
+                    ) => {
+                        assert_eq!(av, bv);
+                        equal(mirror(a), b);
+                    }
+                    (Shape::Bar(a), Shape::Bar(b)) => {
+                        let p = mirror(Point::new(a.left, a.top));
+                        let q = mirror(Point::new(a.right, a.bottom));
+                        equal(
+                            Point::new(p.x.min(q.x), p.y.min(q.y)),
+                            Point::new(b.left, b.top),
+                        );
+                        equal(
+                            Point::new(p.x.max(q.x), p.y.max(q.y)),
+                            Point::new(b.right, b.bottom),
+                        );
+                    }
+                    _ => panic!("unexpected mixed chart shape"),
+                }
+            }
+            assert_eq!(a.paths.len(), b.paths.len());
+            for (a, b) in a.paths.iter().zip(&b.paths) {
+                assert_eq!(
+                    (a.layer, a.fill, a.commands.len()),
+                    (b.layer, b.fill, b.commands.len())
+                );
+                for (a, b) in a.commands.iter().zip(&b.commands) {
+                    match (*a, *b) {
+                        (Command::Move(a), Command::Move(b))
+                        | (Command::Line(a), Command::Line(b)) => equal(mirror(a), b),
+                        (Command::Cubic(a, b, c), Command::Cubic(x, y, z)) => {
+                            equal(mirror(a), x);
+                            equal(mirror(b), y);
+                            equal(mirror(c), z);
+                        }
+                        (Command::Close, Command::Close) => (),
+                        _ => panic!("curve shape changed"),
+                    }
+                }
+            }
+            let ticks = |plan: &Plan| {
+                plan.labels
+                    .iter()
+                    .filter(|l| l.kind == LabelKind::Y)
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            for (a, b) in ticks(&a).iter().zip(ticks(&b)) {
+                assert_eq!(a.text, b.text);
+                equal(mirror(a.position), b.position);
+            }
+        }
+    }
+}
+
+#[test]
+fn reversed_horizontal_sampling_uses_category_height() {
+    let values = (0..1000).map(|i| Some((i % 17) as f64)).collect::<Vec<_>>();
+    let data = dataset(data::Contents::Cartesian(vec![data::Layer::Line(series(
+        1, &values,
+    ))]));
+    let make = |orientation| {
+        let mut o = options();
+        o.cartesian.orientation = orientation;
+        prepare(
+            &data,
+            Policy::default(),
+            &o,
+            20.,
+            200.,
+            &AtomicBool::new(false),
+        )
+        .unwrap()
+    };
+    let a = make(options::Orientation::Horizontal);
+    let b = make(options::Orientation::HorizontalReversed);
+    assert!(
+        a.marks.len() > 80,
+        "height-based buckets retain more than a width-based reduction"
+    );
+    assert_eq!(
+        a.marks.iter().map(|m| m.source).collect::<Vec<_>>(),
+        b.marks.iter().map(|m| m.source).collect::<Vec<_>>()
+    );
 }
 fn finite_point(p: Point) {
     assert!(p.x.is_finite() && p.y.is_finite(), "{p:?}");
@@ -755,4 +909,193 @@ fn radar_series_identifiers_follow_axes_and_do_not_require_colored_fills() {
                 && matches!(mark.shape,Shape::Dot{center,..} if center==label.position)));
         }
     }
+}
+
+#[test]
+fn radar_label_identity_survives_duplicate_captions_reordering_and_empty_series() {
+    let axes = vec![
+        data::RadarAxis {
+            id: 7,
+            label: "Repeated".into(),
+            maximum: 10.,
+        },
+        data::RadarAxis {
+            id: 3,
+            label: "Repeated".into(),
+            maximum: 10.,
+        },
+        data::RadarAxis {
+            id: 9,
+            label: "Third".into(),
+            maximum: 10.,
+        },
+    ];
+    let original = plan(data::Contents::Radar(axes.clone(), vec![]));
+    let labels = |p: &Plan| {
+        p.labels
+            .iter()
+            .filter_map(|label| match label.kind {
+                LabelKind::RadarAxis(id) => Some((id, label.text.clone(), label.position)),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+    };
+    let before = labels(&original);
+    assert_eq!(before.iter().map(|l| l.0).collect::<Vec<_>>(), [7, 3, 9]);
+    assert_eq!(before[0].1, before[1].1);
+    assert_ne!(before[0].2, before[1].2);
+    // Axis identity follows the source, while the first position remains 12 o'clock.
+    let mut reordered = axes;
+    reordered.rotate_left(1);
+    reordered[0].label = "Renamed".into();
+    let after = labels(&plan(data::Contents::Radar(reordered.clone(), vec![])));
+    assert_eq!(after.iter().map(|l| l.0).collect::<Vec<_>>(), [3, 9, 7]);
+    assert_eq!(after[0].1, "Renamed");
+    assert_eq!(after[0].2, before[0].2);
+    let mut hidden = options();
+    hidden.radar.labels = false;
+    let hidden_plan = prepare(
+        &dataset(data::Contents::Radar(reordered, vec![])),
+        Policy::default(),
+        &hidden,
+        800.,
+        400.,
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    assert!(labels(&hidden_plan).is_empty());
+    // Pie captions retain their distinct provenance, even if their text is equal.
+    let pie = plan(data::Contents::Pie(vec![data::Slice {
+        id: 7,
+        label: "Repeated".into(),
+        value: 1.,
+    }]));
+    assert!(labels(&pie).is_empty());
+    assert!(pie.labels.iter().any(|l| matches!(
+        l.kind,
+        LabelKind::Pie {
+            slice_index: 0,
+            placement: None
+        }
+    )));
+}
+
+#[test]
+fn radar_shared_scales_extrapolate_without_changing_source_identity() {
+    let axes = vec![
+        data::RadarAxis {
+            id: 1,
+            label: "A".into(),
+            maximum: 10.,
+        },
+        data::RadarAxis {
+            id: 2,
+            label: "B".into(),
+            maximum: 100.,
+        },
+        data::RadarAxis {
+            id: 3,
+            label: "C".into(),
+            maximum: 20.,
+        },
+    ];
+    let source = dataset(data::Contents::Radar(
+        axes,
+        vec![
+            data::RadarSeries {
+                id: 8,
+                name: "First".into(),
+                values: vec![(1, 5.), (2, 50.), (3, 10.)],
+            },
+            data::RadarSeries {
+                id: 9,
+                name: "Second".into(),
+                values: vec![(1, 10.), (2, 100.), (3, 20.)],
+            },
+        ],
+    ));
+    let make = |scale, radius, label_gap| {
+        let mut o = options();
+        o.radar.scale = scale;
+        o.radar.radius = radius;
+        o.radar.label_gap = label_gap;
+        prepare(
+            &source,
+            Policy::default(),
+            &o,
+            800.,
+            400.,
+            &AtomicBool::new(false),
+        )
+    };
+    let distance = |mark: &Mark| match mark.shape {
+        Shape::Dot { center, .. } => (center.x - 400.).hypot(center.y - 200.),
+        _ => panic!("expected radar vertex"),
+    };
+    let per_axis = make(options::RadarScale::PerAxis, options::RadarRadius::Fit, 0.).unwrap();
+    let auto = make(options::RadarScale::DataMax, options::RadarRadius::Fit, 0.).unwrap();
+    let fixed = make(
+        options::RadarScale::Maximum(25.),
+        options::RadarRadius::Pixels(80.),
+        10.,
+    )
+    .unwrap();
+    for (plan, expected) in [
+        (&per_axis, [100., 100., 100., 200., 200., 200.]),
+        (&auto, [10., 100., 20., 20., 200., 40.]),
+        (&fixed, [16., 160., 32., 32., 320., 64.]),
+    ] {
+        for (mark, radius) in plan.marks.iter().zip(expected) {
+            assert!((distance(mark) - radius).abs() < 1e-9);
+        }
+        assert_eq!(
+            plan.marks.iter().map(|m| m.source).collect::<Vec<_>>(),
+            per_axis.marks.iter().map(|m| m.source).collect::<Vec<_>>()
+        );
+        assert_eq!(plan.source_values, 6);
+    }
+    // Gap moves only label anchors in this fixed-size geometry plan.
+    assert_eq!(fixed.labels[0].position, Point::new(400., 110.));
+    assert_eq!(fixed.grid[0].1, Point::new(400., 120.));
+    assert!(matches!(
+        make(
+            options::RadarScale::Maximum(f64::from_bits(1)),
+            options::RadarRadius::Fit,
+            0.
+        ),
+        Err(Error::RenderLimit)
+    ));
+    let mut zeros = source.clone();
+    if let data::Contents::Radar(_, series) = &mut zeros.contents {
+        for series in series {
+            for (_, value) in &mut series.values {
+                *value = 0.;
+            }
+        }
+    }
+    let mut o = options();
+    o.radar.scale = options::RadarScale::DataMax;
+    let zero_plan = prepare(
+        &zeros,
+        Policy::default(),
+        &o,
+        800.,
+        400.,
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    assert!(zero_plan.marks.iter().all(|mark| distance(mark) == 0.));
+    if let data::Contents::Radar(_, series) = &mut zeros.contents {
+        series.clear();
+    }
+    let empty = prepare(
+        &zeros,
+        Policy::default(),
+        &o,
+        800.,
+        400.,
+        &AtomicBool::new(false),
+    )
+    .unwrap();
+    assert!(empty.marks.is_empty());
 }

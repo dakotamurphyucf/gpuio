@@ -1,13 +1,24 @@
+mod accessible_runs;
+mod backgrounds;
+mod block_object;
+mod control_navigation;
+mod displayed_text;
 mod document;
 mod format;
+mod frontmatter;
 mod inline;
 mod inline_element;
 mod inline_flow;
 mod inline_object;
+mod inline_semantics;
 #[cfg(test)]
 mod inline_virtual_tests;
+mod link_navigation;
+mod logical_accessibility;
 mod markdown_ext;
 mod node;
+mod range_geometry;
+mod rendered_text;
 pub(crate) mod selection;
 mod selection_adapter;
 mod state;
@@ -15,11 +26,21 @@ mod style;
 mod text_view;
 mod utils;
 
+pub use backgrounds::TextBackgrounds;
+pub use displayed_text::{DisplayedFragment, DisplayedText};
 use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString, Window};
 pub use inline_element::*;
 pub use markdown_ext::*;
-pub use node::{CodeBlock, TableData};
+pub use node::{CodeBlock, ImageNode as HtmlImage, TableData};
+pub use range_geometry::ReorderedTextGeometry;
+pub use rendered_text::{
+    RenderedAccessiblePart, RenderedAccessiblePartId, RenderedSelection, RenderedSelectionError,
+    RenderedSemanticId, RenderedSemanticKind, RenderedSemanticNode, RenderedText, RenderedTextPart,
+    RenderedTextPosition,
+};
 pub use state::*;
+mod semantic_attachments;
+pub use semantic_attachments::RenderedSemanticAttachment;
 pub use style::*;
 pub use text_view::*;
 

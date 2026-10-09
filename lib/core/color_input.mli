@@ -43,15 +43,84 @@ module Labels : sig
   val english : control:string -> t Or_error.t
 end
 
+module Palette_section : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Nonempty sections, at most 256 entries each. Labels are nonblank UTF-8
+      without NUL, at most 256 bytes. Duplicate colors remain distinct slots. *)
+  val featured : label:string -> Palette_entry.t list -> t Or_error.t
+
+  val group : label:string -> Palette_entry.t list -> t Or_error.t
+end
+
+module Panel : sig
+  type t =
+    | Palette
+    | Channels
+  [@@deriving equal, sexp_of]
+end
+
+module Panels : sig
+  type t [@@deriving equal, sexp_of]
+
+  val all : t
+
+  (** Labels are nonblank UTF-8 without NUL, at most 256 bytes. [initial] defaults
+      to Palette; it applies on mount and when changing All to Tabs. Later theme,
+      label or initial-setting updates preserve the native selected panel. *)
+  val tabs
+    :  ?initial:Panel.t
+    -> palette_label:string
+    -> channels_label:string
+    -> unit
+    -> t Or_error.t
+end
+
+module Appearance : sig
+  type t [@@deriving equal, sexp_of]
+
+  val default : t
+
+  (** Swatch/featured sizes and channel height: 16..128 points. Gaps/padding:
+      0..64. Radius/outline: 0..half the smaller swatch size. All finite.
+      Defaults: 28/36 size, 6 swatch gap, 10 section/control gap and padding,
+      5 radius, 2 outline, 28 channel height. Border colors inherit foreground.
+      Appearance updates retain the native owner and text editors. [panels]
+      defaults to [Panels.all]. Tabs leave hex/clear visible. Hiding a channel
+      settles its pending text using ordinary blur policy (valid commits;
+      invalid/composing cancels), and cancels a drag. User tab activation moves
+      focus to the selected tab, applying the same blur policy to any focused
+      editor. Pure presentation changes preserve a visible hex draft. *)
+  val create
+    :  ?swatch_size:float
+    -> ?featured_size:float
+    -> ?swatch_gap:float
+    -> ?section_gap:float
+    -> ?swatch_radius:float
+    -> ?outline_width:float
+    -> ?channel_height:float
+    -> ?control_gap:float
+    -> ?padding:float
+    -> ?selected_border:Color.t
+    -> ?hover_border:Color.t
+    -> ?panels:Panels.t
+    -> unit
+    -> t Or_error.t
+end
+
 module Config : sig
   type t [@@deriving equal, sexp_of]
 
   (** At most 256 palette entries, each with a nonblank label of at most 256
       UTF-8 bytes. Incompatible palette colors remain visible but not selectable.
-      Policy changes retain historical values and expose their allowed flags. *)
+      Policy changes retain historical values and expose their allowed flags.
+      Supply either [palette] or [palette_sections], never both. Sections are
+      bounded to 32 and 256 total entries; at most one featured section, first.
+      Section layout changes alone preserve native drafts and model revision. *)
   val create
     :  labels:Labels.t
     -> ?palette:Palette_entry.t list
+    -> ?palette_sections:Palette_section.t list
     -> ?alpha_policy:Color_value.Alpha_policy.t
     -> ?allow_empty:bool
     -> ?disabled:bool
@@ -204,8 +273,19 @@ module Command_error : sig
 end
 
 module Expert : sig
+  (** Native color policy and flattened entries only. Section metadata travels
+      separately through [presentation_to_wire]. Decoding this older policy
+      representation produces a flat palette. *)
   val config_to_wire : Config.t -> Gpuio_protocol.Color_input_wire.Config.t
+
   val config_of_wire : Gpuio_protocol.Color_input_wire.Config.t -> Config.t Or_error.t
+
+  val presentation_to_wire
+    :  Config.t
+    -> appearance:Appearance.t
+    -> theme:Theme.t
+    -> Gpuio_protocol.Color_presentation_wire.t Or_error.t
+
   val value_to_wire : Color_value.Value.t -> Gpuio_protocol.Color_input_wire.Value.t
 
   val snapshot_of_wire

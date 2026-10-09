@@ -19,6 +19,42 @@ module Error : sig
   [@@deriving equal, sexp_of]
 end
 
+module Preset : sig
+  (** A labeled, complete civil selection. Dates are supplied by the application;
+      this module never reads the clock. Empty is useful for a clear preset.
+      Partial ranges are rejected. Labels follow [Choice]'s UTF-8/4096-byte
+      contract; IDs follow [Choice.Id]'s contract. *)
+  type t [@@deriving equal, sexp_of]
+
+  val create
+    :  id:Choice.Id.t
+    -> label:string
+    -> selection:Calendar.Selection.t
+    -> t Or_error.t
+
+  val id : t -> Choice.Id.t
+  val label : t -> string
+  val selection : t -> Calendar.Selection.t
+
+  (** Revalidate against the current mode, constraints and interaction policy.
+      A preset may remain visible but unavailable when configuration changes. *)
+  val validate : t -> config:Calendar.Config.t -> (unit, Error.t) Result.t
+
+  module Collection : sig
+    type preset := t
+    type t [@@deriving equal, sexp_of]
+
+    val empty : t
+    val max_presets : int
+
+    (** At most 32 presets with distinct IDs, preserving caller order. Duplicate
+        labels or selections are allowed. *)
+    val create : preset list -> t Or_error.t
+
+    val to_list : t -> preset list
+  end
+end
+
 module Session : sig
   module Id : sig
     type t [@@deriving compare, equal, sexp_of]

@@ -16,6 +16,66 @@ module Error = struct
   [@@deriving equal, sexp_of]
 end
 
+module Preset = struct
+  type t =
+    { choice : Choice.t
+    ; selection : Calendar.Selection.t
+    }
+  [@@deriving equal, sexp_of]
+
+  let create ~id ~label ~selection =
+    if
+      match selection with
+      | Calendar.Selection.Range_start _ -> true
+      | Empty | Single _ | Range _ -> false
+    then Or_error.error_string "date preset requires a complete selection"
+    else (
+      let%map.Or_error choice = Choice.create ~id ~label () in
+      { choice; selection })
+  ;;
+
+  let id t = Choice.id t.choice
+  let label t = Choice.label t.choice
+  let selection t = t.selection
+
+  let validate t ~config =
+    if Calendar.Config.is_disabled config
+    then Error Error.Disabled
+    else if Calendar.Config.is_read_only config
+    then Error Read_only
+    else if not (Calendar.Selection.fits t.selection ~mode:(Calendar.Config.mode config))
+    then Error Wrong_mode
+    else if
+      not
+        (Calendar.Constraints.allows_selection
+           (Calendar.Config.constraints config)
+           t.selection
+           ~mode:(Calendar.Config.mode config))
+    then Error Disallowed_selection
+    else Ok ()
+  ;;
+
+  module Collection = struct
+    type preset = t [@@deriving equal, sexp_of]
+    type t = preset list [@@deriving equal, sexp_of]
+
+    let empty = []
+    let max_presets = 32
+
+    let create presets =
+      if List.length presets > max_presets
+      then Or_error.errorf "date presets exceed %d items" max_presets
+      else (
+        let%map.Or_error _ =
+          Choice.Collection.create (List.map presets ~f:(fun p -> p.choice))
+        in
+        presets)
+    ;;
+
+    let to_list t = t
+  end
+end
+
 module Session = struct
   module Id = struct
     type t = int64 [@@deriving compare, equal, sexp_of]

@@ -1,0 +1,130 @@
+{
+  "archive_sha256": "4238dcd6fafe89533be66ca71c86637451c01207055fe35d28ab24d7bd0f591d",
+  "files": [
+    {
+      "path": "rendered-multiclick-after-002.log",
+      "bytes": 588860,
+      "sha256": "3637ce7b45655c52a048c5f53e239949f333192eaefe41c5495759c3a76a343d"
+    },
+    {
+      "path": "rendered-multiclick-before-001.log",
+      "bytes": 589330,
+      "sha256": "41db05bb2a961e33b3f30320c7069c3ad97d6c67fcc6cbab06d43eeda2815418"
+    },
+    {
+      "path": "rendered-multiclick-clippy-010.log",
+      "bytes": 588624,
+      "sha256": "f0973a91dbd680c1d4beae52d8abe55a96f69649e507eccd02e692c6df7a2977"
+    },
+    {
+      "path": "rendered-multiclick-docs-014.log",
+      "bytes": 139,
+      "sha256": "6a6c48d5844d1ffdb3732cf30e5bb603cac1b615504a84bb2ee3b168cab6ce0b"
+    },
+    {
+      "path": "rendered-multiclick-dune-011.log",
+      "bytes": 705832,
+      "sha256": "ee47f217f94a1857d42e62222a2e4e6b3200f89357ea1442b1b5e7f56f780fba"
+    },
+    {
+      "path": "rendered-multiclick-final-checks.py",
+      "bytes": 1510,
+      "sha256": "e1551c42724b4a384969edb96d97a4c096b3cf9f4c7ac7e51119639671f46be1"
+    },
+    {
+      "path": "rendered-multiclick-final2-checks.json",
+      "bytes": 1612,
+      "sha256": "1cd2d0c9137e75b089dd1d3475f83ad1d7390546617c9a72c5e0654aa0eaac08"
+    },
+    {
+      "path": "rendered-multiclick-format-015.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rendered-multiclick-fragments-003.log",
+      "bytes": 589888,
+      "sha256": "62daa60f1fbf0c0181ab375e301dc6c29e38ba5515a4f2b273989c714a0c815d"
+    },
+    {
+      "path": "rendered-multiclick-fragments-004.log",
+      "bytes": 588988,
+      "sha256": "3d5578f7f6901f612d2578186e4f16a32a129751a3a04c5274d3406fd7ce5727"
+    },
+    {
+      "path": "rendered-multiclick-metadata.json",
+      "bytes": 4913,
+      "sha256": "79105b6793bdf9dfef22a2fbb032d0f02411b65e7e84d747190531364e2e253e"
+    },
+    {
+      "path": "rendered-multiclick-native-005.log",
+      "bytes": 591575,
+      "sha256": "de7ddad541a08c8d545eea5b1ecf550796611eefc9bc1b6bdb57024c2b22f028"
+    },
+    {
+      "path": "rendered-multiclick-native-009.log",
+      "bytes": 705677,
+      "sha256": "980bb90072589e8d51740b78718df5071fc1952d9a64ec835501a75ffefbbb12"
+    },
+    {
+      "path": "rendered-multiclick-native-checks.json",
+      "bytes": 447,
+      "sha256": "ca6cd6bbad78994ea865220a2ab785557fcf9d0354f02064ef2feda8906da6a2"
+    },
+    {
+      "path": "rendered-multiclick-native-checks.py",
+      "bytes": 1180,
+      "sha256": "e8f5c0e05c6e5db321643192de13885d9ab8c25cf59089d637ce5107e3d3ee6e"
+    },
+    {
+      "path": "rendered-multiclick-qualified.patch",
+      "bytes": 48694,
+      "sha256": "f44af47946791ced5ad7232a5357583aa5dddfdfe7593cb001145ad79ae6f253"
+    },
+    {
+      "path": "rendered-multiclick-reconstruction-012.log",
+      "bytes": 4716,
+      "sha256": "23d207b8ff1e73c09e987d845c5e1a8e7f2435e5881aab2a2d738a85f14787d3"
+    },
+    {
+      "path": "rendered-multiclick-shutdown-013.log",
+      "bytes": 164,
+      "sha256": "99423232a2037bb904ac26adf4bcb1fcc2b116f2108c8fcc55d5f9e44edee641"
+    },
+    {
+      "path": "rendered-multiclick-shutdown-checks.json",
+      "bytes": 478,
+      "sha256": "5172b40f59ec79a5f63039f0992e42fd650b611e58da7512003070c814447551"
+    },
+    {
+      "path": "rendered-multiclick-shutdown-checks.py",
+      "bytes": 1207,
+      "sha256": "a5ea5ef9732ca367250468404b8cddc5b7e54c10dabd10f1f97137dec3945217"
+    },
+    {
+      "path": "rendered-multiclick-shutdown-current-app.log",
+      "bytes": 52,
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46"
+    },
+    {
+      "path": "rendered-multiclick-shutdown-current.json",
+      "bytes": 1916,
+      "sha256": "b1de83e08348f4e9c5a5579be0154114fc65259315f954d7c398ec695fc85fac"
+    },
+    {
+      "path": "rendered-multiclick-workspace-008.log",
+      "bytes": 783107,
+      "sha256": "c1e14a8b7e9889fec62e22ce52dad5a3d2f47ff370bb433dcc6d150ddfc067e5"
+    },
+    {
+      "path": "rendered-multiclick-wrap-006.log",
+      "bytes": 589560,
+      "sha256": "80f5c2f005f641df41d80626cd8e51d2d13470550ce12c2e97f09c62f4e30cd4"
+    },
+    {
+      "path": "rendered-multiclick-wrap-007.log",
+      "bytes": 588872,
+      "sha256": "ce81807d667efdb8b22517b5b8bc4a24b26da87ac9fc6008d83470014c38bf4d"
+    }
+  ]
+}

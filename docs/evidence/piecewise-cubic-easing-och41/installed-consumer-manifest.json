@@ -1,0 +1,14 @@
+{
+  "archive": "installed-consumer.tar.gz",
+  "sha256": "74117372b26562f77fdbaef14de108071fb48fb7609f92880f68b1a3e4540bff",
+  "files": [
+    {
+      "path": "piecewise-cubic-installed-consumer.json",
+      "sha256": "5c323a8a310bce9bc18899293e7006fe2cf3bbbe970320948d364cddc1a9fa2f"
+    },
+    {
+      "path": "piecewise-cubic-installed-consumer.log",
+      "sha256": "ba64df4ec5164e6dc84589a25b9e467b4c767221b0c6dab86c746696fbeab6d4"
+    }
+  ]
+}

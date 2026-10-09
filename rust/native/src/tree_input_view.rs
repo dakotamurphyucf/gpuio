@@ -14,7 +14,12 @@ pub(super) fn within_input_collection(tree: &crate::tree::Tree, id: NodeId) -> b
         let Some(node) = tree.get(id) else {
             return false;
         };
-        if node.tree_input || node.table.is_some() {
+        if node.tree_input
+            || node.list_input.is_some()
+            || node.table.is_some()
+            || node.tab_content.is_some()
+            || node.tab_trailing
+        {
             return true;
         }
         current = node.parent;
@@ -192,13 +197,14 @@ impl View {
             .child(
                 canvas(
                     |_, _, _| (),
-                    move |_, _, window, _| {
+                    move |bounds, _, window, _| {
                         if gate.borrow().visible(owner) {
                             gate.borrow_mut().record(
                                 owner,
                                 recorded.clone(),
                                 true,
                                 recorded.is_focused(window),
+                                bounds,
                             );
                         }
                     },
@@ -302,6 +308,7 @@ impl View {
                             focus.clone(),
                             false,
                             focus.is_focused(window),
+                            bounds,
                         );
                         if focus.is_focused(window) && window.is_window_active() {
                             window.paint_quad(gpui::outline(

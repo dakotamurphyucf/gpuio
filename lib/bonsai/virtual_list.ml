@@ -7,6 +7,60 @@ module Config = V.Config
 module Viewport = V.Viewport
 module Key = Gpuio.Key
 
+module Input = struct
+  type 'key t =
+    { epoch : Key.t
+    ; cursor : 'key option
+    ; query : Key.t option
+    ; before : unit E.t Gpuio.View.t list
+    ; after : unit E.t Gpuio.View.t list
+    ; selection_on_navigation : bool
+    ; disabled : bool
+    ; busy : bool
+    ; on_input : 'key Gpuio.List_input.t -> unit E.t
+    }
+
+  let create
+        ~epoch
+        ?cursor
+        ?query
+        ?(before = [])
+        ?(after = [])
+        ?(selection_on_navigation = false)
+        ?(disabled = false)
+        ?(busy = false)
+        ~on_input
+        ()
+    =
+    let valid =
+      Option.for_all query ~f:(fun key ->
+        let matches =
+          List.filter (before @ after) ~f:(fun view ->
+            Option.equal Key.equal (Gpuio.View.Expert.describe view).key (Some key))
+        in
+        match matches with
+        | [ view ] ->
+          Gpuio.View.Expert.Kind.equal (Gpuio.View.Expert.describe view).kind Input
+        | _ -> false)
+    in
+    if not valid
+    then
+      Or_error.error_string "list query must name exactly one Input in before/after slots"
+    else
+      Ok
+        { epoch
+        ; cursor
+        ; query
+        ; before
+        ; after
+        ; selection_on_navigation
+        ; disabled
+        ; busy
+        ; on_input
+        }
+  ;;
+end
+
 module Command = struct
   type t =
     | Offset of Key.t * float
@@ -87,6 +141,7 @@ module Model = struct
     { requested : Key.t list
     ; pins : Key.t list
     ; viewport : Viewport.t option
+    ; viewport_config : Config.t option
     ; viewport_revision : int64 option
     ; observed_tail : Key.t option
     ; serial : int64
@@ -98,6 +153,7 @@ module Model = struct
     { requested = []
     ; pins = []
     ; viewport = None
+    ; viewport_config = None
     ; viewport_revision = None
     ; observed_tail = None
     ; serial = 0L
@@ -108,7 +164,7 @@ end
 
 module Action = struct
   type t =
-    | Observe of int64 * Key.t option * Viewport.t
+    | Observe of int64 * Config.t * Key.t option * Viewport.t
     | Retain of Key.t list
     | Scroll of Command.t
   [@@deriving sexp_of]
@@ -117,6 +173,7 @@ end
 module Accepted = struct
   type ('key, 'data, 'cmp) t =
     { source : ('key, 'data, 'cmp) C.t
+    ; config : Config.t
     ; revision : int64
     }
 end
@@ -135,11 +192,12 @@ let apply_action _ input model action =
   | Bonsai.Computation_status.Inactive | Active (Error _) -> model
   | Active (Ok metadata) ->
     (match action with
-     | Action.Observe (revision, tail, viewport) ->
+     | Action.Observe (revision, config, tail, viewport) ->
        { model with
          Model.requested = viewport.requested
        ; pins = viewport.pinned
        ; viewport = Some viewport
+       ; viewport_config = Some config
        ; viewport_revision = Some revision
        ; observed_tail = tail
        }
@@ -210,11 +268,13 @@ let inner
       ~style
       ~accessibility
       ~on_tree_input
+      ~input
       ~tree_moves
       ~generation
       ~pinned
       ~on_viewport
       ~render_row
+      ~lifetime
       graph
   =
   let module K = (val comparator) in
@@ -234,9 +294,12 @@ let inner
   let accepted, set_accepted = B.state_opt ~equal:phys_equal graph in
   let checkpoint =
     let%arr source = source
-    and accepted = accepted in
+    and accepted = accepted
+    and config = config in
     match accepted with
-    | Some previous when phys_equal source previous.Accepted.source -> previous
+    | Some previous
+      when phys_equal source previous.Accepted.source
+           && Config.equal config previous.config -> previous
     | previous ->
       let revision =
         Option.value_map previous ~default:0L ~f:(fun previous ->
@@ -248,7 +311,8 @@ let inner
                  (C.keys previous.source)
           in
           let changed =
-            (not same_order)
+            (not (Config.equal config previous.config))
+            || (not same_order)
             || C.fold_changed_values
                  source
                  ~previous:previous.source
@@ -262,7 +326,7 @@ let inner
             then failwith "list invalidation revision exhausted";
             Int64.succ previous.revision))
       in
-      { Accepted.source; revision }
+      { Accepted.source; config; revision }
   in
   let invalidated =
     let%arr checkpoint = checkpoint
@@ -280,7 +344,13 @@ let inner
   let active =
     let%arr metadata = metadata
     and model = model
-    and pinned = pinned in
+    and pinned = pinned
+    and config = config in
+    let model =
+      if Option.exists model.viewport_config ~f:(Config.equal config)
+      then model
+      else { model with viewport = None }
+    in
     Or_error.bind metadata ~f:(fun metadata ->
       active_keys
         metadata
@@ -319,12 +389,15 @@ let inner
     and inject = inject
     and invalidated = invalidated
     and checkpoint = checkpoint
+    and lifetime = lifetime
     and style = style
     and accessibility = accessibility
     and generation = generation
     and observe = on_viewport
     and on_tree_input = on_tree_input
-    and tree_moves = tree_moves in
+    and input = input
+    and tree_moves = tree_moves
+    and config = config in
     let open Or_error.Let_syntax in
     let%bind metadata = metadata in
     let%bind active = active in
@@ -338,11 +411,16 @@ let inner
         ~invalidated
         ~invalidation_revision:checkpoint.revision
         ~on_viewport:(fun viewport ->
-          E.Many
-            [ inject (Observe (checkpoint.revision, List.hd metadata.reversed, viewport))
-            ; observe viewport
-            ])
-        ~on_retain:(fun keys -> inject (Retain keys))
+          Managed_rows.Lifetime.guard
+            lifetime
+            (E.Many
+               [ inject
+                   (Observe
+                      (checkpoint.revision, config, List.hd metadata.reversed, viewport))
+               ; observe viewport
+               ]))
+        ~on_retain:(fun keys ->
+          Managed_rows.Lifetime.guard lifetime (inject (Retain keys)))
         ~tree_moves
         ?on_tree_input:
           (Option.map on_tree_input ~f:(fun callback input ->
@@ -351,25 +429,55 @@ let inner
                  Map.find metadata.by_wire (Key.to_string key))
              with
              | None -> E.Ignore
-             | Some input -> callback input))
+             | Some input -> Managed_rows.Lifetime.guard lifetime (callback input)))
         (Map.to_alist rows |> List.map ~f:(fun (key, view) -> row_key key, view))
     in
-    let%map view =
+    let%bind view =
       match accessibility with
       | None -> Ok view
       | Some accessibility -> Gpuio.View.with_accessibility view accessibility
     in
+    let%map view =
+      match input with
+      | None -> Ok view
+      | Some input ->
+        Gpuio.View.with_list_input
+          view
+          ~config:
+            (Gpuio.List_input.Config.create
+               ~epoch:input.Input.epoch
+               ?cursor:(Option.map input.cursor ~f:row_key)
+               ?query:input.query
+               ~selection_on_navigation:input.selection_on_navigation
+               ~disabled:input.disabled
+               ~busy:input.busy
+               ())
+          ~on_input:(fun request ->
+            match
+              Gpuio.List_input.filter_map request ~f:(fun key ->
+                Map.find metadata.by_wire (Key.to_string key))
+            with
+            | None -> E.Ignore
+            | Some request ->
+              Managed_rows.Lifetime.guard lifetime (input.on_input request))
+    in
+    let viewport =
+      if Option.exists model.viewport_revision ~f:(Int64.equal checkpoint.revision)
+      then model.viewport
+      else None
+    in
     { Output.view
     ; controller =
-        { Controller.key = row_key; submit = (fun command -> inject (Scroll command)) }
-    ; viewport =
-        (if Option.exists model.viewport_revision ~f:(Int64.equal checkpoint.revision)
-         then model.viewport
-         else None)
+        { Controller.key = row_key
+        ; submit =
+            (fun command ->
+              Managed_rows.Lifetime.guard lifetime (inject (Scroll command)))
+        }
+    ; viewport
     ; active_rows = List.length active.Selection.keys
     ; budget_exhausted =
         active.exhausted
-        || Option.exists model.viewport ~f:(fun viewport -> viewport.budget_exhausted)
+        || Option.exists viewport ~f:(fun viewport -> viewport.budget_exhausted)
     }
   in
   let after_display =
@@ -388,15 +496,17 @@ let inner
   result
 ;;
 
-let component
+let component_with_config
       comparator
       source
       ~row_key
       ~config
       ?key
       ?(style = B.return fill)
+      ?(scrollbar = B.return None)
       ?accessibility
       ?on_tree_input
+      ?input
       ?(tree_moves = B.return false)
       ?(generation = B.return 0L)
       ?(pinned = B.return [])
@@ -407,6 +517,7 @@ let component
   let open B.Let_syntax in
   let accessibility = B.transpose_opt accessibility in
   let on_tree_input = B.transpose_opt on_tree_input in
+  let input = B.transpose_opt input in
   let generations =
     let%arr generation = generation
     and source = source in
@@ -416,7 +527,7 @@ let component
     Managed_rows.assoc
       (module Int64)
       generations
-      ~f:(fun generation source _ graph ->
+      ~f:(fun generation source lifetime graph ->
         inner
           comparator
           source
@@ -425,19 +536,66 @@ let component
           ~style:(B.return fill)
           ~accessibility
           ~on_tree_input
+          ~input
           ~tree_moves
           ~generation
           ~pinned
           ~on_viewport
           ~render_row
+          ~lifetime
           graph)
       graph
   in
   let%arr results = results
-  and style = style in
+  and style = style
+  and input = input
+  and scrollbar = scrollbar in
   let result = Map.data results |> List.hd_exn in
-  Or_error.map result ~f:(fun output ->
-    { output with Output.view = Gpuio.View.column ?key ~style [ output.view ] })
+  Or_error.bind result ~f:(fun output ->
+    let%map.Or_error view = Gpuio.View.with_scrollbar output.view scrollbar in
+    let children =
+      match input with
+      | None -> [ view ]
+      | Some input -> input.Input.before @ (view :: input.after)
+    in
+    { output with Output.view = Gpuio.View.column ?key ~style children })
+;;
+
+let component
+      comparator
+      source
+      ~row_key
+      ~config
+      ?key
+      ?style
+      ?scrollbar
+      ?accessibility
+      ?on_tree_input
+      ?input
+      ?tree_moves
+      ?generation
+      ?pinned
+      ?on_viewport
+      ~render_row
+      graph
+  =
+  component_with_config
+    comparator
+    source
+    ~row_key
+    ~config:(B.return config)
+    ?key
+    ?style
+    ?scrollbar
+    ?accessibility
+    ?on_tree_input
+    ?input
+    ?tree_moves
+    ?generation
+    ?pinned
+    ?on_viewport
+    ~render_row
+    graph
 ;;
 
 module Paging = struct
@@ -471,7 +629,7 @@ module Demand = struct
   ;;
 end
 
-let paged
+let paged_with_config
       comparator
       snapshot
       ~paging
@@ -479,8 +637,10 @@ let paged
       ~config
       ?key
       ?style
+      ?scrollbar
       ?accessibility
       ?on_tree_input
+      ?input
       ?(tree_moves = B.return false)
       ?pinned
       ?(auto_load = B.return true)
@@ -496,15 +656,17 @@ let paged
     B.map snapshot ~f:(fun snapshot -> snapshot.Gpuio.List_paging.Snapshot.generation)
   in
   let output =
-    component
+    component_with_config
       comparator
       source
       ~row_key
       ~config
       ?key
       ?style
+      ?scrollbar
       ?accessibility
       ?on_tree_input
+      ?input
       ~tree_moves
       ~generation
       ?pinned
@@ -546,4 +708,43 @@ let paged
   in
   B.Edge.on_change ~equal:Demand.equal demand ~callback graph;
   output
+;;
+
+let paged
+      comparator
+      snapshot
+      ~paging
+      ~row_key
+      ~config
+      ?key
+      ?style
+      ?scrollbar
+      ?accessibility
+      ?on_tree_input
+      ?input
+      ?tree_moves
+      ?pinned
+      ?auto_load
+      ?on_viewport
+      ~render_row
+      graph
+  =
+  paged_with_config
+    comparator
+    snapshot
+    ~paging
+    ~row_key
+    ~config:(B.return config)
+    ?key
+    ?style
+    ?scrollbar
+    ?accessibility
+    ?on_tree_input
+    ?input
+    ?tree_moves
+    ?pinned
+    ?auto_load
+    ?on_viewport
+    ~render_row
+    graph
 ;;

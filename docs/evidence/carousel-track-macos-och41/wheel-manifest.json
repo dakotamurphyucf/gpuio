@@ -1,0 +1,26 @@
+{
+  "scratch/agents/root-20261007-access-check/carousel-wheel-native-001.log": {
+    "sha256": "4ee0bff8835c751ceafe95dcab06ab202627b5923b5adbb84fc51d2d1229a6d6",
+    "bytes": 5597
+  },
+  "scratch/agents/root-20261007-access-check/carousel-wheel-native-001/carousel-wheel-report.json": {
+    "sha256": "d521dc534dd70fef9643ead835b02f5452a43fd440e75d1b62019884e72c695e",
+    "bytes": 7431
+  },
+  "scratch/agents/root-20261007-access-check/carousel-wheel-installed-001.log": {
+    "sha256": "88f7c8880db7a3822dfd6485eb81f34d5e8acea6dd606e914bf20047bd84f0ae",
+    "bytes": 5653
+  },
+  "scratch/agents/root-20261007-access-check/carousel-wheel-installed-001/carousel-wheel-report.json": {
+    "sha256": "d521dc534dd70fef9643ead835b02f5452a43fd440e75d1b62019884e72c695e",
+    "bytes": 7431
+  },
+  "scripts/gallery_carousel_wheel.py": {
+    "sha256": "08361279f08b5a1679f5cf2a6b8fb91f682c6ad80192d9f2ae62847ad563850b",
+    "bytes": 5873
+  },
+  "examples/gallery/carousel_track_preview.ml": {
+    "sha256": "aba99a7041fd6755a13a0e7993446c176c11ebc49eab97dcf0e8001f8ba47025",
+    "bytes": 6334
+  }
+}

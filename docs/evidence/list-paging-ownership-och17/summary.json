@@ -1,0 +1,11 @@
+{
+  "base_revision": "14775883d774032ac9728ac3311794552f9888e8",
+  "platform": "ProductName:\t\tmacOS\nProductVersion:\t\t14.5\nBuildVersion:\t\t23F79\n",
+  "architecture": "arm64",
+  "native_executable_sha256": "b72187838998cc936f2be2f4fdd77276a00434b58acbf6c08282c39e4c0b113e",
+  "before_runtime_exit": 1,
+  "runtime_and_example_build_exit": 0,
+  "full_dune_tests_and_format_exit": 0,
+  "native_self_test_exit": 0,
+  "scope": "OCaml pager cancellation/closure and small real managed-list integration; not full performance or visual-overlap acceptance"
+}

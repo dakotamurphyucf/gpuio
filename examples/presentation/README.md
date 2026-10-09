@@ -1,5 +1,16 @@
 # Component Studio
 
+Read the adjacent code walkthroughs:
+
+- [Main graph, composition and runtime](main.md) → [main.ml](main.ml).
+- [Avatar source modes](avatar_mode.md) → [avatar_mode.ml](avatar_mode.ml).
+- [Scoped avatar publication](avatar_assets.md) → [avatar_assets.ml](avatar_assets.ml).
+- [Latest-model rating reducer](rating_action.md) → [rating_action.ml](rating_action.ml).
+- [Constrained-content fixture](content_cases.md) → [content_cases.ml](content_cases.ml)
+  and [interface](content_cases.mli).
+
+Dependencies/PPX are in [dune](dune).
+
 Public Core/Bonsai/Eio settings and chat-card compositions. Run from the repository:
 
 ```sh
@@ -31,9 +42,9 @@ its child, checks native field help/error and Link activation, invokes card acti
 checks action geometry, captures both themes and closes the native window.
 It requires macOS accessibility access. No Linux desktop behavior is inferred.
 
-This example is the current OCH-33 foundation, not full component acceptance:
-the final cross-family content/layout checks remain. OCH-46 separately integrates the finished
-milestone into the polished agent-chat showcase.
+These guides explain source behavior without adding native acceptance. Consult
+dated evidence and live tickets for current qualification; the
+[platform policy](../../docs/platform-release-policy.md) defines release scope.
 
 The Background work group uses `View.loading` with Skeleton, Shimmer and Spinner.
 Hide/show preserves their leaf identities; Static/Animate changes only the native

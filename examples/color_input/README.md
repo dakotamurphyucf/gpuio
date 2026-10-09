@@ -1,5 +1,10 @@
 # Color Studio
 
+Read the [inline color walkthrough](main.md) for its actual Bonsai graph,
+native controller commands and diagnostic boundaries, then the
+[popup picker walkthrough](picker.md) for confirmed-value/draft ownership and
+session lifetimes. Both entry points are independent executables in [dune](dune).
+
 Build with `GPUIO_JOBS=2 ./scripts/gpuio build examples/color_input/main.exe`, then
 run `_build/default/examples/color_input/main.exe`.
 

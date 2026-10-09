@@ -138,3 +138,247 @@ let%expect_test "palette bytes and event order match independent Rust fixture" =
         (Wire.Event.decode (fixture "palette-v1-events.hex") |> Or_error.ok_exn)));
   [%expect {| |}]
 ;;
+
+let%expect_test "palette policies validate keywords and keep default wire unchanged" =
+  let create keywords =
+    Command_palette.Config.create ~label:"Actions" ~commands:[ id "run" ] ~keywords ()
+  in
+  List.iter
+    [ [ id "missing", [ "execute" ] ]
+    ; [ id "run", [ "execute" ]; id "run", [ "launch" ] ]
+    ; [ id "run", [ " " ] ]
+    ; [ id "run", [ "a\000b" ] ]
+    ; [ id "run", [ String.make 4097 'x' ] ]
+    ; [ id "run", List.init 65 ~f:(Fn.const "x") ]
+    ; [ id "run", List.init 64 ~f:(Fn.const (String.make 4096 'x')) ]
+    ]
+    ~f:(fun keywords -> assert (Result.is_error (create keywords)));
+  assert (
+    Result.is_ok (Command_palette.Config.create ~label:"\227\128\128" ~commands:[] ()));
+  assert (
+    Result.is_ok
+      (create [ id "run", [ "\194\160\227\128\128"; "\194\160λ\227\128\128" ] ]));
+  assert (Option.is_none (Command_palette.Expert.options config));
+  let configured =
+    Command_palette.Config.create
+      ~label:"Actions"
+      ~commands:[ id "run" ]
+      ~search:Substring
+      ~searchable:false
+      ~escape:Clear_query_first
+      ~keywords:[ id "run", [ "execute λ" ] ]
+      ()
+    |> Or_error.ok_exn
+  in
+  let message =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Set_palette_options (node 1L, Command_palette.Expert.options configured) ]
+      }
+  in
+  let bytes = Wire.Message.encode message |> Or_error.ok_exn in
+  assert (
+    String.equal
+      bytes
+      "\003\000\001\000\001\001\125\001\001\001\001\000\001\001\003run\001\010execute \
+       λ\000");
+  [%expect {| |}]
+;;
+
+let%expect_test "embedded palette is an explicit paired presentation option" =
+  let config =
+    Command_palette.Config.create
+      ~label:"Commands"
+      ~commands:[ id "run" ]
+      ~presentation:Embedded
+      ()
+    |> Or_error.ok_exn
+  in
+  let message =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations =
+          [ Set_palette_options (node 1L, Command_palette.Expert.options config) ]
+      }
+  in
+  assert (
+    String.equal
+      (Wire.Message.encode message |> Or_error.ok_exn)
+      "\003\000\001\000\001\001\125\001\001\001\000\001\000\000\001");
+  [%expect {| |}]
+;;
+
+let%expect_test "palette option updates preserve mounted identity and reset separately" =
+  let reconciler = Reconciler.create window in
+  let view search =
+    let config =
+      Command_palette.Config.create ~label:"Actions" ~commands:[ id "run" ] ~search ()
+      |> Or_error.ok_exn
+    in
+    View.command_scope
+      ~commands
+      [ View.command_palette ~config ~on_dismiss:(Fn.const "dismiss") () ]
+  in
+  let apply search =
+    let prepared =
+      Reconciler.prepare reconciler ~theme:Theme.default (Some (view search))
+      |> Or_error.ok_exn
+    in
+    let message = Reconciler.message prepared in
+    Reconciler.accept reconciler prepared |> Or_error.ok_exn;
+    message
+  in
+  ignore (apply All_terms : Wire.Message.t option);
+  let only_options = function
+    | Some
+        (Wire.Message.Apply { operations = [ Set_palette_options (node, options) ]; _ })
+      -> node, options
+    | _ -> assert false
+  in
+  let mounted, options = only_options (apply Substring) in
+  assert (Option.is_some options);
+  assert (Option.is_none (apply Substring));
+  let reset, options = only_options (apply All_terms) in
+  assert (Node_id.equal mounted reset);
+  assert (Option.is_none options);
+  [%expect {| |}]
+;;
+
+let%expect_test "palette grouped presentation validates IDs, emits layout only and resets"
+  =
+  let module P = Command_palette in
+  let group_id = P.Group.Id.of_string "g" |> Or_error.ok_exn in
+  let group =
+    P.Group.create ~id:group_id ~label:"Group" ~commands:[ id "run" ] ()
+    |> Or_error.ok_exn
+  in
+  let entries = [ P.Entry.Group group; Separator; Command (id "copy") ] in
+  let grouped () =
+    P.Config.create_entries ~label:"Actions" ~entries () |> Or_error.ok_exn
+  in
+  assert (Result.is_error (P.Group.Id.of_string " "));
+  assert (Result.is_error (P.Group.create ~id:group_id ~label:"\000" ~commands:[] ()));
+  assert (
+    Result.is_error
+      (P.Config.create_entries ~label:"Actions" ~entries:[ Group group; Group group ] ()));
+  assert (
+    Result.is_error
+      (P.Config.create_entries
+         ~label:"Actions"
+         ~entries:[ Group group; Command (id "run") ]
+         ()));
+  assert (
+    Result.is_error
+      (P.Config.create_entries
+         ~label:"Actions"
+         ~entries:(List.init 1025 ~f:(Fn.const P.Entry.Separator))
+         ()));
+  assert (
+    List.equal Command.Id.equal (P.Config.commands (grouped ())) [ id "run"; id "copy" ]);
+  let layout = P.Expert.layout (grouped ()) in
+  let fixture =
+    Wire.Message.Apply
+      { window
+      ; base = 0L
+      ; revision = 1L
+      ; operations = [ Set_palette_layout (node 1L, layout) ]
+      }
+  in
+  assert (
+    String.equal
+      (Bin_prot.Utils.bin_dump Wire.Message.bin_writer_t fixture |> Bigstring.to_string)
+      "\003\000\001\000\001\001\126\001\001\001\003\001\001g\001\005Group\001\000\002\000\001");
+  let reconciler = Reconciler.create window in
+  let apply config =
+    let view =
+      View.command_scope
+        ~commands
+        [ View.command_palette ~config ~on_dismiss:(Fn.const "dismiss") () ]
+    in
+    let prepared =
+      Reconciler.prepare reconciler ~theme:Theme.default (Some view) |> Or_error.ok_exn
+    in
+    let message = Reconciler.message prepared in
+    Reconciler.accept reconciler prepared |> Or_error.ok_exn;
+    message
+  in
+  let flat =
+    P.Config.create ~label:"Actions" ~commands:[ id "run"; id "copy" ] ()
+    |> Or_error.ok_exn
+  in
+  ignore (apply flat : Wire.Message.t option);
+  let only_layout = function
+    | Some (Wire.Message.Apply { operations = [ Set_palette_layout (node, layout) ]; _ })
+      -> node, layout
+    | _ -> assert false
+  in
+  let mounted, layout = only_layout (apply (grouped ())) in
+  assert (Option.is_some layout);
+  assert (Option.is_none (apply (grouped ())));
+  let reset, layout = only_layout (apply flat) in
+  assert (Node_id.equal mounted reset);
+  assert (Option.is_none layout);
+  [%expect {| |}]
+;;
+
+let%expect_test "palette content keeps native ownership and rejects interactive rows" =
+  let plain =
+    View.command_palette
+      ~key:(Key.of_string_exn "palette")
+      ~config
+      ~on_dismiss:(Fn.const "dismiss")
+      ()
+  in
+  let button = View.button ~on_click:(fun () -> "help") "Help" in
+  let rich =
+    View.with_palette_content
+      plain
+      ~header:button
+      ~footer:(View.text "Footer")
+      ~empty:(View.button ~on_click:(fun () -> "retry") "Retry")
+      ~items:[ id "run", View.column [ View.text "Run"; View.text "Details" ] ]
+      ()
+    |> Or_error.ok_exn
+  in
+  List.iter
+    [ [ id "missing", View.text "x" ]
+    ; [ id "run", button ]
+    ; [ id "run", View.text "a"; id "run", View.text "b" ]
+    ]
+    ~f:(fun items -> assert (Result.is_error (View.with_palette_content plain ~items ())));
+  assert (
+    Result.is_error (View.with_palette_content (View.text "Not a palette") ~items:[] ()));
+  let oversized = View.column (List.init 4096 ~f:(Fn.const (View.text "x"))) in
+  assert (Result.is_error (View.with_palette_content plain ~header:oversized ~items:[] ()));
+  let reconciler = Reconciler.create window in
+  let commit palette =
+    let prepared =
+      Reconciler.prepare
+        reconciler
+        ~theme:Theme.default
+        (Some (View.command_scope ~commands [ palette ]))
+      |> Or_error.ok_exn
+    in
+    let message = Reconciler.message prepared in
+    Reconciler.accept reconciler prepared |> Or_error.ok_exn;
+    message
+  in
+  ignore (commit plain : Wire.Message.t option);
+  List.iter
+    [ rich; View.with_palette_content rich ~items:[] () |> Or_error.ok_exn; rich ]
+    ~f:(fun view ->
+      match commit view with
+      | Some (Apply { operations; _ }) ->
+        assert (
+          not
+            (List.exists operations ~f:(function
+               | Wire.Op.Create (_, Command_palette, _, _) | Set_palette _ -> true
+               | _ -> false)))
+      | _ -> assert false);
+  [%expect {| |}]
+;;

@@ -2,18 +2,26 @@ open Core
 
 module Config = struct
   type t =
-    { source : Resource_id.t option
+    { version : int64
+    ; source : Resource_id.t option
     ; label : string
     ; options : Chart_options_wire.t
     ; sampling : Chart_sampling_wire.t
     ; style : Chart_style_wire.t
+    ; radar_labels : int64 list
+    ; inspection_content : Chart_inspection_content_wire.t
     ; legend : bool
     ; disabled : bool
     }
   [@@deriving bin_io, equal, sexp_of]
 
   let valid t =
-    String.length t.label <= 1024
+    Int64.equal t.version (-2L)
+    && Chart_inspection_content_wire.valid t.inspection_content
+    && List.length t.radar_labels <= 64
+    && List.for_all t.radar_labels ~f:(fun id -> Int64.(id > 0L))
+    && (not (List.contains_dup t.radar_labels ~compare:Int64.compare))
+    && String.length t.label <= 1024
     && Stdlib.String.is_valid_utf_8 t.label
     && String.exists t.label ~f:(fun c ->
       let n = Char.to_int c in
@@ -33,6 +41,7 @@ module Error = struct
     | Unavailable_data
     | Render_limit
     | Native_failure
+    | Invalid_config
   [@@deriving bin_io, equal, sexp_of]
 end
 

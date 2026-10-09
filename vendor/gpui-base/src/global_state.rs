@@ -17,7 +17,6 @@ pub struct GlobalState {
     deferred_popovers: Vec<Weak<()>>,
     suppress_text_selection: bool,
     pub(crate) text_view_state_stack: Vec<Entity<TextViewState>>,
-    selection_document_order: u64,
 }
 
 impl Global for GlobalState {}
@@ -29,7 +28,6 @@ impl GlobalState {
             deferred_popovers: Vec::new(),
             suppress_text_selection: false,
             text_view_state_stack: Vec::new(),
-            selection_document_order: 1,
         }
     }
 
@@ -71,17 +69,6 @@ impl GlobalState {
 
     pub(crate) fn text_view_state(&self) -> Option<&Entity<TextViewState>> {
         self.text_view_state_stack.last()
-    }
-
-    #[doc(hidden)]
-    pub fn begin_selection_frame(&mut self) {
-        self.selection_document_order = 1;
-    }
-
-    pub(crate) fn next_selection_document_order(&mut self) -> u64 {
-        let order = self.selection_document_order;
-        self.selection_document_order = self.selection_document_order.wrapping_add(1);
-        order
     }
 
     /// Returns the application menus.

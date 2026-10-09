@@ -1,0 +1,106 @@
+{
+  "base_revision": "968e423bbec478fbb09119a051ddcbaf8206d86e",
+  "files": {
+    "ax-cache-retry-baseline.log": {
+      "bytes": 590394,
+      "sha256": "0d78323969a27832323f7a660954157357b415b64f14b8cbff1363b72248c015"
+    },
+    "ax-cache-retry-before.log": {
+      "bytes": 591540,
+      "sha256": "66a518ac81723af6b4e2259a12db6ff1179e2ba3ed8b77757fe913196ed5216b"
+    },
+    "ax-cache-retry-final-clippy.log": {
+      "bytes": 589314,
+      "sha256": "07a3752213334db713c8818d456cd6b3a0a9299cb15bd26360b9b6d55c10c7f2"
+    },
+    "ax-cache-retry-final-desktop.log": {
+      "bytes": 591208,
+      "sha256": "ecd3c71d71c56d3ad0419c2debbdf52a0aaa7ae47c2980d1c585d999f10010c3"
+    },
+    "ax-cache-retry-final-fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "ax-cache-retry-final-gallery.log": {
+      "bytes": 100213,
+      "sha256": "04288e9087ee56b0c34e3999acd70d0a1fe7ba20be2438bab76e10757fb916d7"
+    },
+    "ax-cache-retry-final-os-rendered.log": {
+      "bytes": 188,
+      "sha256": "b32676248da86dfefa0aa402dde2860885f89b47da69a549b768f1ed4da91dfa"
+    },
+    "ax-cache-retry-final-results.json": {
+      "bytes": 2313,
+      "sha256": "ea28777b9207f32b77be71fa43b53c55b91b2adfdbb13092ab0fe4871035296b"
+    },
+    "ax-cache-retry-final-workspace.log": {
+      "bytes": 783371,
+      "sha256": "e2b9cde209005560cef3fe70c5c8c2944ca0702e9e7cd0396cf3418ef80dd918"
+    },
+    "ax-cache-retry-first-fix.log": {
+      "bytes": 590450,
+      "sha256": "4a4472b850d4a9d48f6514b0af6354dda093efa2ad3ff9a85ede08ff5b9e8a19"
+    },
+    "ax-cache-retry-native.log": {
+      "bytes": 716686,
+      "sha256": "837cbc00c67997b3e8bdefd22ffca16056da7d6527b5e8150ff2e6d4199a31dd"
+    },
+    "ax-cache-retry-reconstruction-result.txt": {
+      "bytes": 58,
+      "sha256": "d8f86dbb0d51529a4eb52c0bd296f40c7b7f1fd043ba2395d48c0bd363ecf277"
+    },
+    "ax-cache-retry-reconstruction.log": {
+      "bytes": 1189,
+      "sha256": "c21a34ed85e3b448d9296bac6bad2f07142c08e27f65443fd96d37478e4c5dce"
+    },
+    "ax-cache-retry-vendor-fmt.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "environment.txt": {
+      "bytes": 139,
+      "sha256": "90e10ba90b042fc52f797bd6f55c04323af6955006d76b3e51e7b851cd6f9d4f"
+    },
+    "implementation.diff": {
+      "bytes": 17163,
+      "sha256": "f9e37f214893770a91f02ada9cc0677153c7479fccedeedfe78beb9cb62e7fe0"
+    },
+    "os/application.log": {
+      "bytes": 52,
+      "sha256": "4b7efb90808b044cf2b79f21733d78f17068047c9d17d9fc04715ac7773bad46"
+    },
+    "os/executable.json": {
+      "bytes": 344,
+      "sha256": "afd028958b9d2f7331ff39fb3912f381fdc18110b35c5385a96555105c14675d"
+    },
+    "os/report.json": {
+      "bytes": 2308,
+      "sha256": "45b52aa452c8a72301934551f965067b3318ac5c083ffbeed37415e9eec17678"
+    },
+    "source/rust/native/src/document_cached_accessibility_test.rs": {
+      "bytes": 13072,
+      "sha256": "745da7bf5a3013159c1ea0bbd0d193b766f3927c333d31ece7f507bf9817de9a"
+    },
+    "source/rust/native/src/document_cached_retry_test.rs": {
+      "bytes": 5701,
+      "sha256": "3651de0676a24737758cefc5c7efdd5dd11947eed91265f61522dbfb825ffbfb"
+    },
+    "source/rust/native/src/document_cached_text_test.rs": {
+      "bytes": 11634,
+      "sha256": "ca9bd033c19199b153f37e3c01c0f22523ff84f2791e3966839f5a468bcb1ab3"
+    },
+    "source/third_party/patches/gpui.patch": {
+      "bytes": 188716,
+      "sha256": "b490783ed759f01f3751804b599e3f9ce42a6ece515fa56255233a4469756e95"
+    },
+    "source/third_party/sources.json": {
+      "bytes": 4961,
+      "sha256": "ab83dc3318e3f62b43bbd7222caaa007d1ab505598fc485825ac9402dc71a652"
+    },
+    "source/vendor/gpui/src/view.rs": {
+      "bytes": 20167,
+      "sha256": "a57003be9a93d6b5a061a62df6a257ee272aee0d8c6ac8c5776b66d05d045eda"
+    }
+  },
+  "archive_sha256": "0305006f44cb312717090102a5166ce21eded5596b84de23f80531e9ca91c914"
+}

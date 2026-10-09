@@ -169,6 +169,7 @@ pub(super) async fn exercise(
             Event::SliderEvent(_, _, _, _, s::Event::Committed(s::Source::Pointer, _))
         ));
         frame(cx, handle).await;
+        settle_interaction_frames(cx, handle).await;
         let render_count = handle.update(cx, |v, _, _| v.render_count).unwrap();
         cx.background_executor()
             .timer(Duration::from_millis(150))

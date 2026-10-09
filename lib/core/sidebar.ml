@@ -9,9 +9,18 @@ let text_bytes text = String.length text
 let valid_text = Gpuio_protocol.Accessibility_wire.valid_text
 
 module Item = struct
+  module Activation = struct
+    type t =
+      | Select_only
+      | Expand
+      | Toggle
+    [@@deriving equal, sexp_of]
+  end
+
   type t =
     { choice : Choice.t
     ; compact_label : string
+    ; activation : Activation.t
     ; children : t list
     ; count : int
     ; depth : int
@@ -19,9 +28,22 @@ module Item = struct
     }
   [@@deriving equal, sexp_of]
 
-  let create ~id ~label ?(compact_label = "•") ?disabled ?(children = []) () =
+  let create
+        ~id
+        ~label
+        ?(compact_label = "•")
+        ?disabled
+        ?(activation = Activation.Select_only)
+        ?(children = [])
+        ()
+    =
     let open Or_error.Let_syntax in
     let%bind choice = Choice.create ~id ~label ?disabled () in
+    let%bind () =
+      if String.is_empty (String.strip label)
+      then Or_error.error_string "sidebar destination label must be nonblank"
+      else Ok ()
+    in
     let count = 1 + List.sum (module Int) children ~f:(fun c -> c.count) in
     let depth = 1 + List.fold children ~init:0 ~f:(fun d c -> Int.max d c.depth) in
     let text_bytes =
@@ -36,12 +58,13 @@ module Item = struct
       || depth > max_depth
       || text_bytes > max_text_bytes
     then Or_error.error_string "invalid or oversized sidebar subtree"
-    else Ok { choice; compact_label; children; count; depth; text_bytes }
+    else Ok { choice; compact_label; activation; children; count; depth; text_bytes }
   ;;
 
   let id t = Choice.id t.choice
   let label t = Choice.label t.choice
   let compact_label t = t.compact_label
+  let activation t = t.activation
   let is_disabled t = Choice.is_disabled t.choice
   let children t = t.children
 end
@@ -266,7 +289,21 @@ let apply_request t request =
          then t
          else (
            match request with
-           | Select id -> { t with selected = Some id }
+           | Select id ->
+             let expanded =
+               if List.is_empty (Item.children item)
+               then t.expanded
+               else (
+                 let key = Id.to_string id in
+                 match Item.activation item with
+                 | Select_only -> t.expanded
+                 | Expand -> Set.add t.expanded key
+                 | Toggle ->
+                   if Set.mem t.expanded key
+                   then Set.remove t.expanded key
+                   else Set.add t.expanded key)
+             in
+             { t with selected = Some id; expanded }
            | Toggle id ->
              if
                List.is_empty (Item.children item)
@@ -369,10 +406,21 @@ module Decoration = struct
   type 'action t =
     { icon : Icon.Decoration.t option
     ; suffix : 'action View.t option
+    ; style : Style.t
+    ; label_style : Style.t
     ; context_menu : Menu.t option
     }
 
-  let create ?icon ?suffix ?context_menu () = { icon; suffix; context_menu }
+  let create
+        ?icon
+        ?suffix
+        ?(style = Style.empty)
+        ?(label_style = Style.empty)
+        ?context_menu
+        ()
+    =
+    { icon; suffix; style; label_style; context_menu }
+  ;;
 end
 
 let toggle t ?key ?style ?(labels = Labels.english) ~on_request () =
@@ -414,17 +462,25 @@ let view
     let selected = Option.equal Id.equal t.selected (Some id) in
     let item_style =
       Style.merge
-        [ style
-            [ Grow 1.
-            ; Min_width (px 0.)
-            ; Width full
-            ; Padding (px 8.)
-            ; Radius 6.
-            ; Background (Background.solid (Color.token_exn "background"))
-            ; Foreground (Color.token_exn "foreground")
-            ; Border_width 0.
-            ]
+        [ (style
+             [ Grow 1.
+             ; Min_width (px 0.)
+             ; Width full
+             ; Padding (px 8.)
+             ; Radius 6.
+             ; Background (Background.solid (Color.token_exn "background"))
+             ; Foreground (Color.token_exn "foreground")
+             ; Border_width 0.
+             ; Border_color (Color.token_exn "accent")
+             ; Cursor Pointer
+             ]
+           |> fun base ->
+           Style.with_state_exn
+             base
+             Focused
+             [ Border_color (Color.token_exn "foreground") ])
         ; appearance.item_style
+        ; decoration.style
         ; (if selected
            then
              Style.merge
@@ -451,17 +507,33 @@ let view
         ?description:(if selected then Some labels.current else None)
         ()
     in
-    let%bind link =
-      View.with_accessibility
-        (View.button
-           ~key:(key_of "link")
-           ~style:item_style
-           ?leading_icon:decoration.icon
-           ~disabled:(t.disabled || Item.is_disabled value)
-           ~on_click:(fun () -> on_request (Request.Select id))
-           text)
-        metadata
+    let%bind config =
+      Link.Config.create ~label ~disabled:(t.disabled || Item.is_disabled value) ()
     in
+    let icon =
+      Option.map decoration.icon ~f:(fun icon ->
+        let config, style = Icon.Expert.decoration icon in
+        View.icon ~style config)
+    in
+    let%bind link =
+      View.link
+        ~key:(key_of "link")
+        ~style:item_style
+        config
+        ~on_click:(fun () -> on_request (Request.Select id))
+        [ View.column
+            ~key:(key_of "icon")
+            ~style:(hidden_style (Option.is_none icon))
+            (Option.to_list icon)
+        ; View.text
+            ~key:(key_of "label")
+            ~style:
+              (Style.merge
+                 [ decoration.label_style; hidden_style (String.is_empty text) ])
+            text
+        ]
+    in
+    let%bind link = View.with_accessibility link metadata in
     let placement =
       Placement.create
         ~side:

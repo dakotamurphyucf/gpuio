@@ -1,0 +1,75 @@
+{
+  "base": "e7e16a4ee98d6d4a4f871242ff68a99e7318c0dd",
+  "files": [
+    {
+      "path": "commands.txt",
+      "bytes": 901,
+      "sha256": "48d8b76f280ff65e95a740396f0ea0da0677f4cef99a9b7a8400d0d793660783"
+    },
+    {
+      "path": "custom/application.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "custom/custom-window.png",
+      "bytes": 363631,
+      "sha256": "ac9f068ef3cfe33e5b9bb8b5aeee17f961e9e2c2c82fac8ff1a6bf9eb665b887"
+    },
+    {
+      "path": "custom/fullscreen.png",
+      "bytes": 544760,
+      "sha256": "213b40e2eef881e1600475602c10d878b2663f2ff9d22482771fad9f2542e32d"
+    },
+    {
+      "path": "custom/report.json",
+      "bytes": 2084,
+      "sha256": "9a31a3c9530cdd9887ca642a7d1987f220429650ddfd8b542d498df14d375add"
+    },
+    {
+      "path": "source.patch",
+      "bytes": 8416,
+      "sha256": "af6333409adeae67ba85b46f03923d88d1796bfd134cad2721cfaf164a5bc250"
+    },
+    {
+      "path": "standard/application.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "standard/report.json",
+      "bytes": 724,
+      "sha256": "aeefbf4ace743c79e89c1c328d270f10317f42dbe73a83782c86e1a52c9673e5"
+    },
+    {
+      "path": "test_mac_window_readiness.py",
+      "bytes": 5543,
+      "sha256": "b324b39075d414f86fce115815d959336768261bf068171bf666068661adb4fd"
+    },
+    {
+      "path": "window-readiness-ax-helpers.log",
+      "bytes": 103,
+      "sha256": "6273232de4d3ef7acd4ecafa5c86beeeb974f56586b21089a2990b3f72facbe6"
+    },
+    {
+      "path": "window-readiness-custom.log",
+      "bytes": 429,
+      "sha256": "636da2a78ac002cb8f065767b30922d59647d213fe4301160ec5e9ceaf0a50e0"
+    },
+    {
+      "path": "window-readiness-standard.log",
+      "bytes": 378,
+      "sha256": "d46f7e4929d0ba2bc2f2dbe5b3b061c651cc81023f6ee7e00fa0ec7314be6ad2"
+    },
+    {
+      "path": "window-readiness-unit-final.log",
+      "bytes": 105,
+      "sha256": "670a39115e7523a8984e4842e16547cb2094b03fad392b037b4b9dc8b2656e62"
+    },
+    {
+      "path": "window-readiness-unit.log",
+      "bytes": 102,
+      "sha256": "d094b1bd2c8318c96097f80c50da282add5b2972970a77046de8db6c8935f6ca"
+    }
+  ]
+}

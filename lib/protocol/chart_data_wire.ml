@@ -92,6 +92,41 @@ module Layer = struct
   [@@deriving bin_io, equal, sexp_of]
 end
 
+module Category = struct
+  type t =
+    { id : int64
+    ; label : string
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Categorical_point = struct
+  type t =
+    { id : int64
+    ; category : int64
+    ; value : float option
+    ; label : string
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Categorical_series = struct
+  type t =
+    { id : int64
+    ; name : string
+    ; points : Categorical_point.t list
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Categorical_layer = struct
+  type t =
+    | Line of Categorical_series.t
+    | Area of Categorical_series.t
+    | Bar of Categorical_series.t
+  [@@deriving bin_io, equal, sexp_of]
+end
+
 module Contents = struct
   type t =
     | Cartesian of Layer.t list
@@ -99,12 +134,33 @@ module Contents = struct
     | Radar of Radar_axis.t list * Radar_series.t list
     | Candlestick of Candle.t list
     | Sankey of Node.t list * Edge.t list
+    | Categorical of Category.t list * Categorical_layer.t list
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Bar_background = struct
+  type t =
+    { series : int64
+    ; datum : int64
+    ; brush : Chart_appearance_wire.Brush.t
+    }
+  [@@deriving bin_io, equal, sexp_of]
+end
+
+module Bar_baseline = struct
+  type t =
+    { series : int64
+    ; datum : int64
+    ; baseline : float
+    }
   [@@deriving bin_io, equal, sexp_of]
 end
 
 type t =
   { version : int64
   ; contents : Contents.t
+  ; bar_backgrounds : Bar_background.t list
+  ; bar_baselines : Bar_baseline.t list
   }
 [@@deriving bin_io, equal, sexp_of]
 
@@ -217,8 +273,30 @@ let bin_read_t buffer ~pos_ref =
     | 2 -> Layer.Bar (series ())
     | _ -> fail ()
   in
+  let categorical_layer () =
+    let kind = tag () in
+    if kind > 2 then fail ();
+    let id = int () in
+    let name = text 128 in
+    let count = count !points_remaining in
+    points_remaining := !points_remaining - count;
+    let points =
+      read_count count (fun () ->
+        let id = int () in
+        let category = int () in
+        let value = option float in
+        let label = text 256 in
+        { Categorical_point.id; category; value; label })
+    in
+    let series = { Categorical_series.id; name; points } in
+    match kind with
+    | 0 -> Categorical_layer.Line series
+    | 1 -> Categorical_layer.Area series
+    | 2 -> Categorical_layer.Bar series
+    | _ -> fail ()
+  in
   let version = int () in
-  if not (Int64.equal version 1L) then fail ();
+  if not (Int64.equal version 3L) then fail ();
   let contents =
     match tag () with
     | 0 -> Contents.Cartesian (list max_series layer)
@@ -232,9 +310,34 @@ let bin_read_t buffer ~pos_ref =
       let nodes = list 256 node in
       let edges = list 2048 edge in
       Contents.Sankey (nodes, edges)
+    | 5 ->
+      let categories =
+        list max_points (fun () ->
+          let id = int () in
+          let label = text 256 in
+          { Category.id; label })
+      in
+      let layers = list max_series categorical_layer in
+      Contents.Categorical (categories, layers)
     | _ -> fail ()
   in
-  { version; contents }
+  let bar_backgrounds =
+    list max_points (fun () ->
+      let series = int () in
+      let datum = int () in
+      let brush = Chart_appearance_wire.Brush.bin_read_t buffer ~pos_ref in
+      if not (Chart_appearance_wire.Brush.valid brush) then fail ();
+      { Bar_background.series; datum; brush })
+  in
+  let bar_baselines =
+    list max_points (fun () ->
+      let series = int () in
+      let datum = int () in
+      let baseline = float () in
+      if not (Float.is_finite baseline && Float.(abs baseline <= 1e100)) then fail ();
+      { Bar_baseline.series; datum; baseline })
+  in
+  { version; contents; bar_backgrounds; bar_baselines }
 ;;
 
 let bin_reader_t = { bin_reader_t with read = bin_read_t }
@@ -273,30 +376,50 @@ let within_bounds t =
       points_remaining := !points_remaining - count;
       true)
   in
-  match t.contents with
-  | Contents.Cartesian layers ->
-    List.length layers <= max_series
-    && List.for_all layers ~f:(fun layer ->
-      let series =
-        match layer with
-        | Layer.Line s | Area s | Bar s -> s
-      in
-      points series.points
-      && text 128 series.name
-      && List.for_all series.points ~f:(fun p -> text 256 p.Point.label))
-  | Pie slices ->
-    List.length slices <= 256 && List.for_all slices ~f:(fun s -> text 256 s.Slice.label)
-  | Radar (axes, series) ->
-    List.length axes <= 64
-    && List.length series <= max_series
-    && List.for_all axes ~f:(fun a -> text 256 a.Radar_axis.label)
-    && List.for_all series ~f:(fun s ->
-      List.length s.Radar_series.values <= 64 && text 128 s.name)
-  | Candlestick candles ->
-    List.length candles <= max_points
-    && List.for_all candles ~f:(fun c -> text 256 c.Candle.label)
-  | Sankey (nodes, edges) ->
-    List.length nodes <= 256
-    && List.length edges <= 2048
-    && List.for_all nodes ~f:(fun n -> text 256 n.Node.label)
+  List.length t.bar_baselines <= max_points
+  && List.for_all t.bar_baselines ~f:(fun b ->
+    Float.is_finite b.Bar_baseline.baseline && Float.(abs b.baseline <= 1e100))
+  && List.length t.bar_backgrounds <= max_points
+  && List.for_all t.bar_backgrounds ~f:(fun b ->
+    Chart_appearance_wire.Brush.valid b.Bar_background.brush)
+  && (match t.contents with
+      | Contents.Cartesian layers ->
+        List.length layers <= max_series
+        && List.for_all layers ~f:(fun layer ->
+          let series =
+            match layer with
+            | Layer.Line s | Area s | Bar s -> s
+          in
+          points series.points
+          && text 128 series.name
+          && List.for_all series.points ~f:(fun p -> text 256 p.Point.label))
+      | Categorical (categories, layers) ->
+        List.length categories <= max_points
+        && List.length layers <= max_series
+        && List.for_all categories ~f:(fun c -> text 256 c.Category.label)
+        && List.for_all layers ~f:(fun layer ->
+          let series =
+            match layer with
+            | Categorical_layer.Line s | Area s | Bar s -> s
+          in
+          points series.points
+          && text 128 series.name
+          && List.for_all series.points ~f:(fun p -> text 256 p.Categorical_point.label))
+      | Pie slices ->
+        List.length slices <= 256
+        && List.for_all slices ~f:(fun s -> text 256 s.Slice.label)
+      | Radar (axes, series) ->
+        List.length axes <= 64
+        && List.length series <= max_series
+        && List.for_all axes ~f:(fun a -> text 256 a.Radar_axis.label)
+        && List.for_all series ~f:(fun s ->
+          List.length s.Radar_series.values <= 64 && text 128 s.name)
+      | Candlestick candles ->
+        List.length candles <= max_points
+        && List.for_all candles ~f:(fun c -> text 256 c.Candle.label)
+      | Sankey (nodes, edges) ->
+        List.length nodes <= 256
+        && List.length edges <= 2048
+        && List.for_all nodes ~f:(fun n -> text 256 n.Node.label))
+  && bin_size_t t <= max_bytes
 ;;

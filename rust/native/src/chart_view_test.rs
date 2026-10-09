@@ -18,6 +18,9 @@ fn config(source: ResourceId, color: i64) -> Config {
         ..Default::default()
     };
     Config {
+        version: -2,
+        radar_labels: vec![],
+        inspection_content: vec![],
         source: Some(source),
         label: "Allocation".into(),
         legend: false,
@@ -35,7 +38,9 @@ fn config(source: ResourceId, color: i64) -> Config {
 }
 fn data(value: f64) -> Data {
     Data {
-        version: 1,
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
         contents: Contents::Pie(vec![Slice {
             id: 1,
             label: "Budget".into(),
@@ -135,13 +140,13 @@ async fn ready(cx: &mut gpui::AsyncApp, handle: WindowHandle<View>, revision: i6
         draw(cx, handle);
         if handle
             .update(cx, |view, _, _| {
-                view.charts[&id(1)]
-                    .borrow()
-                    .ready
-                    .as_ref()
-                    .is_some_and(|r| {
-                        r.snapshot.revision() == revision && r.config.style.palette[0] == color
-                    })
+                let state = view.charts[&id(1)].borrow();
+                state.ready.as_ref().is_some_and(|r| {
+                    r.snapshot.revision() == revision
+                        && r.config.style.palette[0] == color
+                        && r.config == state.config
+                        && state.requested_frame == state.ready_frame
+                })
             })
             .unwrap()
         {
@@ -185,7 +190,7 @@ fn mount(source: ResourceId) -> Vec<Op> {
             "".into(),
             Some(HandlerId::from_parts(1, 1).unwrap()),
         ),
-        Op::SetChart(id(1), config(source, 0xff0000ff)),
+        Op::SetChart(id(1), Box::new(config(source, 0xff0000ff))),
         Op::SetStyle(
             id(1),
             vec![Style::Fields(vec![
@@ -222,7 +227,7 @@ async fn exercise(
     apply(
         cx,
         handle,
-        vec![Op::SetChart(id(1), config(source, 0x0000ffff))],
+        vec![Op::SetChart(id(1), Box::new(config(source, 0x0000ffff)))],
     );
     ready(cx, handle, 1, 0x0000ffff).await;
     pixels(cx, handle, [0, 0, 255, 255]);
@@ -279,7 +284,7 @@ async fn exercise(
     apply(
         cx,
         handle,
-        vec![Op::SetChart(id(1), config(next, 0x00ff00ff))],
+        vec![Op::SetChart(id(1), Box::new(config(next, 0x00ff00ff)))],
     );
     ready(cx, handle, 1, 0x00ff00ff).await;
     pixels(cx, handle, [0, 255, 0, 255]);
@@ -312,7 +317,9 @@ async fn exercise(
     // Dense native legend has bounded visible height, real scroll extent and
     // stable scroll position across ordinary updates; reset clears that state.
     let dense = Data {
-        version: 1,
+        version: 3,
+        bar_baselines: vec![],
+        bar_backgrounds: vec![],
         contents: Contents::Pie(
             (1..=256)
                 .map(|id| Slice {
@@ -325,7 +332,11 @@ async fn exercise(
     };
     let mut dense_config = config(next, 0x00ff00ff);
     dense_config.legend = true;
-    apply(cx, handle, vec![Op::SetChart(id(1), dense_config)]);
+    apply(
+        cx,
+        handle,
+        vec![Op::SetChart(id(1), Box::new(dense_config))],
+    );
     for (base, generation) in [(1, 1), (2, 1), (3, 2)] {
         stage_data(&session, next, base, generation, &dense);
         cx.update(|cx| dispatch(cx, &transport, 30 + base, Request::Publish(next, base + 1)));
@@ -348,6 +359,10 @@ async fn exercise(
             })
             .unwrap();
     }
+    labels::exercise(cx, handle, next, &session, &transport).await;
+    pie_labels::exercise(cx, handle, next, &session, &transport).await;
+    axis_labels::exercise(cx, handle, next, &session, &transport).await;
+    label_content::exercise(cx, handle, next, &session, &transport).await;
     apply(
         cx,
         handle,
@@ -361,17 +376,40 @@ async fn exercise(
         "GPUIO_NATIVE_CHART_VIEW_OK: production tree GPU paint, style, async publish, reset, idle release, source replacement, hidden/unmount cleanup, dense legend scroll/update/reset"
     );
 }
+#[path = "chart_axis_view_test.rs"]
+mod axis_labels;
+#[path = "chart_inspection_content_test.rs"]
+mod inspection_content;
 #[path = "chart_input_test.rs"]
 mod interaction;
+#[path = "chart_label_content_test.rs"]
+mod label_content;
+#[path = "chart_label_view_test.rs"]
+mod labels;
+#[cfg(target_os = "macos")]
+#[path = "chart_native_ax_test.rs"]
+mod native_ax;
+#[path = "chart_pie_label_view_test.rs"]
+mod pie_labels;
 #[path = "chart_stream_test.rs"]
 mod streaming;
+#[derive(Clone, Copy)]
+enum Mode {
+    Hidden,
+    Input,
+    Inspection,
+}
 pub(crate) fn run() {
-    run_mode(false);
+    run_mode(Mode::Hidden);
 }
 pub(crate) fn run_input() {
-    run_mode(true);
+    run_mode(Mode::Input);
 }
-fn run_mode(interactive: bool) {
+pub(crate) fn run_inspection() {
+    run_mode(Mode::Inspection);
+}
+fn run_mode(mode: Mode) {
+    let interactive = !matches!(mode, Mode::Hidden);
     let failure = Rc::new(RefCell::new(None));
     let task_failure = failure.clone();
     let mut fds = [0; 2];
@@ -413,9 +451,9 @@ fn run_mode(interactive: bool) {
                 },
                 |window, cx| {
                     cx.new(|cx| {
-                        let view = View::new(window_id, session.clone(), transport.clone());
+                        let mut view = View::new(window_id, session.clone(), transport.clone());
                         if interactive {
-                            crate::host::window_host::watch(&view, window, cx);
+                            crate::host::window_host::watch(&mut view, window, cx);
                         }
                         view
                     })
@@ -427,12 +465,35 @@ fn run_mode(interactive: bool) {
         }
         cx.spawn(async move |cx| {
             let result = crate::host::native_test::protect(async {
-                if interactive {
-                    interaction::exercise(cx, handle, source, session.clone(), transport.clone())
-                        .await;
-                } else {
-                    exercise(cx, handle, source, session.clone(), transport.clone()).await;
-                    streaming::exercise(cx, handle, session.clone(), transport.clone()).await;
+                match mode {
+                    Mode::Input => {
+                        interaction::exercise(
+                            cx,
+                            handle,
+                            source,
+                            session.clone(),
+                            transport.clone(),
+                        )
+                        .await
+                    }
+                    Mode::Inspection => {
+                        apply(cx, handle, mount(source));
+                        ready(cx, handle, 1, 0xff0000ff).await;
+                        crate::host::editor_test::frame(cx, handle).await;
+                        assert!(handle.update(cx, |_, w, _| w.is_window_active()).unwrap());
+                        inspection_content::exercise(cx, handle, source, &session, &transport)
+                            .await;
+                        cx.update(|cx| dispatch(cx, &transport, 140, Request::Release(source)));
+                        apply(
+                            cx,
+                            handle,
+                            vec![Op::Splice(id(0), 0, 1, vec![]), Op::Remove(id(1))],
+                        );
+                    }
+                    Mode::Hidden => {
+                        exercise(cx, handle, source, session.clone(), transport.clone()).await;
+                        streaming::exercise(cx, handle, session.clone(), transport.clone()).await;
+                    }
                 }
             })
             .await;
@@ -445,6 +506,7 @@ fn run_mode(interactive: bool) {
             });
             crate::chart_host::shutdown(cx).await;
             renderer::shutdown(cx).await;
+            crate::image_host::shutdown(cx).await;
             if result.is_ok() {
                 assert_eq!(session.borrow().chart_bytes(), 0);
                 cx.update(|cx| {

@@ -213,3 +213,142 @@ let%expect_test "full scheduler rejects a stream value without stranding its nex
       Inbox.close inbox));
   [%expect {| (2) |}]
 ;;
+
+let%expect_test "raising cleanup cannot strand sibling scopes or their producers" =
+  Eio_mock.Backend.run (fun () ->
+    Eio.Switch.run (fun sw ->
+      let inbox = Inbox.create ~capacity:8 () in
+      let root = Scope.Expert.create ~sw ~inbox ~max_tasks:8 in
+      let first = Scope.child root ~name:"first" |> Or_error.ok_exn in
+      let nested = Scope.child first ~name:"nested" |> Or_error.ok_exn in
+      let sibling = Scope.child root ~name:"sibling" |> Or_error.ok_exn in
+      let calls = ref [] in
+      let register scope name ~raises =
+        Scope.on_cancel scope (fun () ->
+          calls := name :: !calls;
+          if raises then failwith name)
+        |> Or_error.ok_exn
+      in
+      let unregister = register nested "nested-first" ~raises:true in
+      ignore (register nested "nested-second" ~raises:false : unit -> unit);
+      ignore (register first "parent" ~raises:false : unit -> unit);
+      ignore (register sibling "sibling" ~raises:true : unit -> unit);
+      ignore (register root "root" ~raises:false : unit -> unit);
+      let task =
+        Scope.start
+          sibling
+          ~f:Eio.Fiber.await_cancel
+          ~on_result:(fun (_ : unit Or_error.t) -> failwith "cancelled task delivered")
+        |> Or_error.ok_exn
+      in
+      Eio.Fiber.yield ();
+      let failure =
+        try
+          Scope.cancel root;
+          "none"
+        with
+        | Failure message -> message
+      in
+      Eio.Fiber.yield ();
+      print_s [%sexp (failure : string), (List.rev !calls : string list)];
+      print_s
+        [%sexp
+          (List.map [ root; first; nested; sibling ] ~f:Scope.is_active : bool list)
+        , (Scope.Task.is_finished task : bool)
+        , (Scope.stats root : Scope.Stats.t)];
+      Scope.cancel root;
+      unregister ();
+      print_s [%sexp (List.length !calls : int), (Scope.stats root : Scope.Stats.t)];
+      (* Keep the deliberately failing pre-repair test from stranding its fiber. *)
+      Scope.Task.cancel task;
+      Eio.Fiber.yield ();
+      Inbox.close inbox));
+  [%expect
+    {|
+    (nested-first (nested-first nested-second parent sibling root))
+    ((false false false false) true ((scopes 0) (tasks 0) (cleanups 0)))
+    (5 ((scopes 0) (tasks 0) (cleanups 0)))
+    |}]
+;;
+
+let%expect_test
+    "reentrant failing cancellation suppresses queued streams and spares peers"
+  =
+  Eio_mock.Backend.run (fun () ->
+    Eio.Switch.run (fun sw ->
+      let inbox = Inbox.create ~capacity:8 () in
+      let root = Scope.Expert.create ~sw ~inbox ~max_tasks:8 in
+      let branch = Scope.child root ~name:"closing" |> Or_error.ok_exn in
+      let peer = Scope.child root ~name:"peer" |> Or_error.ok_exn in
+      let calls = ref [] in
+      let unregister =
+        Scope.on_cancel branch (fun () ->
+          Scope.cancel branch;
+          calls := "cleanup" :: !calls;
+          assert (Result.is_error (Scope.child branch ~name:"late"));
+          failwith "cleanup")
+        |> Or_error.ok_exn
+      in
+      let stream =
+        Stream.create ~scope:branch ~capacity:4 ~on_batch:(fun (_ : int list) ->
+          failwith "retired stream delivered")
+        |> Or_error.ok_exn
+      in
+      Stream.push stream 1 |> Or_error.ok_exn;
+      ignore
+        (Scope.start
+           peer
+           ~f:(fun () -> ())
+           ~on_result:(fun _ -> E.of_thunk (fun () -> calls := "peer" :: !calls))
+         |> Or_error.ok_exn
+         : Scope.Task.t);
+      Eio.Fiber.yield ();
+      (try Scope.cancel branch with
+       | Failure message -> print_endline message);
+      unregister ();
+      unregister ();
+      Scope.cancel branch;
+      drain inbox;
+      print_s
+        [%sexp
+          (List.rev !calls : string list)
+        , (Result.is_error (Stream.push stream 2) : bool)
+        , (Scope.stats root : Scope.Stats.t)];
+      let replacement = Scope.child root ~name:"replacement" |> Or_error.ok_exn in
+      Scope.cancel replacement;
+      Scope.cancel root;
+      print_s [%sexp (Scope.stats root : Scope.Stats.t)];
+      Inbox.close inbox));
+  [%expect
+    {|
+    cleanup
+    ((cleanup peer) true ((scopes 2) (tasks 0) (cleanups 0)))
+    ((scopes 0) (tasks 0) (cleanups 0))
+    |}]
+;;
+
+let%expect_test "a descendant can unregister a pending ancestor cleanup during cancel" =
+  Eio_mock.Backend.run (fun () ->
+    Eio.Switch.run (fun sw ->
+      let inbox = Inbox.create ~capacity:8 () in
+      let root = Scope.Expert.create ~sw ~inbox ~max_tasks:8 in
+      let child = Scope.child root ~name:"child" |> Or_error.ok_exn in
+      let calls = ref [] in
+      let unregister =
+        Scope.on_cancel root (fun () -> calls := "unregistered" :: !calls)
+        |> Or_error.ok_exn
+      in
+      ignore
+        (Scope.on_cancel root (fun () -> calls := "root" :: !calls) |> Or_error.ok_exn
+         : unit -> unit);
+      ignore
+        (Scope.on_cancel child (fun () ->
+           unregister ();
+           calls := "child" :: !calls)
+         |> Or_error.ok_exn
+         : unit -> unit);
+      Scope.cancel root;
+      print_s [%sexp (List.rev !calls : string list), (Scope.stats root : Scope.Stats.t)];
+      Inbox.close inbox));
+  [%expect {| ((child root) ((scopes 0) (tasks 0) (cleanups 0))) |}]
+;;

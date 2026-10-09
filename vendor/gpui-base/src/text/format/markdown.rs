@@ -318,6 +318,7 @@ fn parse_paragraph(
         }
         Node::Link(val) => {
             let link_mark = Some(LinkMark {
+                source_start: val.position.as_ref().map(|p| cx.offset + p.start.offset),
                 url: val.url.clone().into(),
                 title: val.title.clone().map(|s| s.into()),
                 ..Default::default()
@@ -362,6 +363,13 @@ fn parse_paragraph(
                 .unwrap_or_else(|| raw.value.clone());
             paragraph.push_str(&text);
         }
+        Node::MdxJsxTextElement(element) => {
+            // Unclaimed JSX is a structural wrapper, never executable UI. Keep
+            // inline child marks/links instead of silently dropping its text.
+            for child in &element.children {
+                text.push_str(&parse_paragraph(source, paragraph, child, cx));
+            }
+        }
         Node::MdxTextExpression(raw) => {
             text = raw.value.clone();
             paragraph
@@ -399,6 +407,7 @@ fn parse_paragraph(
         }
         Node::LinkReference(link) => {
             let link_mark = LinkMark {
+                source_start: link.position.as_ref().map(|p| cx.offset + p.start.offset),
                 url: "".into(),
                 title: link.label.clone().map(Into::into),
                 identifier: Some(link.identifier.clone().into()),
@@ -549,11 +558,28 @@ fn ast_to_node(source: &str, value: mdast::Node, cx: &mut NodeContext) -> BlockN
             Some("mdx".into()),
             new_span(val.position, cx),
         )),
-        Node::Yaml(val) => BlockNode::CodeBlock(CodeBlock::new(
-            val.value.into(),
-            Some("yml".into()),
-            new_span(val.position, cx),
-        )),
+        Node::Yaml(val) => {
+            if cx.markdown_extensions.has_frontmatter_descriptions()
+                && let Some(mapping) = super::super::frontmatter::parse_frontmatter(&val.value)
+            {
+                let original = val
+                    .position
+                    .as_ref()
+                    .and_then(|p| source.get(p.start.offset..p.end.offset))
+                    .unwrap_or(&val.value);
+                BlockNode::DescriptionList(super::super::node::DescriptionList::new(
+                    mapping,
+                    original.into(),
+                    new_span(val.position, cx),
+                ))
+            } else {
+                BlockNode::CodeBlock(CodeBlock::new(
+                    val.value.into(),
+                    Some("yml".into()),
+                    new_span(val.position, cx),
+                ))
+            }
+        }
         Node::Toml(val) => BlockNode::CodeBlock(CodeBlock::new(
             val.value.into(),
             Some("toml".into()),
@@ -567,14 +593,14 @@ fn ast_to_node(source: &str, value: mdast::Node, cx: &mut NodeContext) -> BlockN
             paragraph.span = new_span(val.position, cx);
             BlockNode::Paragraph(paragraph)
         }
-        Node::MdxJsxFlowElement(val) => {
-            let mut paragraph = Paragraph::default();
-            val.children.iter().for_each(|c| {
-                parse_paragraph(source, &mut paragraph, c, cx);
-            });
-            paragraph.span = new_span(val.position, cx);
-            BlockNode::Paragraph(paragraph)
-        }
+        Node::MdxJsxFlowElement(val) => BlockNode::Root {
+            children: val
+                .children
+                .into_iter()
+                .map(|child| ast_to_node(source, child, cx))
+                .collect(),
+            span: new_span(val.position, cx),
+        },
         Node::ThematicBreak(val) => BlockNode::HorizontalRule {
             span: new_span(val.position, cx),
         },
@@ -617,6 +643,7 @@ fn ast_to_node(source: &str, value: mdast::Node, cx: &mut NodeContext) -> BlockN
                 def.identifier.clone().into(),
                 LinkMark {
                     url: def.url.clone().into(),
+                    source_start: None,
                     identifier: Some(def.identifier.clone().into()),
                     title: def.title.clone().map(Into::into),
                 },

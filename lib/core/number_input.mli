@@ -15,11 +15,66 @@ module Value : sig
   val of_float : float -> t Or_error.t
 end
 
+module Draft : sig
+  (** A mount seed, independent of the committed value. Single-line UTF-8 without
+      NUL, at most 4096 bytes. Empty, incomplete and invalid numeric expressions
+      are permitted; classification and committing use the current domain.
+      This contains no native selection, undo history or IME composition. *)
+  type t [@@deriving equal, sexp_of]
+
+  val of_string : string -> t Or_error.t
+  val to_string : t -> string
+end
+
 module Step_controls : sig
   type t =
     | Hidden
     | Sides
     | Stacked
+  [@@deriving equal, sexp_of]
+end
+
+module Appearance : sig
+  type t [@@deriving equal, sexp_of]
+
+  (** Presentation for [View.number_frame], independent of editing policy.
+      Geometry is finite: [gap]/[editor_padding] in 0..256, [button_width] and
+      both minimum heights in 1..256, [border_width] in 0..64. Defaults are
+      4, 0, 24, 20 and 16 respectively; omitted [border_width] preserves
+      the outer View border widths.
+
+      Frame/editor styles accept Base, Focused and Disabled. Button styles
+      accept Base, Hovered, Pressed and Disabled. Supported properties are
+      background, foreground, opacity, border color, shadows, corner radii and
+      typography (font size/family/weight, alignment, line height, whitespace,
+      overflow, line clamp, decoration). Geometry and interaction fields are
+      rejected; at most 128 declarations are allowed across all parts.
+      Frame appearance refines outer View style; focus follows the actual
+      editor, not focus in an auxiliary slot. Theme tokens resolve atomically. *)
+  val create
+    :  ?gap:float
+    -> ?button_width:float
+    -> ?button_min_height:float
+    -> ?stacked_button_min_height:float
+    -> ?editor_padding:float
+    -> ?border_width:float
+    -> ?frame_style:Style.t
+    -> ?editor_style:Style.t
+    -> ?decrement_style:Style.t
+    -> ?increment_style:Style.t
+    -> unit
+    -> t Or_error.t
+
+  val default : t
+end
+
+module Step_mode : sig
+  (** [Native] uses the fixed domain step. [Application] emits a guarded request
+      before user stepping; the application must resolve or decline it.
+      Programmatic [Step] commands continue to use the native fixed step. *)
+  type t =
+    | Native
+    | Application
   [@@deriving equal, sexp_of]
 end
 
@@ -39,6 +94,7 @@ module Config : sig
     -> ?placeholder:string
     -> ?increment_label:string
     -> ?decrement_label:string
+    -> ?step_mode:Step_mode.t
     -> ?step_controls:Step_controls.t
     -> ?allow_empty:bool
     -> ?disabled:bool
@@ -47,6 +103,7 @@ module Config : sig
     -> unit
     -> t Or_error.t
 
+  val step_mode : t -> Step_mode.t
   val domain : t -> Numeric.Domain.t
   val allows_empty : t -> bool
   val is_disabled : t -> bool
@@ -105,6 +162,23 @@ module Cancel_reason : sig
   [@@deriving equal, sexp_of]
 end
 
+module Step_request : sig
+  (** One native intent, bound to its original editor lifetime and revision.
+      Requests are obtained only from [Event.Step_requested]. *)
+  type t [@@deriving equal, sexp_of]
+
+  val snapshot : t -> Snapshot.t
+  val direction : t -> Numeric.Direction.t
+  val source : t -> Source.t
+end
+
+module Step_resolution : sig
+  type t =
+    | Apply of Value.t
+    | Decline
+  [@@deriving equal, sexp_of]
+end
+
 module Event : sig
   (** [Observed] includes mounting and configuration changes. [Changed] reports
       native draft, selection, composition or focus changes. Commit/cancel and
@@ -117,6 +191,7 @@ module Event : sig
     | Committed of Source.t * Snapshot.t
     | Rejected of Rejection.t * Snapshot.t
     | Cancelled of Cancel_reason.t * Snapshot.t
+    | Step_requested of Step_request.t
   [@@deriving equal, sexp_of]
 end
 
@@ -153,6 +228,11 @@ module Command : sig
     | Cancel
     | Step of Numeric.Direction.t
     | Read_snapshot
+    (** Consumes one still-current request. Applying records an undoable commit
+        with the original source; declining leaves the value unchanged. A stale
+        reply cannot consume a newer request. Disabled/read-only and native
+        interaction gates apply, unlike ordinary explicit replacements. *)
+    | Resolve_step of Step_request.t * Step_resolution.t
   [@@deriving equal, sexp_of]
 end
 
@@ -181,6 +261,11 @@ val max_draft_bytes : int
 val validate_draft : string -> unit Or_error.t
 
 module Expert : sig
+  val appearance_to_wire
+    :  Appearance.t
+    -> theme:Theme.t
+    -> Gpuio_protocol.Wire.Number_presentation.t Or_error.t
+
   val config_to_wire : Config.t -> Gpuio_protocol.Number_input_wire.Config.t
   val value_to_wire : Value.t -> Gpuio_protocol.Number_input_wire.Value.t
 
@@ -197,6 +282,7 @@ module Expert : sig
     -> Event.t Or_error.t
 
   val command_to_wire : Command.t -> Gpuio_protocol.Number_input_wire.Command.t
+  val command_snapshot : Command.t -> Snapshot.t option
   val error_of_wire : Gpuio_protocol.Number_input_wire.Error.t -> Command_error.t
   val window : Snapshot.t -> Gpuio_protocol.Window_id.t
   val node : Snapshot.t -> Gpuio_protocol.Node_id.t
