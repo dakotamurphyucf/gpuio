@@ -71,7 +71,10 @@ asynchronous-value checks and passes locally and in terminal run `37848090787`.
 That run passes Linux and fresh macOS consumers; macOS Foundation fails only
 point routing, popup radar focus and navigation resize. The
 [focused test synchronization changes](evidence/preview-native-test-readiness-och17.md)
-pass locally and await batched hosted validation.
+pass locally and in terminal run `37862430983`. That run passes the fresh macOS
+receiver but fails Linux collector Clippy and the macOS document-cleanup snapshot.
+The [two follow-up fixes](evidence/preview-document-cleanup-och17.md) pass locally
+and await batched CI; skipped consumer checks still need the repaired candidate.
 See the [CI record](evidence/milestone-07-ci.md). Final integration remains open.
 
 The [preview adoption guide](developer-preview.md) and GitHub feedback templates

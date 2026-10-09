@@ -30,7 +30,7 @@ def expect_field(mac, title, label, expected, role="AXTextField"):
     raise RuntimeError(f'{label}: expected {expected!r}, got {actual!r}')
 
 
-def wait_for_resource_cleanup(mac):
+def wait_for_resource_cleanup(mac, *, documents=False):
     """Refresh the explicit snapshot while native release acknowledgments settle."""
     deadline = time.monotonic() + 35
     actual = None
@@ -44,7 +44,24 @@ def wait_for_resource_cleanup(mac):
                 mac.release(node)
             print('GALLERY_RESOURCE_SNAPSHOT', actual, flush=True)
             if actual == 'Images: 0 · Charts: 0 · Canvases: 0':
-                return
+                if not documents:
+                    return
+                # Runtime counts are an explicit snapshot, not a live counter.
+                # Document release acknowledgments can arrive after image/chart
+                # cleanup. Keep refreshing until the counts we assert are zero.
+                counts = []
+                for label in ('Documents:', 'Registered source bytes:'):
+                    value = mac.find(TITLE, label, 'AXStaticText', contains=True,
+                                     deadline=deadline)
+                    try:
+                        counts.append(mac.text(value, 'AXTitle') if value else None)
+                    finally:
+                        if value:
+                            mac.release(value)
+                actual = (actual, *counts)
+                print('GALLERY_DOCUMENT_SNAPSHOT', counts, flush=True)
+                if counts == ['Documents: 0', 'Registered source bytes: 0']:
+                    return
         time.sleep(.05)
     raise RuntimeError(f'Native registrations did not retire: {actual!r}')
 

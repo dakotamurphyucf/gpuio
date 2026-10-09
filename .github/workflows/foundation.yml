@@ -179,8 +179,10 @@ jobs:
         run: python3 scripts/test_mac_window_readiness.py 2>&1 | tee .cache/ci/window-pointer-readiness.log
       - name: Results column geometry readiness (no display)
         run: python3 scripts/test_results_geometry.py 2>&1 | tee .cache/ci/results-geometry-readiness.log
-      - name: Document profile focus acknowledgement (no display)
-        run: python3 scripts/test_document_profile_focus_wait.py 2>&1 | tee .cache/ci/document-profile-focus-wait.log
+      - name: Document profile focus and cleanup acknowledgement (no display)
+        run: |
+          python3 scripts/test_document_profile_focus_wait.py 2>&1 | tee .cache/ci/document-profile-focus-wait.log
+          python3 scripts/test_document_profile_cleanup.py 2>&1 | tee .cache/ci/document-profile-cleanup.log
       - name: Input-source restoration scope (no display)
         run: python3 scripts/test_mac_input_source.py 2>&1 | tee .cache/ci/input-source-scope.log
       - name: Clipboard preservation scope (no display)

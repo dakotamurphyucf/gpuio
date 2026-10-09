@@ -284,7 +284,7 @@ def main():
             assert not review_visible()[0], 'Unmounted plugin retained scroll state'
             report['checks'].append({'case': 'plugin-unmount-releases-scroll-state'})
             mac.press(TITLE, 'Runtime & windows')
-            wait_for_resource_cleanup(mac)
+            wait_for_resource_cleanup(mac, documents=True)
             mac.wait_text(TITLE, 'Documents: 0')
             mac.wait_text(TITLE, 'Registered source bytes: 0')
             assert [entry[1] for entry in events()] == expected

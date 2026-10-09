@@ -54,7 +54,7 @@ impl Input {
     }
 }
 impl State {
-    #[cfg(feature = "native-tests")]
+    #[cfg(all(target_os = "macos", feature = "native-tests"))]
     pub(in crate::host) fn pointer_ready(&self, window: &Window) -> bool {
         self.input_allowed(window, true)
     }

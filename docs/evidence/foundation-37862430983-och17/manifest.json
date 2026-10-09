@@ -1,0 +1,220 @@
+{
+  "run": 37862430983,
+  "head": "83a9f3988d63d2a10fae19d3bbdaf8ca859a53a3",
+  "tested_merge": "8dfbc7e8ff2d8b30778e5384a5ce5463173c5f48",
+  "identical_tree": "2b767da591672fb49438c99d1ec09448d9e83c70",
+  "local_source": "head plus local/candidate.patch and added local/source/scripts/test_document_profile_cleanup.py",
+  "archive_sha256": "d16a674e3759a68dbb5abc0ebf48d3e75360311b2afb7c7c3f95fc2ef9639eaa",
+  "files": [
+    {
+      "path": "hosted/ax-point-routing/report.json",
+      "size": 25600,
+      "sha256": "25ebfdedd58041a19eb60dff3a92d1808c3a0f7d221d2f80d032b9d3d9c799bd"
+    },
+    {
+      "path": "hosted/document-profile/application.log",
+      "size": 560,
+      "sha256": "a1ccf342c04bce864e0d29533cd708d100fb248db8f87dc74ab5dad21bffbacd"
+    },
+    {
+      "path": "hosted/document-profile/profile-tab-exit.png",
+      "size": 164966,
+      "sha256": "c82e7bbdacb552d58e342fb049357cd85d2381f878d2399679362ea9d430e44a"
+    },
+    {
+      "path": "hosted/document-profile/report.json",
+      "size": 3419,
+      "sha256": "02f87ce1021298154b7b2d089ec954a471568bcb8e9fc024a5cfdda8c42a105e"
+    },
+    {
+      "path": "hosted/document-profile-focus-wait.log",
+      "size": 101,
+      "sha256": "921b60a7fd52e978fbb551cacd29df2d6708879400278e1fcc70fceeb0c6f8e0"
+    },
+    {
+      "path": "hosted/linux-performance-collector.log",
+      "size": 2128,
+      "sha256": "e6f3c42c8c94611f76a45b312eaa2abbf4f66693a121c502cd47d17df17c942f"
+    },
+    {
+      "path": "hosted/linux-wayland.log",
+      "size": 19420,
+      "sha256": "ce87aadadf54bc3e57254663a0fd70774ecfd301592b112af123711df4d31d99"
+    },
+    {
+      "path": "hosted/macos-document-profile-failed-step.log",
+      "size": 10378,
+      "sha256": "11da434784bfa132a7f7405b280d468ad7398c1cdf2a99311859047ee6ad4aa3"
+    },
+    {
+      "path": "hosted/macos-document-profile.log",
+      "size": 6197,
+      "sha256": "e305fd4a1f96d31a16072ff36aa83d379dab07fff26dd3cb7c95aaed73c5291d"
+    },
+    {
+      "path": "hosted/macos-menu-popup-queue.log",
+      "size": 592666,
+      "sha256": "1453fcb24b060adc8945014322741628e66284fb544e4f3d0de3439c70c254cf"
+    },
+    {
+      "path": "hosted/macos-navigation-native.log",
+      "size": 593288,
+      "sha256": "cd122877961de121567d4347e7225cb09bbe0955231e34d645c0ea015034c4fe"
+    },
+    {
+      "path": "hosted/metal-api-availability/availability.json",
+      "size": 132,
+      "sha256": "dc0f0496287b8fdebc90393f45a15e1160b67bcdd3ce86a172cbc480f99e52c2"
+    },
+    {
+      "path": "hosted/metal-api-availability/report.json",
+      "size": 63794,
+      "sha256": "c6483a62d18eebb0aebccb031383f2b1b873be6c9d3d225b0bbc81ab6b525ab6"
+    },
+    {
+      "path": "hosted/metal-presentation-hook/availability.json",
+      "size": 132,
+      "sha256": "e75e3cb441923fde9e5ca2392dfe67aea14725557d00b7a39d63ce325d16ec34"
+    },
+    {
+      "path": "hosted/metal-presentation-hook/report.json",
+      "size": 76207,
+      "sha256": "1d17489705a8e93d21db0ad8231b67c4aac7e7b16a010409766382d749dd7551"
+    },
+    {
+      "path": "hosted/metal-preview-summary/availability.json",
+      "size": 162,
+      "sha256": "6aa12ac6895ce7777fa2efe18a3e6a3b502f32241373a00593f9e4b3f48178a0"
+    },
+    {
+      "path": "hosted/receiver/agent-chat/report.json",
+      "size": 1534,
+      "sha256": "00fd5962bccdd6f2653502697195d692f0d4742038cb5b1997c2be424cd4523d"
+    },
+    {
+      "path": "hosted/receiver/gallery/report.json",
+      "size": 6457,
+      "sha256": "68832ad7e532dd6e78bf65079898c8fea68aeeb237fb449eef448e952105da62"
+    },
+    {
+      "path": "hosted/receiver/signal-studio/report.json",
+      "size": 1592,
+      "sha256": "3f9e9c80c97b23e3c43464dc136e00f9ace101c92e2cb5bb18a68510290df476"
+    },
+    {
+      "path": "hosted/terminal.json",
+      "size": 79807,
+      "sha256": "4da56785f868f7631ed8e517d9fe054c11306c121bdb3761c4bf142913418657"
+    },
+    {
+      "path": "local/candidate.patch",
+      "size": 4340,
+      "sha256": "7532eb2187e97f3e85d7e2e76e6e6d23d790981ba2d0d8a7e8d6cb27e197b72b"
+    },
+    {
+      "path": "local/document-cleanup-actionlint.log",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "local/document-cleanup-native.log",
+      "size": 1770,
+      "sha256": "1302fa4b4e82459b2c885786aba03544466f5857b6aa247ec9224dd6e6d6fe65"
+    },
+    {
+      "path": "local/document-cleanup-ruff-baseline.json",
+      "size": 84,
+      "sha256": "c82a34c47c285ff9009758852c5e39326a00ed04b59a996276d644756ab334df"
+    },
+    {
+      "path": "local/document-cleanup-ruff.log",
+      "size": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "local/document-cleanup-sensitivity.json",
+      "size": 141,
+      "sha256": "c0f1cd3f8a8bf2417bb2c0351b98b7493f4c23c484e1f4af02608920fc84c2f7"
+    },
+    {
+      "path": "local/document-cleanup-unit.log",
+      "size": 102,
+      "sha256": "80144f3bf12d071a1497821467ab02765712cb11da3f547a5e2b5cf79f938e9a"
+    },
+    {
+      "path": "local/document-profile/application.log",
+      "size": 560,
+      "sha256": "a1ccf342c04bce864e0d29533cd708d100fb248db8f87dc74ab5dad21bffbacd"
+    },
+    {
+      "path": "local/document-profile/first-action-focused.png",
+      "size": 423535,
+      "sha256": "71d5a1e72389c2a62fb425bb2b0d92bab909fd0e40717b816e345c6d7f7ee058"
+    },
+    {
+      "path": "local/document-profile/native-controls.png",
+      "size": 414207,
+      "sha256": "38824e4f3facdea504960bd117810f1e07aee8f5ce51a9e396427f07a9660a62"
+    },
+    {
+      "path": "local/document-profile/profile-before-tab-exit.png",
+      "size": 413979,
+      "sha256": "081695d0cb93f6b91a58c505020dd1f5c6a5b157c9c79f24a978f840c120ef46"
+    },
+    {
+      "path": "local/document-profile/profile-inner-scroll-end.png",
+      "size": 396582,
+      "sha256": "94536c580997c220a967da468f087c141b50584eb9be7d211de8dbc5e1872b20"
+    },
+    {
+      "path": "local/document-profile/profile-tab-exit.png",
+      "size": 412804,
+      "sha256": "11b77f2128950f04c4593c286d1bad96567dbdbcd6fae0a9c65daa0243efaf9a"
+    },
+    {
+      "path": "local/document-profile/report.json",
+      "size": 3954,
+      "sha256": "36670d9611b1460f15cbee499ad6d8d678eaad407601a290d07dced415713a9c"
+    },
+    {
+      "path": "local/document-profile-build.log",
+      "size": 100138,
+      "sha256": "d09f91bef0a258cff40aa56884239da34823961e2874fc38a98e4506a0a3044d"
+    },
+    {
+      "path": "local/pointer-ready-cfg-clippy.log",
+      "size": 592612,
+      "sha256": "11b0a6427dd04d7e89e7a6bed5018fabeee060fa1a255ec9f7bb268ab7479276"
+    },
+    {
+      "path": "local/revalidated-metal/availability.json",
+      "size": 162,
+      "sha256": "6aa12ac6895ce7777fa2efe18a3e6a3b502f32241373a00593f9e4b3f48178a0"
+    },
+    {
+      "path": "local/source/rust/native/src/chart_input.rs",
+      "size": 18983,
+      "sha256": "d4095325e7dc31fdabb986f3680d8ca09557ac9bf2a9eeead3a9c7344e64f12a"
+    },
+    {
+      "path": "local/source/scripts/test_document_profile_cleanup.py",
+      "size": 2623,
+      "sha256": "acd3f0b3f9574fefb08afc76cc8a927c4266107a00ea9d14ec26844a4207d15b"
+    },
+    {
+      "path": "local/source/scripts/test_gallery.py",
+      "size": 371282,
+      "sha256": "054ec4ab285ac3e7dcc137d6a17b646bb837a6ca6f4339ce9e75e0b370333f86"
+    },
+    {
+      "path": "local/source/scripts/test_macos_document_profile.py",
+      "size": 15190,
+      "sha256": "2adcb616f8b87d309c1acecbdd246681f3c84a651ed6e5d202bca5ea548986fd"
+    },
+    {
+      "path": "local/source-description.json",
+      "size": 333,
+      "sha256": "8104891306d4f9b8d50930d3687871adc3766a29e684495dce321e6dc77eb4ae"
+    }
+  ]
+}

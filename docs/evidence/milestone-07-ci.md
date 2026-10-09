@@ -1,5 +1,25 @@
 # Milestone 07 hosted validation follow-up
 
+## Terminal run — 37862430983: platform condition and cleanup snapshot
+
+[Foundation 37862430983](https://github.com/dakotamurphyucf/gpuio/actions/runs/37862430983)
+at `83a9f398` is terminal. macOS fails only the public document-profile cleanup
+snapshot; Linux fails only collector Clippy on an unused macOS test helper.
+The previous point-routing, popup-readiness and navigation-clock repairs pass
+hosted checks. Table full-history retention and the chat combined workload pass.
+The [focused follow-up](preview-document-cleanup-och17.md) records both fixes,
+local validation and the original failures in a verified 42-file archive.
+
+Linux consumer checks and the macOS independent Signal Studio consumer were
+skipped after the failures and still require a passing repaired candidate.
+Informational Wayland smoke fails the native-controls text assertion; X11 is
+skipped. This is not Linux desktop acceptance.
+
+All three fresh-runner extracted apps pass, with complete reports and clipboard
+restoration. Both hosted Metal probes classify as unavailable, confirmed by
+local revalidation of their raw reports; this is not physical timing acceptance.
+C2/R2 remain open pending repaired-candidate CI and preview publication.
+
 ## Terminal run — 37848090787: three native test failures
 
 [Foundation 37848090787](https://github.com/dakotamurphyucf/gpuio/actions/runs/37848090787)
